@@ -1,0 +1,1604 @@
+<Window x:Class="DynatecRDM.Views.ConnectionEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:DynatecRDM.Converters"
+        Style="{StaticResource AppWindowStyle}"
+        Title="{Binding WindowTitle}"
+        Width="1060"
+        Height="800"
+        MinWidth="900"
+        MinHeight="640"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        TextOptions.TextFormattingMode="Ideal">
+
+    <Window.InputBindings>
+        <KeyBinding Key="Escape" Command="{Binding CancelCommand}" />
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
+    </Window.InputBindings>
+
+    <Window.Resources>
+
+        <!-- ============================================================
+             Icons. Drawn as geometry so nothing depends on an icon font
+             being installed. All are authored inside a 24x24 box.
+             ============================================================ -->
+
+        <PathGeometry x:Key="IconPulse" Figures="M2,12 L7,12 L9.5,6 L14,18 L16.5,12 L22,12" />
+        <PathGeometry x:Key="IconCard" Figures="M3,6 H21 V18 H3 Z M6,10 H10 M6,13.5 H9 M14,10 H18 M14,13.5 H18" />
+        <PathGeometry x:Key="IconPlus" Figures="M12,5 V19 M5,12 H19" />
+        <PathGeometry x:Key="IconClose" Figures="M6.5,6.5 L17.5,17.5 M17.5,6.5 L6.5,17.5" />
+        <PathGeometry x:Key="IconWarning" Figures="M12,4 L21.5,19.5 L2.5,19.5 Z M12,10 V14 M12,16.4 V17.6" />
+        <PathGeometry x:Key="IconMonitor" Figures="M3,5 H21 V16.5 H3 Z M9,20 H15 M12,16.5 V20" />
+
+        <!-- ============================================================
+             Local text styles
+             ============================================================ -->
+
+        <Style x:Key="EditorLabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeNormal}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+
+        <Style x:Key="EditorHintStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,5,0,0" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+
+        <Style x:Key="EditorErrorStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,5,0,0" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+
+        <Style x:Key="EditorValueStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeNormal}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+
+        <!-- ============================================================
+             Radio button. The shared dictionary has no radio style, so
+             one is built here from the shared palette only.
+             ============================================================ -->
+
+        <Style x:Key="EditorRadioStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeNormal}" />
+            <Setter Property="Padding" Value="8,0,0,0" />
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="Margin" Value="0,0,20,0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource AppFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid Background="Transparent" SnapsToDevicePixels="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="Ring"
+                                    Width="16"
+                                    Height="16"
+                                    CornerRadius="8"
+                                    VerticalAlignment="Center"
+                                    Background="{StaticResource SurfaceAltBrush}"
+                                    BorderBrush="{StaticResource BorderBrushStrong}"
+                                    BorderThickness="1"
+                                    SnapsToDevicePixels="True">
+                                <Ellipse x:Name="Dot"
+                                         Width="7"
+                                         Height="7"
+                                         Visibility="Collapsed"
+                                         Fill="{StaticResource TextPrimaryBrush}" />
+                            </Border>
+                            <ContentPresenter x:Name="Cp"
+                                              Grid.Column="1"
+                                              Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
+                                              RecognizesAccessKey="True"
+                                              SnapsToDevicePixels="True" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Ring" Property="Background" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource AccentHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Ring" Property="Background" Value="{StaticResource SurfaceBrush}" />
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource BorderBrushSoft}" />
+                                <Setter TargetName="Dot" Property="Fill" Value="{StaticResource TextMutedBrush}" />
+                                <Setter TargetName="Cp" Property="TextElement.Foreground" Value="{StaticResource TextMutedBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ============================================================
+             Monitor map tile. Highlight comes from the tile's own state
+             through the button's Background and BorderBrush.
+             ============================================================ -->
+
+        <Style x:Key="MonitorTileStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushStrong}" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource AppFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="2"
+                                CornerRadius="{StaticResource RadiusSmall}"
+                                ClipToBounds="True"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter SnapsToDevicePixels="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentSubtleBrush}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ============================================================
+             Read-only monospace preview. Same shell as AppTextBoxStyle,
+             but the scroll bars follow the control instead of being
+             pinned to Hidden, which the preview needs.
+             ============================================================ -->
+
+        <Style x:Key="RdpPreviewBoxStyle" TargetType="TextBox" BasedOn="{StaticResource AppTextBoxStyle}">
+            <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, Courier New" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource RadiusSmall}"
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Background="Transparent"
+                                          Focusable="False"
+                                          HorizontalScrollBarVisibility="{TemplateBinding HorizontalScrollBarVisibility}"
+                                          VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ================================================================
+             Header
+             ================================================================ -->
+
+        <Border Grid.Row="0"
+                Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrushSoft}"
+                BorderThickness="0,0,0,1"
+                Padding="18,14"
+                SnapsToDevicePixels="True">
+            <StackPanel>
+                <TextBlock Text="{Binding WindowTitle}"
+                           FontSize="{StaticResource FontSizeLarge}"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}" />
+                <TextBlock Text="{Binding HeaderSubtitle}"
+                           Margin="0,2,0,0"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+
+        <!-- ================================================================
+             Tabs
+             ================================================================ -->
+
+        <TabControl Grid.Row="1"
+                    Margin="18,8,18,0"
+                    Style="{StaticResource AppTabControlStyle}"
+                    SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
+
+            <!-- ============================================================
+                 1. GENERAL
+                 ============================================================ -->
+            <TabItem Header="General">
+                <ScrollViewer Style="{StaticResource AppScrollViewerStyle}" Padding="0,0,10,0">
+                    <StackPanel Margin="0,0,0,14">
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="IDENTITY" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Name" Style="{StaticResource EditorLabelStyle}" VerticalAlignment="Top" Margin="0,7,12,0" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBox Style="{StaticResource AppTextBoxStyle}"
+                                                 Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                 MaxLength="120" />
+                                        <TextBlock Style="{StaticResource EditorErrorStyle}"
+                                                   Text="{Binding NameError}"
+                                                   Visibility="{Binding NameError, Converter={x:Static conv:StringToVisibilityConverter.Instance}}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Description" Style="{StaticResource EditorLabelStyle}" VerticalAlignment="Top" Margin="0,7,12,0" />
+                                    <TextBox Grid.Column="1"
+                                             Style="{StaticResource AppTextBoxStyle}"
+                                             Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="400" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="14" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="104" />
+                                        <ColumnDefinition Width="14" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Host" Style="{StaticResource EditorLabelStyle}" />
+                                    <TextBox Grid.Column="1"
+                                             VerticalAlignment="Center"
+                                             Style="{StaticResource AppTextBoxStyle}"
+                                             Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="255" />
+                                    <TextBlock Grid.Column="3" Text="Port" Style="{StaticResource EditorLabelStyle}" Margin="0,0,10,0" />
+                                    <TextBox Grid.Column="4"
+                                             VerticalAlignment="Center"
+                                             Style="{StaticResource AppTextBoxStyle}"
+                                             Text="{Binding PortText, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="5" />
+                                    <Button Grid.Column="6"
+                                            VerticalAlignment="Center"
+                                            MinWidth="96"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Command="{Binding TestCommand}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Width="18"
+                                                  Height="18"
+                                                  Stretch="Uniform"
+                                                  VerticalAlignment="Center"
+                                                  Data="{StaticResource IconPulse}"
+                                                  Stroke="{StaticResource TextSecondaryBrush}"
+                                                  StrokeThickness="1.6"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round" />
+                                            <TextBlock Text="Test" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Style="{StaticResource EditorErrorStyle}"
+                                                   Text="{Binding HostError}"
+                                                   Visibility="{Binding HostError, Converter={x:Static conv:StringToVisibilityConverter.Instance}}" />
+                                        <TextBlock Style="{StaticResource EditorErrorStyle}"
+                                                   Text="{Binding PortError}"
+                                                   Visibility="{Binding PortError, Converter={x:Static conv:StringToVisibilityConverter.Instance}}" />
+                                        <TextBlock Text="{Binding TestResultText}"
+                                                   Visibility="{Binding TestResultText, Converter={x:Static conv:StringToVisibilityConverter.Instance}}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource EditorHintStyle}">
+                                                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding TestSucceeded}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsTesting}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="ORGANISATION AND SIGN-IN" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Group" Style="{StaticResource EditorLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding Groups}"
+                                              DisplayMemberPath="Label"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedItem="{Binding SelectedGroup, Mode=TwoWay}" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Credential set" Style="{StaticResource EditorLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding Credentials}"
+                                              DisplayMemberPath="Label"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedItem="{Binding SelectedCredential, Mode=TwoWay}" />
+                                    <Button Grid.Column="3"
+                                            VerticalAlignment="Center"
+                                            MinWidth="116"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Command="{Binding ManageCredentialsCommand}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Width="18"
+                                                  Height="18"
+                                                  Stretch="Uniform"
+                                                  VerticalAlignment="Center"
+                                                  Data="{StaticResource IconCard}"
+                                                  Stroke="{StaticResource TextSecondaryBrush}"
+                                                  StrokeThickness="1.4"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round" />
+                                            <TextBlock Text="Manage..." Margin="8,0,0,0" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="1" Style="{StaticResource EditorHintStyle}" Text="{Binding CredentialSummary}" Margin="0,0,0,0" />
+                                </Grid>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Credential delivery" Style="{StaticResource EditorLabelStyle}" VerticalAlignment="Top" Margin="0,7,12,0" />
+                                    <StackPanel Grid.Column="1">
+                                        <ComboBox Style="{StaticResource AppComboBoxStyle}"
+                                                  ItemsSource="{Binding CredentialDeliveryOptions}"
+                                                  DisplayMemberPath="Label"
+                                                  SelectedValuePath="Value"
+                                                  IsSynchronizedWithCurrentItem="False"
+                                                  SelectedValue="{Binding CredentialDeliveryMode, Mode=TwoWay}" />
+                                        <TextBlock Style="{StaticResource EditorHintStyle}" Text="{Binding CredentialDeliveryHelp}" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="APPEARANCE" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Colour" Style="{StaticResource EditorLabelStyle}" VerticalAlignment="Top" Margin="0,7,12,0" />
+                                    <StackPanel Grid.Column="1">
+                                        <ListBox Style="{StaticResource AppListBoxStyle}"
+                                                 ItemsSource="{Binding ColorOptions}"
+                                                 SelectedItem="{Binding SelectedColorOption, Mode=TwoWay}"
+                                                 IsSynchronizedWithCurrentItem="False"
+                                                 ScrollViewer.CanContentScroll="True"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                                 VirtualizingPanel.IsVirtualizing="True"
+                                                 VirtualizingPanel.VirtualizationMode="Recycling">
+                                            <ListBox.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <VirtualizingStackPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ListBox.ItemsPanel>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Width="18" Height="18">
+                                                        <Border CornerRadius="9"
+                                                                Background="{Binding Hex, Converter={x:Static conv:HexToBrushConverter.Instance}}"
+                                                                BorderBrush="{StaticResource BorderBrushStrong}"
+                                                                BorderThickness="1"
+                                                                SnapsToDevicePixels="True" />
+                                                        <Path Data="M3.5,14.5 L14.5,3.5"
+                                                              Stroke="{StaticResource TextMutedBrush}"
+                                                              StrokeThickness="1.4"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              Visibility="{Binding IsNone, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <TextBlock Style="{StaticResource EditorHintStyle}" Text="{Binding SelectedColorOption.Name}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Tags" Style="{StaticResource EditorLabelStyle}" VerticalAlignment="Top" Margin="0,7,12,0" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBox Style="{StaticResource AppTextBoxStyle}"
+                                                 Text="{Binding Tags, UpdateSourceTrigger=PropertyChanged}"
+                                                 MaxLength="200" />
+                                        <TextBlock Style="{StaticResource EditorHintStyle}" Text="Comma separated, for example: production, sql, oslo" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox Grid.Column="1"
+                                              Style="{StaticResource AppToggleStyle}"
+                                              IsChecked="{Binding Favorite, Mode=TwoWay}"
+                                              Content="Show as a favourite in the tray menu" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============================================================
+                 2. DISPLAY
+                 ============================================================ -->
+            <TabItem Header="Display">
+                <ScrollViewer Style="{StaticResource AppScrollViewerStyle}" Padding="0,0,10,0">
+                    <StackPanel Margin="0,0,0,14">
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="SCREEN MODE" Style="{StaticResource SectionHeaderStyle}" />
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton Style="{StaticResource EditorRadioStyle}"
+                                                 GroupName="ScreenModeGroup"
+                                                 Content="Windowed"
+                                                 IsChecked="{Binding ScreenMode, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Windowed}" />
+                                    <RadioButton Style="{StaticResource EditorRadioStyle}"
+                                                 GroupName="ScreenModeGroup"
+                                                 Content="Full screen"
+                                                 IsChecked="{Binding ScreenMode, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Fullscreen}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="MONITOR USE" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <WrapPanel Margin="0,0,0,10">
+                                    <RadioButton Style="{StaticResource EditorRadioStyle}"
+                                                 GroupName="PlacementGroup"
+                                                 Content="Let Windows decide"
+                                                 IsChecked="{Binding Placement, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Default}" />
+                                    <RadioButton Style="{StaticResource EditorRadioStyle}"
+                                                 GroupName="PlacementGroup"
+                                                 Content="Full screen on one monitor"
+                                                 IsChecked="{Binding Placement, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=SpecificMonitorFullscreen}" />
+                                    <RadioButton Style="{StaticResource EditorRadioStyle}"
+                                                 GroupName="PlacementGroup"
+                                                 Content="Maximized on one monitor"
+                                                 IsChecked="{Binding Placement, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=SpecificMonitorMaximized}" />
+                                    <RadioButton Style="{StaticResource EditorRadioStyle}"
+                                                 GroupName="PlacementGroup"
+                                                 Content="Span all monitors"
+                                                 IsChecked="{Binding Placement, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=SpanAllMonitors}" />
+                                    <RadioButton Style="{StaticResource EditorRadioStyle}"
+                                                 GroupName="PlacementGroup"
+                                                 Content="Use selected monitors"
+                                                 IsChecked="{Binding Placement, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=SelectedMonitors}" />
+                                    <RadioButton Style="{StaticResource EditorRadioStyle}"
+                                                 GroupName="PlacementGroup"
+                                                 Content="Custom rectangle"
+                                                 IsChecked="{Binding Placement, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=CustomRectangle}" />
+                                </WrapPanel>
+
+                                <Border Background="{StaticResource BackgroundBrush}"
+                                        BorderBrush="{StaticResource BorderBrushSoft}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMedium}"
+                                        Height="230"
+                                        SnapsToDevicePixels="True">
+                                    <Grid x:Name="MonitorMapHost" ClipToBounds="True" SizeChanged="OnMonitorMapSizeChanged">
+                                        <ItemsControl ItemsSource="{Binding MonitorTiles}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Canvas />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemContainerStyle>
+                                                <Style TargetType="ContentPresenter">
+                                                    <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                                    <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                                                </Style>
+                                            </ItemsControl.ItemContainerStyle>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Style="{StaticResource MonitorTileStyle}"
+                                                            Width="{Binding W}"
+                                                            Height="{Binding H}"
+                                                            Command="{Binding DataContext.SelectMonitorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}">
+                                                        <Button.ToolTip>
+                                                            <!-- A tool tip lives in its own tree, so the tile is reached
+                                                                 through the placement target rather than by inheritance. -->
+                                                            <ToolTip Style="{StaticResource AppToolTipStyle}"
+                                                                     Content="{Binding PlacementTarget.DataContext.Description, RelativeSource={RelativeSource Self}}" />
+                                                        </Button.ToolTip>
+                                                        <Grid Margin="6,4" ClipToBounds="True">
+                                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Left">
+                                                                <TextBlock Text="{Binding Title}"
+                                                                           FontSize="{StaticResource FontSizeLarge}"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                                                                <TextBlock Text="{Binding FriendlyName}"
+                                                                           FontSize="{StaticResource FontSizeSmall}"
+                                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding ResolutionText}"
+                                                                           FontSize="{StaticResource FontSizeSmall}"
+                                                                           Foreground="{StaticResource TextMutedBrush}"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <Border Style="{StaticResource StatusPillStyle}"
+                                                                    HorizontalAlignment="Right"
+                                                                    VerticalAlignment="Top"
+                                                                    Visibility="{Binding IsPrimary, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                                                                <TextBlock Text="Primary"
+                                                                           FontSize="{StaticResource FontSizeSmall}"
+                                                                           Foreground="{StaticResource TextSecondaryBrush}" />
+                                                            </Border>
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <Canvas IsHitTestVisible="False">
+                                            <Border Canvas.Left="{Binding CustomRectX}"
+                                                    Canvas.Top="{Binding CustomRectY}"
+                                                    Width="{Binding CustomRectW}"
+                                                    Height="{Binding CustomRectH}"
+                                                    Background="{StaticResource AccentSubtleBrush}"
+                                                    BorderBrush="{StaticResource AccentBrush}"
+                                                    BorderThickness="2"
+                                                    CornerRadius="{StaticResource RadiusSmall}"
+                                                    Opacity="0.85"
+                                                    SnapsToDevicePixels="True"
+                                                    Visibility="{Binding ShowCustomRect, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                                        </Canvas>
+
+                                        <StackPanel HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Visibility="{Binding HasMonitors, Converter={x:Static conv:BoolToVisibilityConverter.Instance}, ConverterParameter=invert}">
+                                            <Path Width="32"
+                                                  Height="32"
+                                                  Stretch="Uniform"
+                                                  HorizontalAlignment="Center"
+                                                  Data="{StaticResource IconMonitor}"
+                                                  Stroke="{StaticResource TextMutedBrush}"
+                                                  StrokeThickness="1.3"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round" />
+                                            <TextBlock Text="{Binding MonitorSummary}"
+                                                       Margin="0,10,0,0"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource TextMutedBrush}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <TextBlock Style="{StaticResource EditorHintStyle}" Text="{Binding MonitorSummary}" />
+
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Text="Click monitors to add or remove them from the set. mstsc needs the chosen monitors to be adjacent."
+                                           Visibility="{Binding IsMultiMonitorSelection, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+
+                                <Grid Margin="0,12,0,0"
+                                      Visibility="{Binding IsCustomRectangle, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="16" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="16" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="16" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Left" Style="{StaticResource EditorLabelStyle}" Margin="0,0,8,0" />
+                                    <TextBox Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource AppTextBoxStyle}" MaxLength="7"
+                                             Text="{Binding CustomLeftText, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Grid.Column="3" Text="Top" Style="{StaticResource EditorLabelStyle}" Margin="0,0,8,0" />
+                                    <TextBox Grid.Column="4" VerticalAlignment="Center" Style="{StaticResource AppTextBoxStyle}" MaxLength="7"
+                                             Text="{Binding CustomTopText, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Grid.Column="6" Text="Width" Style="{StaticResource EditorLabelStyle}" Margin="0,0,8,0" />
+                                    <TextBox Grid.Column="7" VerticalAlignment="Center" Style="{StaticResource AppTextBoxStyle}" MaxLength="6"
+                                             Text="{Binding CustomWidthText, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Grid.Column="9" Text="Height" Style="{StaticResource EditorLabelStyle}" Margin="0,0,8,0" />
+                                    <TextBox Grid.Column="10" VerticalAlignment="Center" Style="{StaticResource AppTextBoxStyle}" MaxLength="6"
+                                             Text="{Binding CustomHeightText, UpdateSourceTrigger=PropertyChanged}" />
+                                </Grid>
+
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Text="Coordinates are in virtual-desktop pixels, so a monitor left of or above the primary uses negative values."
+                                           Visibility="{Binding IsCustomRectangle, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="RESOLUTION AND SCALING" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="260" />
+                                        <ColumnDefinition Width="16" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Session size" Style="{StaticResource EditorLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding ResolutionOptions}"
+                                              DisplayMemberPath="Label"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedItem="{Binding SelectedResolution, Mode=TwoWay}" />
+                                    <TextBlock Grid.Column="3" Text="Width" Style="{StaticResource EditorLabelStyle}" Margin="0,0,8,0"
+                                               Visibility="{Binding IsCustomResolution, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                                    <TextBox Grid.Column="4" VerticalAlignment="Center" Style="{StaticResource AppTextBoxStyle}" MaxLength="5"
+                                             Text="{Binding DesktopWidthText, UpdateSourceTrigger=PropertyChanged}"
+                                             Visibility="{Binding IsCustomResolution, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                                    <TextBlock Grid.Column="6" Text="Height" Style="{StaticResource EditorLabelStyle}" Margin="0,0,8,0"
+                                               Visibility="{Binding IsCustomResolution, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                                    <TextBox Grid.Column="7" VerticalAlignment="Center" Style="{StaticResource AppTextBoxStyle}" MaxLength="5"
+                                             Text="{Binding DesktopHeightText, UpdateSourceTrigger=PropertyChanged}"
+                                             Visibility="{Binding IsCustomResolution, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="260" />
+                                        <ColumnDefinition Width="16" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="16" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Colour depth" Style="{StaticResource EditorLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding ColorDepthOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedValue="{Binding ColorDepth, Mode=TwoWay}" />
+                                    <TextBlock Grid.Column="3" Text="Desktop scale" Style="{StaticResource EditorLabelStyle}" Margin="0,0,8,0" />
+                                    <ComboBox Grid.Column="4"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding DesktopScaleOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedValue="{Binding DesktopScaleFactor, Mode=TwoWay}" />
+                                    <TextBlock Grid.Column="6" Text="Device scale" Style="{StaticResource EditorLabelStyle}" Margin="0,0,8,0" />
+                                    <ComboBox Grid.Column="7"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding DeviceScaleOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedValue="{Binding DeviceScaleFactor, Mode=TwoWay}" />
+                                </Grid>
+
+                                <UniformGrid Columns="2" Margin="0,4,0,0">
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding SmartSizing, Mode=TwoWay}"
+                                              Content="Smart sizing (scale the desktop to the window)" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding DynamicResolution, Mode=TwoWay}"
+                                              Content="Dynamic resolution (resize the session with the window)" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding AlwaysOnTop, Mode=TwoWay}"
+                                              Content="Keep the session window always on top" />
+                                </UniformGrid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Background="{StaticResource SurfaceAltBrush}">
+                            <StackPanel>
+                                <TextBlock Text="WHAT WILL HAPPEN" Style="{StaticResource SectionHeaderStyle}" />
+                                <TextBlock Style="{StaticResource EditorValueStyle}" Text="{Binding PlacementPreview}" />
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============================================================
+                 3. EXPERIENCE
+                 ============================================================ -->
+            <TabItem Header="Experience">
+                <ScrollViewer Style="{StaticResource AppScrollViewerStyle}" Padding="0,0,10,0">
+                    <StackPanel Margin="0,0,0,14">
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="PERFORMANCE PRESETS" Style="{StaticResource SectionHeaderStyle}" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,10,0" MinWidth="130"
+                                            Content="LAN" Command="{Binding LanPresetCommand}" />
+                                    <Button Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,10,0" MinWidth="130"
+                                            Content="Balanced" Command="{Binding BalancedPresetCommand}" />
+                                    <Button Style="{StaticResource SecondaryButtonStyle}" MinWidth="130"
+                                            Content="Low bandwidth" Command="{Binding LowBandwidthPresetCommand}" />
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Text="A preset rewrites every option in this tab at once. Adjust anything afterwards." />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="CONNECTION" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="320" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Connection quality" Style="{StaticResource EditorLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding QualityOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedValue="{Binding Quality, Mode=TwoWay}" />
+                                </Grid>
+
+                                <UniformGrid Columns="2">
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding NetworkAutoDetect, Mode=TwoWay}"
+                                              IsEnabled="{Binding NetworkAutoDetectEnabled}"
+                                              Content="Detect network quality automatically" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding BandwidthAutoDetect, Mode=TwoWay}"
+                                              Content="Detect bandwidth automatically" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding Compression, Mode=TwoWay}"
+                                              Content="Compress the session stream" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding PersistentBitmapCache, Mode=TwoWay}"
+                                              Content="Persistent bitmap cache" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding MstscAutoReconnection, Mode=TwoWay}"
+                                              Content="Let mstsc reconnect on its own" />
+                                </UniformGrid>
+
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Text="Network detection only applies while the connection quality is set to detect automatically." />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="VISUALS" Style="{StaticResource SectionHeaderStyle}" />
+                                <UniformGrid Columns="2">
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding FontSmoothing, Mode=TwoWay}"
+                                              Content="Font smoothing" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding DesktopComposition, Mode=TwoWay}"
+                                              Content="Desktop composition" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding ShowWallpaper, Mode=TwoWay}"
+                                              Content="Desktop wallpaper" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding FullWindowDrag, Mode=TwoWay}"
+                                              Content="Show window contents while dragging" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding MenuAnimations, Mode=TwoWay}"
+                                              Content="Menu and window animations" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding VisualStyles, Mode=TwoWay}"
+                                              Content="Visual styles" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding CursorShadow, Mode=TwoWay}"
+                                              Content="Cursor shadow" />
+                                </UniformGrid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="AUDIO AND VIDEO" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="320" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Audio playback" Style="{StaticResource EditorLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding AudioPlaybackOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedValue="{Binding AudioPlayback, Mode=TwoWay}" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="320" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Audio recording" Style="{StaticResource EditorLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding AudioCaptureOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedValue="{Binding AudioCapture, Mode=TwoWay}" />
+                                </Grid>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="320" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Video playback" Style="{StaticResource EditorLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding VideoPlaybackOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedValue="{Binding VideoPlayback, Mode=TwoWay}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============================================================
+                 4. LOCAL RESOURCES
+                 ============================================================ -->
+            <TabItem Header="Local resources">
+                <ScrollViewer Style="{StaticResource AppScrollViewerStyle}" Padding="0,0,10,0">
+                    <StackPanel Margin="0,0,0,14">
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="REDIRECTION" Style="{StaticResource SectionHeaderStyle}" />
+                                <UniformGrid Columns="2">
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding RedirectClipboard, Mode=TwoWay}"
+                                              Content="Clipboard" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding RedirectPrinters, Mode=TwoWay}"
+                                              Content="Printers" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding RedirectSmartCards, Mode=TwoWay}"
+                                              Content="Smart cards" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding RedirectPorts, Mode=TwoWay}"
+                                              Content="Serial and parallel ports" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding RedirectPnpDevices, Mode=TwoWay}"
+                                              Content="Plug and play devices" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding RedirectWebAuthn, Mode=TwoWay}"
+                                              Content="WebAuthn (security keys)" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding RedirectLocation, Mode=TwoWay}"
+                                              Content="Location" />
+                                </UniformGrid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="DRIVES AND CAMERAS" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="260" />
+                                        <ColumnDefinition Width="16" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox Grid.Column="0"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppToggleStyle}"
+                                              IsChecked="{Binding RedirectDrives, Mode=TwoWay}"
+                                              Content="Redirect drives" />
+                                    <TextBox Grid.Column="2"
+                                             VerticalAlignment="Center"
+                                             Style="{StaticResource AppTextBoxStyle}"
+                                             IsEnabled="{Binding RedirectDrives}"
+                                             Text="{Binding DriveList, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="200" />
+                                </Grid>
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Text="Use * for every drive, or a semicolon-separated list such as C:;D:" />
+
+                                <Grid Margin="0,14,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="260" />
+                                        <ColumnDefinition Width="16" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox Grid.Column="0"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppToggleStyle}"
+                                              IsChecked="{Binding RedirectCameras, Mode=TwoWay}"
+                                              Content="Redirect cameras" />
+                                    <TextBox Grid.Column="2"
+                                             VerticalAlignment="Center"
+                                             Style="{StaticResource AppTextBoxStyle}"
+                                             IsEnabled="{Binding RedirectCameras}"
+                                             Text="{Binding CameraList, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="200" />
+                                </Grid>
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Text="Use * for every camera, or a semicolon-separated list of device instance paths." />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="KEYBOARD" Style="{StaticResource SectionHeaderStyle}" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220" />
+                                        <ColumnDefinition Width="320" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Apply shortcut keys" Style="{StaticResource EditorLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding KeyboardHookOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedValue="{Binding KeyboardHook, Mode=TwoWay}" />
+                                </Grid>
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Text="Decides where combinations such as Alt+Tab and the Windows key are handled." />
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============================================================
+                 5. GATEWAY
+                 ============================================================ -->
+            <TabItem Header="Gateway">
+                <ScrollViewer Style="{StaticResource AppScrollViewerStyle}" Padding="0,0,10,0">
+                    <StackPanel Margin="0,0,0,14">
+
+                        <Border Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="REMOTE DESKTOP GATEWAY" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="190" />
+                                        <ColumnDefinition Width="360" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Usage method" Style="{StaticResource EditorLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding GatewayUsageOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedValue="{Binding GatewayUsage, Mode=TwoWay}" />
+                                </Grid>
+
+                                <StackPanel IsEnabled="{Binding GatewayEnabled}">
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="360" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Gateway host" Style="{StaticResource EditorLabelStyle}" />
+                                        <TextBox Grid.Column="1"
+                                                 VerticalAlignment="Center"
+                                                 Style="{StaticResource AppTextBoxStyle}"
+                                                 Text="{Binding GatewayHost, UpdateSourceTrigger=PropertyChanged}"
+                                                 MaxLength="255" />
+                                    </Grid>
+
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="360" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Credential source" Style="{StaticResource EditorLabelStyle}" />
+                                        <ComboBox Grid.Column="1"
+                                                  VerticalAlignment="Center"
+                                                  Style="{StaticResource AppComboBoxStyle}"
+                                                  ItemsSource="{Binding GatewayCredentialSourceOptions}"
+                                                  DisplayMemberPath="Label"
+                                                  SelectedValuePath="Value"
+                                                  IsSynchronizedWithCurrentItem="False"
+                                                  SelectedValue="{Binding GatewayCredentials, Mode=TwoWay}" />
+                                    </Grid>
+
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="360" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Gateway credential" Style="{StaticResource EditorLabelStyle}" />
+                                        <ComboBox Grid.Column="1"
+                                                  VerticalAlignment="Center"
+                                                  Style="{StaticResource AppComboBoxStyle}"
+                                                  ItemsSource="{Binding GatewayCredentialOptions}"
+                                                  DisplayMemberPath="Label"
+                                                  IsSynchronizedWithCurrentItem="False"
+                                                  SelectedItem="{Binding SelectedGatewayCredential, Mode=TwoWay}" />
+                                    </Grid>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="1"
+                                                  Style="{StaticResource AppToggleStyle}"
+                                                  IsChecked="{Binding GatewayBypassLocal, Mode=TwoWay}"
+                                                  Content="Bypass the gateway for local addresses" />
+                                    </Grid>
+
+                                    <TextBlock Style="{StaticResource EditorHintStyle}"
+                                               Text="The gateway tunnels RDP over HTTPS. Leave the gateway credential empty to reuse the session login." />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============================================================
+                 6. SECURITY AND PROGRAM
+                 ============================================================ -->
+            <TabItem Header="Security and program">
+                <ScrollViewer Style="{StaticResource AppScrollViewerStyle}" Padding="0,0,10,0">
+                    <StackPanel Margin="0,0,0,14">
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="SECURITY" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="190" />
+                                        <ColumnDefinition Width="360" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Authentication level" Style="{StaticResource EditorLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource AppComboBoxStyle}"
+                                              ItemsSource="{Binding AuthLevelOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              IsSynchronizedWithCurrentItem="False"
+                                              SelectedValue="{Binding AuthLevel, Mode=TwoWay}" />
+                                </Grid>
+
+                                <UniformGrid Columns="2">
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding EnableCredSsp, Mode=TwoWay}"
+                                              Content="Enable CredSSP (network level authentication)" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding PromptForCredentialsOnce, Mode=TwoWay}"
+                                              Content="Prompt for credentials only once" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding AdministrativeSession, Mode=TwoWay}"
+                                              Content="Connect to the administrative session" />
+                                    <CheckBox Style="{StaticResource AppToggleStyle}" Margin="0,6,12,6"
+                                              IsChecked="{Binding PublicMode, Mode=TwoWay}"
+                                              Content="Public mode (cache nothing locally)" />
+                                </UniformGrid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="STARTUP PROGRAM" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="190" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Alternate shell" Style="{StaticResource EditorLabelStyle}" />
+                                    <TextBox Grid.Column="1"
+                                             VerticalAlignment="Center"
+                                             Style="{StaticResource AppTextBoxStyle}"
+                                             Text="{Binding AlternateShell, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="500" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="190" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Working directory" Style="{StaticResource EditorLabelStyle}" />
+                                    <TextBox Grid.Column="1"
+                                             VerticalAlignment="Center"
+                                             Style="{StaticResource AppTextBoxStyle}"
+                                             Text="{Binding ShellWorkingDirectory, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="500" />
+                                </Grid>
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Text="Starts a program instead of the remote desktop. Leave both empty for a normal desktop session." />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="REMOTEAPP" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <CheckBox Style="{StaticResource AppToggleStyle}"
+                                          Margin="0,0,0,10"
+                                          IsChecked="{Binding RemoteAppMode, Mode=TwoWay}"
+                                          Content="Run as a RemoteApp instead of a full desktop" />
+
+                                <StackPanel IsEnabled="{Binding RemoteAppMode}">
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Application name" Style="{StaticResource EditorLabelStyle}" />
+                                        <TextBox Grid.Column="1"
+                                                 VerticalAlignment="Center"
+                                                 Style="{StaticResource AppTextBoxStyle}"
+                                                 Text="{Binding RemoteApplicationName, UpdateSourceTrigger=PropertyChanged}"
+                                                 MaxLength="260" />
+                                    </Grid>
+
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Program path or alias" Style="{StaticResource EditorLabelStyle}" />
+                                        <TextBox Grid.Column="1"
+                                                 VerticalAlignment="Center"
+                                                 Style="{StaticResource AppTextBoxStyle}"
+                                                 Text="{Binding RemoteApplicationProgram, UpdateSourceTrigger=PropertyChanged}"
+                                                 MaxLength="500" />
+                                    </Grid>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Command line" Style="{StaticResource EditorLabelStyle}" />
+                                        <TextBox Grid.Column="1"
+                                                 VerticalAlignment="Center"
+                                                 Style="{StaticResource AppTextBoxStyle}"
+                                                 Text="{Binding RemoteApplicationCmdLine, UpdateSourceTrigger=PropertyChanged}"
+                                                 MaxLength="500" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="CONNECTION BROKER" Style="{StaticResource SectionHeaderStyle}" />
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="190" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Load balance info" Style="{StaticResource EditorLabelStyle}" />
+                                    <TextBox Grid.Column="1"
+                                             VerticalAlignment="Center"
+                                             Style="{StaticResource AppTextBoxStyle}"
+                                             Text="{Binding LoadBalanceInfo, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="500" />
+                                </Grid>
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Text="The routing token a connection broker expects, for example tsv://MS Terminal Services Plugin.1.Collection" />
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============================================================
+                 7. WATCHDOG
+                 ============================================================ -->
+            <TabItem Header="Watchdog">
+                <ScrollViewer Style="{StaticResource AppScrollViewerStyle}" Padding="0,0,10,0">
+                    <StackPanel Margin="0,0,0,14">
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="AUTOMATIC RECONNECT" Style="{StaticResource SectionHeaderStyle}" />
+
+                                <CheckBox Style="{StaticResource AppToggleStyle}"
+                                          Margin="0,0,0,12"
+                                          IsChecked="{Binding AutoReconnect, Mode=TwoWay}"
+                                          Content="Watch this session and bring it back if it drops" />
+
+                                <StackPanel IsEnabled="{Binding AutoReconnect}">
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="110" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Maximum attempts" Style="{StaticResource EditorLabelStyle}" />
+                                        <TextBox Grid.Column="1"
+                                                 VerticalAlignment="Center"
+                                                 Style="{StaticResource AppTextBoxStyle}"
+                                                 MaxLength="4"
+                                                 Text="{Binding MaxReconnectAttemptsText, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Grid.Column="2"
+                                                   Margin="12,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   FontSize="{StaticResource FontSizeSmall}"
+                                                   Text="0 means keep trying forever" />
+                                    </Grid>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="110" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Delay between attempts" Style="{StaticResource EditorLabelStyle}" />
+                                        <TextBox Grid.Column="1"
+                                                 VerticalAlignment="Center"
+                                                 Style="{StaticResource AppTextBoxStyle}"
+                                                 MaxLength="4"
+                                                 Text="{Binding ReconnectDelayText, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Grid.Column="2"
+                                                   Margin="12,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   FontSize="{StaticResource FontSizeSmall}"
+                                                   Text="seconds" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Background="{StaticResource SurfaceAltBrush}">
+                            <StackPanel>
+                                <TextBlock Text="WHAT WILL HAPPEN" Style="{StaticResource SectionHeaderStyle}" />
+                                <TextBlock Style="{StaticResource EditorValueStyle}" Text="{Binding WatchdogSummary}" />
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============================================================
+                 8. ADVANCED
+                 ============================================================ -->
+            <TabItem Header="Advanced">
+                <Grid Margin="0,0,10,14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="RAW .RDP PROPERTIES" Style="{StaticResource SectionHeaderStyle}" />
+                            <TextBlock Style="{StaticResource EditorHintStyle}"
+                                       Margin="0,0,0,10"
+                                       Text="These lines are written verbatim into the generated .rdp file and override every setting above. Give the bare property name, for example kdcproxyname, or add the type suffix yourself, for example kdcproxyname:s." />
+
+                            <ListBox Style="{StaticResource AppListBoxStyle}"
+                                     ItemsSource="{Binding CustomProperties}"
+                                     IsSynchronizedWithCurrentItem="False"
+                                     MinHeight="46"
+                                     MaxHeight="168"
+                                     ScrollViewer.CanContentScroll="True"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     VirtualizingPanel.IsVirtualizing="True"
+                                     VirtualizingPanel.VirtualizationMode="Recycling">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="280" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox Grid.Column="0"
+                                                      VerticalAlignment="Center"
+                                                      Style="{StaticResource AppComboBoxStyle}"
+                                                      IsEditable="True"
+                                                      IsSynchronizedWithCurrentItem="False"
+                                                      ItemsSource="{Binding DataContext.KnownPropertyNames, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      Text="{Binding Key, UpdateSourceTrigger=PropertyChanged}" />
+                                            <TextBox Grid.Column="2"
+                                                     VerticalAlignment="Center"
+                                                     Style="{StaticResource AppTextBoxStyle}"
+                                                     Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+                                            <Button Grid.Column="4"
+                                                    VerticalAlignment="Center"
+                                                    Style="{StaticResource IconButtonStyle}"
+                                                    Command="{Binding DataContext.RemoveCustomPropertyCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}">
+                                                <Button.ToolTip>
+                                                    <ToolTip Style="{StaticResource AppToolTipStyle}" Content="Remove this property" />
+                                                </Button.ToolTip>
+                                                <Path Width="14"
+                                                      Height="14"
+                                                      Stretch="Uniform"
+                                                      Data="{StaticResource IconClose}"
+                                                      Stroke="{StaticResource TextSecondaryBrush}"
+                                                      StrokeThickness="1.6"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round" />
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <Button HorizontalAlignment="Left"
+                                    Margin="0,10,0,0"
+                                    MinWidth="132"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Command="{Binding AddCustomPropertyCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Width="16"
+                                          Height="16"
+                                          Stretch="Uniform"
+                                          VerticalAlignment="Center"
+                                          Data="{StaticResource IconPlus}"
+                                          Stroke="{StaticResource TextSecondaryBrush}"
+                                          StrokeThickness="1.6"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round" />
+                                    <TextBlock Text="Add property" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0">
+                                <TextBlock Text="GENERATED .RDP FILE" Style="{StaticResource SectionHeaderStyle}" />
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Margin="0,0,0,10"
+                                           Text="Live preview, refreshed shortly after every change. The encrypted password is never shown here." />
+                            </StackPanel>
+                            <TextBox Grid.Row="1"
+                                     Style="{StaticResource RdpPreviewBoxStyle}"
+                                     MinHeight="150"
+                                     IsReadOnly="True"
+                                     IsReadOnlyCaretVisible="True"
+                                     AcceptsReturn="True"
+                                     TextWrapping="NoWrap"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     VerticalScrollBarVisibility="Auto"
+                                     Text="{Binding RdpPreview, Mode=OneWay}" />
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+
+        <!-- ================================================================
+             Validation summary
+             ================================================================ -->
+
+        <Border Grid.Row="2"
+                Background="{StaticResource SurfaceAltBrush}"
+                BorderBrush="{StaticResource DangerBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="18,10"
+                Margin="0,10,0,0"
+                SnapsToDevicePixels="True"
+                Visibility="{Binding HasValidationSummary, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+            <StackPanel Orientation="Horizontal">
+                <Path Width="18"
+                      Height="18"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      Data="{StaticResource IconWarning}"
+                      Stroke="{StaticResource DangerBrush}"
+                      StrokeThickness="1.5"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round"
+                      StrokeLineJoin="Round" />
+                <TextBlock Margin="10,0,0,0"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"
+                           Foreground="{StaticResource DangerBrush}"
+                           Text="{Binding ValidationSummary}" />
+            </StackPanel>
+        </Border>
+
+        <!-- ================================================================
+             Footer
+             ================================================================ -->
+
+        <Border Grid.Row="3"
+                Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrushSoft}"
+                BorderThickness="0,1,0,0"
+                Padding="18,12"
+                SnapsToDevicePixels="True">
+            <Grid>
+                <TextBlock HorizontalAlignment="Left"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           FontSize="{StaticResource FontSizeSmall}"
+                           Text="Ctrl+S saves, Esc cancels." />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Margin="0,0,10,0"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Content="Cancel"
+                            Command="{Binding CancelCommand}" />
+                    <Button Style="{StaticResource PrimaryButtonStyle}"
+                            Content="Save"
+                            IsDefault="True"
+                            Command="{Binding SaveCommand}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+    </Grid>
+</Window>

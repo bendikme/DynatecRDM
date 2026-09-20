@@ -1,0 +1,95 @@
+name: Release
+
+# Cutting a release: git tag v1.2.3 && git push origin v1.2.3
+# The in-app updater reads the published release from this repository, so the asset names
+# matter: exactly one asset must end in .msi.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, without the leading v (e.g. 1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install the WiX toolset
+        shell: pwsh
+        run: |
+          # The newest stable WiX is used on purpose: the installer needs the <Files> harvesting
+          # element from v5, and pinning a patch that is later unlisted would break every release.
+          dotnet tool update --global wix
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          $tools = Join-Path $env:USERPROFILE '.dotnet\tools'
+          $tools | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          $env:PATH = "$tools;$env:PATH"
+
+          # WiX 6 and later ask once that their licence be accepted. Older versions do not know
+          # the switch, so a failure here is deliberately ignored - if the licence really is
+          # unaccepted, the build step below says so.
+          try { & wix --acceptEula --version } catch { Write-Host "wix --acceptEula: $($_.Exception.Message)" }
+          $global:LASTEXITCODE = 0
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $v = $env:INPUT_VERSION
+          if ([string]::IsNullOrWhiteSpace($v)) { $v = $env:REF_NAME -replace '^v', '' }
+          # MSI compares numbers only, so a -prerelease tag could never upgrade an install.
+          if ($v -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
+            Write-Host "::error::'$v' is not a valid version number, expected something like 1.2.3."
+            exit 1
+          }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag=v$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Build the release artifacts
+        shell: pwsh
+        run: ./build/release.ps1 -Version ${{ steps.version.outputs.version }}
+
+      - name: Publish the GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: DYNATEC Remote Desktop Manager ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/DynatecRDM-${{ steps.version.outputs.version }}-x64.msi
+            artifacts/DynatecRDM-${{ steps.version.outputs.version }}-win-x64.zip
+            artifacts/SHA256SUMS.txt

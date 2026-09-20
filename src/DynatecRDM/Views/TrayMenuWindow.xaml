@@ -1,0 +1,423 @@
+<Window x:Class="DynatecRDM.Views.TrayMenuWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
+        xmlns:conv="clr-namespace:DynatecRDM.Converters"
+        xmlns:vm="clr-namespace:DynatecRDM.ViewModels"
+        mc:Ignorable="po"
+        Title="DYNATEC Quick Launch"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="NoResize"
+        SizeToContent="Manual"
+        WindowStartupLocation="Manual"
+        Width="420"
+        Height="520"
+        MinHeight="120"
+        MaxHeight="620"
+        FontFamily="{StaticResource AppFontFamily}"
+        FontSize="{StaticResource FontSizeNormal}"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display">
+
+    <Window.Resources>
+
+        <!-- Icons. Terse 24x24 outlines drawn as geometry so nothing depends on an icon font. -->
+        <PathGeometry x:Key="TrayIconSearch" po:Freeze="True" Figures="M4,10.5 A6.5,6.5 0 1 1 17,10.5 A6.5,6.5 0 1 1 4,10.5 Z M15.2,15.2 L20.5,20.5" />
+        <PathGeometry x:Key="TrayIconClose" po:Freeze="True" Figures="M7,7 L17,17 M17,7 L7,17" />
+        <PathGeometry x:Key="TrayIconWindow" po:Freeze="True" Figures="M3,5 L21,5 L21,19 L3,19 Z M3,9 L21,9" />
+        <PathGeometry x:Key="TrayIconSliders" po:Freeze="True" Figures="M3,7 H21 M3,12 H21 M3,17 H21 M8,4.6 V9.4 M16,9.6 V14.4 M11,14.6 V19.4" />
+        <PathGeometry x:Key="TrayIconPower" po:Freeze="True" Figures="M12,3 V10.5 M6.6,6.2 A7.6,7.6 0 1 0 17.4,6.2" />
+        <PathGeometry x:Key="TrayIconGrid" po:Freeze="True" Figures="M4,4 H10 V10 H4 Z M14,4 H20 V10 H14 Z M4,14 H10 V20 H4 Z M14,14 H20 V20 H14 Z" />
+        <PathGeometry x:Key="TrayIconChevron" po:Freeze="True" Figures="M9.5,6 L15.5,12 L9.5,18" />
+
+        <!-- Icon painting: one place for stroke weight and caps. -->
+        <Style x:Key="TrayGlyph" TargetType="Path">
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="Width" Value="15" />
+            <Setter Property="Height" Value="15" />
+            <Setter Property="StrokeThickness" Value="1.7" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="Stroke" Value="{StaticResource TextMutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+
+        <Style x:Key="TrayFooterGlyph" TargetType="Path" BasedOn="{StaticResource TrayGlyph}">
+            <Setter Property="Width" Value="14" />
+            <Setter Property="Height" Value="14" />
+            <Setter Property="Stroke" Value="{StaticResource TextSecondaryBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                    <Setter Property="Stroke" Value="{StaticResource TextPrimaryBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="TrayCloseGlyph" TargetType="Path" BasedOn="{StaticResource TrayGlyph}">
+            <Setter Property="Width" Value="11" />
+            <Setter Property="Height" Value="11" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                    <Setter Property="Stroke" Value="{StaticResource DangerBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Rows: no inner padding, the templates own their own spacing. Headers and the empty
+             message are disabled, which keeps them out of both mouse and keyboard reach. -->
+        <Style x:Key="TrayRowContainerStyle" TargetType="ListBoxItem" BasedOn="{StaticResource AppListBoxItemStyle}">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="IsEnabled" Value="{Binding IsSelectable}" />
+            <EventSetter Event="MouseLeftButtonUp" Handler="OnRowMouseLeftButtonUp" />
+        </Style>
+
+        <Style x:Key="TrayFooterButton" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+            <Setter Property="Padding" Value="6,5" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
+        </Style>
+
+        <!-- ================================================================
+             Row templates, matched implicitly on the row type
+             ================================================================ -->
+
+        <DataTemplate DataType="{x:Type vm:TrayHeaderRow}">
+            <TextBlock Style="{StaticResource SectionHeaderStyle}"
+                       Margin="10,11,10,3"
+                       Text="{Binding Title}" />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:TrayMessageRow}">
+            <TextBlock Margin="14,18"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource TextMutedBrush}"
+                       Text="{Binding Text}" />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:TraySessionRow}">
+            <Grid Margin="8,5,6,5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Thumbnail, or a neutral block with the host when there is none yet. -->
+                <Grid Grid.Column="0"
+                      Width="66"
+                      Height="40"
+                      Margin="0,0,10,0"
+                      VerticalAlignment="Center"
+                      Visibility="{Binding ShowSnapshot, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                    <Border Background="{StaticResource SurfaceAltBrush}"
+                            BorderBrush="{StaticResource BorderBrushSoft}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusSmall}" />
+                    <Image Margin="1"
+                           Stretch="UniformToFill"
+                           RenderOptions.BitmapScalingMode="LowQuality"
+                           Visibility="{Binding HasSnapshot, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}"
+                           Source="{Binding SnapshotPath, Converter={x:Static conv:FileToImageConverter.Instance}, ConverterParameter=132}">
+                        <Image.Clip>
+                            <RectangleGeometry Rect="0,0,64,38" RadiusX="3" RadiusY="3" />
+                        </Image.Clip>
+                    </Image>
+                    <TextBlock Margin="4,0"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="{StaticResource FontSizeSmall}"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding ShowPlaceholder, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}"
+                               Text="{Binding Host}" />
+                </Grid>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Text="{Binding Title}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <Border Style="{StaticResource StatusPillStyle}" Padding="7,1" MinHeight="16">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="6"
+                                         Height="6"
+                                         Margin="0,0,5,0"
+                                         VerticalAlignment="Center"
+                                         Fill="{Binding Session.State, Converter={x:Static conv:SessionStateToBrushConverter.Instance}}" />
+                                <TextBlock FontSize="{StaticResource FontSizeSmall}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Text="{Binding Session.StateText}" />
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Margin="8,0,0,0"
+                                   VerticalAlignment="Center"
+                                   FontSize="{StaticResource FontSizeSmall}"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   Text="{Binding UptimeText}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <Button Grid.Column="2"
+                        Width="24"
+                        Height="24"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource IconButtonStyle}"
+                        ToolTipService.InitialShowDelay="500"
+                        Command="{Binding DataContext.CloseSessionCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                        CommandParameter="{Binding}">
+                    <Button.ToolTip>
+                        <ToolTip Style="{StaticResource AppToolTipStyle}" Content="End this session" />
+                    </Button.ToolTip>
+                    <Path Style="{StaticResource TrayCloseGlyph}" Data="{StaticResource TrayIconClose}" />
+                </Button>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:TrayMultiRow}">
+            <Grid Margin="8,6,10,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Path Grid.Column="0"
+                      Margin="1,0,10,0"
+                      Style="{StaticResource TrayGlyph}"
+                      Stroke="{StaticResource TextSecondaryBrush}"
+                      Data="{StaticResource TrayIconGrid}" />
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Text="{Binding Title}" />
+                    <TextBlock Margin="0,2,0,0"
+                               FontSize="{StaticResource FontSizeSmall}"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Text="{Binding CountText}" />
+                </StackPanel>
+
+                <Border Grid.Column="2"
+                        Margin="8,0,0,0"
+                        Style="{StaticResource StatusPillStyle}"
+                        Padding="7,1"
+                        MinHeight="16"
+                        Visibility="{Binding IsRunning, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="6"
+                                 Height="6"
+                                 Margin="0,0,5,0"
+                                 VerticalAlignment="Center"
+                                 Fill="{StaticResource SuccessBrush}" />
+                        <TextBlock FontSize="{StaticResource FontSizeSmall}"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Text="Running" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:TrayConnectionRow}">
+            <Grid Margin="8,5,10,5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        Width="3"
+                        Margin="1,1,10,1"
+                        MinHeight="24"
+                        CornerRadius="2"
+                        Background="{Binding Color, Converter={x:Static conv:HexToBrushConverter.Instance}, ConverterParameter=#3A414D}" />
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Text="{Binding Title}" />
+                    <TextBlock Margin="0,2,0,0"
+                               FontSize="{StaticResource FontSizeSmall}"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Text="{Binding Host}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Right"
+                            Visibility="{Binding IsConnected, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Ellipse Width="7"
+                                 Height="7"
+                                 Margin="0,0,5,0"
+                                 VerticalAlignment="Center"
+                                 Fill="{StaticResource SuccessBrush}" />
+                        <TextBlock FontSize="{StaticResource FontSizeSmall}"
+                                   Foreground="{StaticResource SuccessBrush}"
+                                   Text="Connected" />
+                    </StackPanel>
+                    <TextBlock Margin="0,1,0,0"
+                               HorizontalAlignment="Right"
+                               FontSize="{StaticResource FontSizeSmall}"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Text="click to focus" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:TrayMoreRow}">
+            <Grid Margin="8,8,10,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{StaticResource AccentBrush}"
+                           Text="{Binding Text}" />
+                <Path Grid.Column="1"
+                      Width="12"
+                      Height="12"
+                      Style="{StaticResource TrayGlyph}"
+                      Stroke="{StaticResource AccentBrush}"
+                      Data="{StaticResource TrayIconChevron}" />
+            </Grid>
+        </DataTemplate>
+
+    </Window.Resources>
+
+    <Border x:Name="Root"
+            Background="{StaticResource SurfaceBrush}"
+            BorderBrush="{StaticResource BorderBrushStrong}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource RadiusLarge}"
+            SnapsToDevicePixels="True">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Brand strip -->
+            <Grid Grid.Row="0" Margin="14,11,14,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Style="{StaticResource SectionHeaderStyle}"
+                           Margin="0"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           Text="DYNATEC QUICK LAUNCH" />
+                <TextBlock Grid.Column="1"
+                           Margin="8,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="{StaticResource FontSizeSmall}"
+                           Foreground="{StaticResource AccentBrush}"
+                           Text="{Binding RunningSummary}" />
+            </Grid>
+
+            <!-- Search -->
+            <Grid Grid.Row="1" Margin="12,8,12,6">
+                <TextBox x:Name="SearchBox"
+                         Style="{StaticResource AppTextBoxStyle}"
+                         MinHeight="32"
+                         Padding="30,6,10,6"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                <Path Margin="10,0,0,0"
+                      HorizontalAlignment="Left"
+                      IsHitTestVisible="False"
+                      Style="{StaticResource TrayGlyph}"
+                      Width="13"
+                      Height="13"
+                      Data="{StaticResource TrayIconSearch}" />
+                <TextBlock Margin="32,0,10,0"
+                           VerticalAlignment="Center"
+                           IsHitTestVisible="False"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           Text="Search connections"
+                           Visibility="{Binding SearchText, Converter={x:Static conv:StringToVisibilityConverter.Instance}, ConverterParameter=invert}" />
+            </Grid>
+
+            <!-- Rows -->
+            <ListBox x:Name="RowsList"
+                     Grid.Row="2"
+                     Style="{StaticResource AppListBoxStyle}"
+                     ItemContainerStyle="{StaticResource TrayRowContainerStyle}"
+                     ItemsSource="{Binding Rows}"
+                     SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                     Focusable="False"
+                     Padding="4,0,4,4"
+                     ScrollViewer.CanContentScroll="True"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     VirtualizingStackPanel.IsVirtualizing="True"
+                     VirtualizingStackPanel.VirtualizationMode="Recycling"
+                     VirtualizingPanel.ScrollUnit="Pixel">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling" />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+            </ListBox>
+
+            <!-- Footer -->
+            <Border Grid.Row="3"
+                    Padding="6"
+                    Background="{StaticResource SurfaceAltBrush}"
+                    BorderBrush="{StaticResource BorderBrushSoft}"
+                    BorderThickness="0,1,0,0"
+                    CornerRadius="0,0,9,9">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" Style="{StaticResource TrayFooterButton}" Command="{Binding OpenManagerCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource TrayFooterGlyph}" Data="{StaticResource TrayIconWindow}" />
+                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" Text="Open manager" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button Grid.Column="1" Style="{StaticResource TrayFooterButton}" Command="{Binding OpenSettingsCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource TrayFooterGlyph}" Data="{StaticResource TrayIconSliders}" />
+                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" Text="Settings" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button Grid.Column="2" Style="{StaticResource TrayFooterButton}" Command="{Binding ExitCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource TrayFooterGlyph}" Data="{StaticResource TrayIconPower}" />
+                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" Text="Exit" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

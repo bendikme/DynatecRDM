@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  DYNATEC Remote Desktop Manager - Windows Installer authoring (WiX v5 or later, v4 schema).
+
+  This is a PER-USER package. It installs into %LOCALAPPDATA%\Programs\DynatecRDM and writes
+  only to HKCU, so installing, upgrading and uninstalling never require administrator rights.
+  That is what lets the in-app updater run the new package without an elevation prompt.
+
+  ============================ USER DATA MUST SURVIVE UPDATES ============================
+  The database, snapshots and logs live in %LOCALAPPDATA%\DynatecRDM, which is a DIFFERENT
+  folder from the installation directory above. Nothing in this file may create, write to or
+  remove anything under %LOCALAPPDATA%\DynatecRDM: no Directory, no Component, no RegistryKey,
+  no RemoveFile/RemoveFolder and no custom action. Install, upgrade, repair and uninstall all
+  have to leave that folder byte for byte as it was. Authoring a component there would make
+  MSI delete the stored connections on uninstall or roll them back on a failed upgrade.
+  If user data ever needs cleaning, the app does it - never the installer.
+  =======================================================================================
+
+  Required preprocessor variables (wix build -d Name=Value ...):
+    Version     the product version, e.g. 1.2.3 (three or four numbers and no -prerelease
+                suffix: MSI compares numbers only, so a tag like 1.2.3-beta cannot upgrade)
+    PublishDir  absolute path to the dotnet publish output folder, WITHOUT a trailing backslash
+  Optional:
+    AboutUrl    the support URL shown in Apps and Features
+
+  The <Files> harvesting element needs WiX v5 or later. Build with build\release.ps1, which
+  also handles the one validation quirk of a per-user package: ICE38 and ICE64 exist to keep
+  roaming profiles tidy and reject any component installed under %LOCALAPPDATA%, so the build
+  retries with validation suppressed if they fire. Nothing here depends on that suppression.
+-->
+
+<?ifndef AboutUrl?>
+<?define AboutUrl = "https://github.com/DYNATEC/DynatecRDM"?>
+<?endif?>
+
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <!--
+    UpgradeCode: the identity of this product across every version it will ever have.
+    NEVER CHANGE THIS GUID. If it changes, new builds install alongside the old ones instead
+    of upgrading them, and users end up with two copies of the app.
+  -->
+  <Package Name="DYNATEC Remote Desktop Manager"
+           Manufacturer="DYNATEC"
+           Version="$(var.Version)"
+           UpgradeCode="66411EDE-318D-41D8-998D-D1EC67F67086"
+           Scope="perUser"
+           Compressed="yes"
+           InstallerVersion="500"
+           Language="1033">
+
+    <!-- An update is a major upgrade: the previous build is removed, then this one installs.
+         AllowSameVersionUpgrades lets a rebuilt 1.2.3 replace an installed 1.2.3. -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of DYNATEC Remote Desktop Manager is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- This is a tray utility: replacing its files must never restart Windows. If a file is
+         still locked, the install completes anyway and Windows swaps it at the next logon. -->
+    <Property Id="REBOOT" Value="ReallySuppress" />
+
+    <!-- %LOCALAPPDATA%\Programs\DynatecRDM - the install folder, and the ONLY place this
+         package writes files. It is deliberately not %LOCALAPPDATA%\DynatecRDM. -->
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="LocalProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="DynatecRDM" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppProgramMenuFolder" Name="DYNATEC" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="DYNATEC Remote Desktop Manager" Level="1" AllowAbsent="no" AllowAdvertise="no">
+      <ComponentGroupRef Id="ApplicationFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="LaunchAtLogon" />
+    </Feature>
+
+    <!-- Start menu entry. A per-user shortcut needs an HKCU key path, and the folder it lives
+         in has to be removed explicitly on uninstall. The Run value is cleared here too: the
+         app writes that value itself when launch at logon is switched on in Settings, so
+         removing it on uninstall is the only way not to leave a dead entry behind. An upgrade
+         writes it straight back from the component below, so the setting survives. -->
+    <Component Id="StartMenuShortcut" Directory="AppProgramMenuFolder" Guid="7810BEC3-E73B-4187-843F-7BE976EC7134">
+      <Shortcut Id="AppShortcut"
+                Name="DYNATEC Remote Desktop Manager"
+                Description="Fast RDP session manager"
+                Target="[INSTALLFOLDER]DynatecRDM.exe"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="DynatecRDM.ico" />
+      <RemoveFolder Id="RemoveAppProgramMenuFolder" Directory="AppProgramMenuFolder" On="uninstall" />
+      <!-- Clears the run-at-logon entry on uninstall. RemoveRegistryValue always acts on
+           uninstall, so it takes no Action attribute. -->
+      <RemoveRegistryValue Id="RemoveRunEntry"
+                           Root="HKCU"
+                           Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                           Name="DynatecRDM" />
+      <RegistryValue Root="HKCU" Key="Software\DYNATEC\DynatecRDM" Name="StartMenuShortcut"
+                     Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <!-- Optional launch at logon, off by default: msiexec /i ... LAUNCHATLOGON=1
+         The value matches what the app writes itself, so the in-app setting and this
+         registry entry stay interchangeable. -->
+    <Property Id="LAUNCHATLOGON" Value="0" />
+
+    <!-- Keep launch at logon switched on across upgrades: when a Run entry already exists -
+         written by an earlier install or by the app itself - the component installs anyway,
+         which refreshes the entry to the new install path instead of dropping it. AppSearch
+         runs long before the old build is removed, so the search still sees the old value. -->
+    <Property Id="EXISTINGLAUNCHATLOGON">
+      <RegistrySearch Id="FindExistingRunEntry"
+                      Root="HKCU"
+                      Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                      Name="DynatecRDM"
+                      Type="raw" />
+    </Property>
+
+    <Component Id="LaunchAtLogon" Directory="INSTALLFOLDER" Guid="8B9C1606-6B79-4CEF-BA58-15D0CADE253D"
+               Condition="LAUNCHATLOGON = &quot;1&quot; OR EXISTINGLAUNCHATLOGON">
+      <RegistryValue Root="HKCU"
+                     Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                     Name="DynatecRDM"
+                     Type="string"
+                     Value="&quot;[INSTALLFOLDER]DynatecRDM.exe&quot; --tray"
+                     KeyPath="yes" />
+    </Component>
+
+    <!-- Apps and Features presentation. ARPNOREPAIR and ARPNOMODIFY count as set whenever they
+         carry any value at all, "0" included, so only the one that has to be on is declared:
+         there is a single feature and nothing to modify, but repair must stay available. -->
+    <Icon Id="DynatecRDM.ico" SourceFile="$(sys.SOURCEFILEDIR)..\src\DynatecRDM\Assets\dynatec.ico" />
+    <Property Id="ARPPRODUCTICON" Value="DynatecRDM.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="$(var.AboutUrl)" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+
+    <!-- Start the app once the install finishes. UILevel is 2 for /qn and 3 for /qb, so a
+         silent install never launches anything, while a visible one does - which is what the
+         in-app updater relies on to bring the app back after it closed itself for the update.
+         LAUNCHAPP=0 opts out. The app holds a single-instance lock, so a copy started here
+         while the previous one is still closing simply exits again. -->
+    <Property Id="LAUNCHAPP" Value="1" />
+
+    <CustomAction Id="LaunchApplication"
+                  Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[INSTALLFOLDER]DynatecRDM.exe&quot;"
+                  Return="asyncNoWait" />
+
+    <InstallExecuteSequence>
+      <Custom Action="LaunchApplication" After="InstallFinalize"
+              Condition="NOT Installed AND UILevel &gt; 3 AND LAUNCHAPP = &quot;1&quot;" />
+    </InstallExecuteSequence>
+
+  </Package>
+
+  <Fragment>
+    <!-- Everything dotnet publish produced is harvested at build time, so a new dependency
+         is packaged automatically instead of having to be listed here by hand. -->
+    <ComponentGroup Id="ApplicationFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PublishDir)\**" />
+    </ComponentGroup>
+  </Fragment>
+
+</Wix>
