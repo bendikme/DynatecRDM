@@ -712,11 +712,17 @@
                                 <ColumnDefinition Width="26" />
                             </Grid.ColumnDefinitions>
 
+                            <!-- ContentTemplateSelector must stay bound even though no selector is
+                                 ever supplied: without it ContentPresenter never re-resolves its
+                                 template, and DisplayMemberPath is ignored for the closed selection
+                                 box, so every combo shows the item's type name instead of its text.
+                                 The stock WPF template gets away without it; a custom one does not. -->
                             <ContentPresenter x:Name="ContentSite"
                                               Grid.Column="0"
                                               Margin="{TemplateBinding Padding}"
                                               Content="{TemplateBinding SelectionBoxItem}"
                                               ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
                                               ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
                                               HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}"

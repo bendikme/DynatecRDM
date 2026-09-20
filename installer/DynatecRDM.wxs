@@ -31,7 +31,7 @@
 -->
 
 <?ifndef AboutUrl?>
-<?define AboutUrl = "https://github.com/DYNATEC/DynatecRDM"?>
+<?define AboutUrl = "https://github.com/bendikme/DynatecRDM"?>
 <?endif?>
 
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">

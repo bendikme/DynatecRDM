@@ -689,7 +689,20 @@ public sealed class UpdateService : IDisposable
             .ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
+        {
+            // A 404 here means either the repository cannot be reached or it simply has no
+            // published release yet. Those need different advice, and asking the repository
+            // endpoint is the only way to tell them apart. It costs one extra request on a path
+            // that is already failing.
+            if (response.StatusCode == HttpStatusCode.NotFound &&
+                await RepositoryExistsAsync(owner, repo, settings, linked.Token).ConfigureAwait(false))
+            {
+                throw new UpdateApiException(
+                    $"{owner}/{repo} has no published releases yet, so there is nothing to update to.");
+            }
+
             throw new UpdateApiException(DescribeFailure(response, owner, repo));
+        }
 
         await using var stream = await response.Content.ReadAsStreamAsync(linked.Token).ConfigureAwait(false);
 
@@ -780,6 +793,32 @@ public sealed class UpdateService : IDisposable
             release.Prerelease,
             htmlUrl,
             assets);
+    }
+
+    /// <summary>
+    /// True when the repository itself is reachable. Used only to turn a 404 on the releases
+    /// endpoint into a message that says which of the two problems it actually is.
+    /// </summary>
+    private static async Task<bool> RepositoryExistsAsync(
+        string owner,
+        string repo,
+        AppSettings settings,
+        CancellationToken ct)
+    {
+        try
+        {
+            var uri = new Uri(ApiRoot + Uri.EscapeDataString(owner) + "/" + Uri.EscapeDataString(repo));
+            using var request = CreateRequest(uri, settings.UpdateAccessToken, "application/vnd.github+json");
+            using var response = await Http
+                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct)
+                .ConfigureAwait(false);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug_($"Repository probe for {owner}/{repo} failed: {ex.Message}");
+            return false;
+        }
     }
 
     private static string DescribeFailure(HttpResponseMessage response, string owner, string repo)

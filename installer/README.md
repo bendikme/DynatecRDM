@@ -63,7 +63,7 @@ and notes generated from the commits.
 
 ## How the updater finds it
 
-Settings -> Updates -> **Update repository** is an `owner/repo` string, e.g. `DYNATEC/DynatecRDM`.
+Settings -> Updates -> **Update repository** is an `owner/repo` string; it defaults to `bendikme/DynatecRDM`.
 The app asks that repository's GitHub releases API for the newest release and downloads the asset
 ending in `.msi`, so every release must attach exactly one. The release tag is the version it
 compares against its own `InformationalVersion`, which `build\publish.ps1` stamps from `-Version`.

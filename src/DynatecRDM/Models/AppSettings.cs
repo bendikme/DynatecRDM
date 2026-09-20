@@ -74,7 +74,7 @@ public sealed class AppSettings
     /// The GitHub repository releases are published to, as "owner/repo".
     /// Empty disables update checking entirely.
     /// </summary>
-    public string UpdateRepository { get; set; } = string.Empty;
+    public string UpdateRepository { get; set; } = "bendikme/DynatecRDM";
 
     /// <summary>Offer pre-release builds as well as stable ones.</summary>
     public bool UpdateIncludePrereleases { get; set; }
