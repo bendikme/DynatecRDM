@@ -95,18 +95,8 @@ try {
     )
     & $wixExe @wixArgs $wxs
     if ($LASTEXITCODE -ne 0) {
-        # A per-user package that installs under %LOCALAPPDATA% fails MSI validation on ICE38
-        # and ICE64, which exist for roaming profiles and do not apply here: the files are
-        # installed and removed by component, and no user data is involved either way. Only
-        # this retry suppresses validation, so every other authoring mistake is still caught -
-        # it simply repeats below when the failure was something else.
-        Write-Host 'wix build failed; retrying once with MSI validation suppressed (ICE38/ICE64 reject per-user packages).' -ForegroundColor Yellow
-        & $wixExe @wixArgs '-sval' $wxs
-    }
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host 'If the failure mentions a licence or the Open Source Maintenance Fee, accept it once with: wix --acceptEula --version' -ForegroundColor Yellow
-        Write-Host 'If it mentions the Files element, the installed WiX is older than v5: dotnet tool update --global wix' -ForegroundColor Yellow
+        Write-Host 'This build expects WiX 5. Install it with: dotnet tool install --global wix --version 5.0.2' -ForegroundColor Yellow
+        Write-Host 'WiX 6 and later require accepting the paid Open Source Maintenance Fee licence, which is why v5 is pinned.' -ForegroundColor Yellow
         # Never leave a half-written installer behind for the next step to pick up.
         if (Test-Path -LiteralPath $msiPath) {
             Remove-Item -LiteralPath $msiPath -Force -ErrorAction SilentlyContinue

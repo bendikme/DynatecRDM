@@ -44,20 +44,21 @@ jobs:
       - name: Install the WiX toolset
         shell: pwsh
         run: |
-          # The newest stable WiX is used on purpose: the installer needs the <Files> harvesting
-          # element from v5, and pinning a patch that is later unlisted would break every release.
-          dotnet tool update --global wix
-          if ($LASTEXITCODE -ne 0) { exit 1 }
+          # Pinned to WiX 5. From v6 onwards WiX requires accepting the Open Source Maintenance Fee
+          # licence, which is a commercial commitment for DYNATEC and must not be auto-accepted by a
+          # build. v5 is the last release without it and already has the <Files> harvesting element
+          # the installer needs.
+          dotnet tool install --global wix --version 5.0.2
+          if ($LASTEXITCODE -ne 0) {
+            # Already installed on a warm runner image: make sure it is the version we expect.
+            dotnet tool update --global wix --version 5.0.2
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
 
-          $tools = Join-Path $env:USERPROFILE '.dotnet\tools'
+          $tools = Join-Path $env:USERPROFILE '.dotnet	ools'
           $tools | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           $env:PATH = "$tools;$env:PATH"
-
-          # WiX 6 and later ask once that their licence be accepted. Older versions do not know
-          # the switch, so a failure here is deliberately ignored - if the licence really is
-          # unaccepted, the build step below says so.
-          try { & wix --acceptEula --version } catch { Write-Host "wix --acceptEula: $($_.Exception.Message)" }
-          $global:LASTEXITCODE = 0
+          & wix --version
 
       - name: Resolve version
         id: version
