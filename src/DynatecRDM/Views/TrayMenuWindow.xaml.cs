@@ -29,6 +29,7 @@ public partial class TrayMenuWindow : Window
     private MonitorInfo? _monitor;
     private int _anchorX;
     private int _anchorY;
+    private bool _fromTray;
     private bool _hiding;
     private bool _allowClose;
     private bool _refitQueued;
@@ -76,15 +77,17 @@ public partial class TrayMenuWindow : Window
     /// <summary>
     /// Places the popup near the cursor, clamped to the work area of the monitor under it, and
     /// shows it. Sizes and positions are computed in the monitor's own scale so a mixed-DPI desktop
-    /// lands the window where the user is looking.
+    /// lands the window where the user is looking. Opened <paramref name="fromTray"/>, the anchor is
+    /// the tray icon and the popup runs from it towards the right edge of the screen.
     /// </summary>
-    public void ShowAt(MonitorInfo monitor, int cursorX, int cursorY)
+    public void ShowAt(MonitorInfo monitor, int cursorX, int cursorY, bool fromTray = false)
     {
         ArgumentNullException.ThrowIfNull(monitor);
 
         _monitor = monitor;
         _anchorX = cursorX;
         _anchorY = cursorY;
+        _fromTray = fromTray;
 
         try
         {
@@ -277,7 +280,7 @@ public partial class TrayMenuWindow : Window
         Place(
             _anchorX / scale, _anchorY / scale,
             workLeft, workTop, workWidth, workHeight,
-            Width, Height, Gap,
+            Width, Height, Gap, _fromTray,
             out var left, out var top);
 
         Left = left;
@@ -307,7 +310,7 @@ public partial class TrayMenuWindow : Window
             Place(
                 _anchorX, _anchorY,
                 monitor.WorkLeft, monitor.WorkTop, monitor.WorkWidth, monitor.WorkHeight,
-                width, height, Gap * scale,
+                width, height, Gap * scale, _fromTray,
                 out var x, out var y);
 
             var left = (int)Math.Round(x);
@@ -327,17 +330,21 @@ public partial class TrayMenuWindow : Window
     /// <summary>
     /// Anchors the popup beside the cursor, on whichever side of it has room, then clamps the
     /// result into the work area. Handles a taskbar on any edge without knowing where it is.
+    ///
+    /// From the tray the left edge starts at the icon instead and the clamp stops it at the right
+    /// edge of the screen, so with the notification area in the corner the popup sits flush in it.
     /// </summary>
     private static void Place(
         double cursorX, double cursorY,
         double workLeft, double workTop, double workWidth, double workHeight,
-        double width, double height, double gap,
+        double width, double height, double gap, bool fromTray,
         out double x, out double y)
     {
         var workRight = workLeft + workWidth;
         var workBottom = workTop + workHeight;
 
-        x = cursorX > workLeft + (workWidth / 2) ? cursorX - width - gap : cursorX + gap;
+        if (fromTray) x = cursorX;
+        else x = cursorX > workLeft + (workWidth / 2) ? cursorX - width - gap : cursorX + gap;
         y = cursorY > workTop + (workHeight / 2) ? cursorY - height - gap : cursorY + gap;
 
         var maxX = Math.Max(workLeft, workRight - width);

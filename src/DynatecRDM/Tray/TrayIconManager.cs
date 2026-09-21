@@ -34,6 +34,7 @@ public sealed class TrayIconManager : IDisposable
     private bool _ownsIcon;
     private TrayMenuViewModel? _viewModel;
     private TrayMenuWindow? _window;
+    private System.Drawing.Point _menuAnchor;
     private bool _disposed;
 
     public TrayIconManager(AppServices services, IAppShell shell)
@@ -59,7 +60,7 @@ public sealed class TrayIconManager : IDisposable
         };
 
         AddItem("Open manager", () => _shell.ShowMain());
-        AddItem("Quick launch", ShowQuickLaunch);
+        AddItem("Quick launch", () => ToggleQuickLaunch(_menuAnchor));
         AddItem("Credentials", () => _shell.ShowCredentials());
         AddItem("Settings", () => _shell.ShowSettings());
         AddSeparator();
@@ -102,13 +103,20 @@ public sealed class TrayIconManager : IDisposable
     }
 
     /// <summary>Opens the quick-launch popup at the cursor, or dismisses it when it is already up.</summary>
-    public void ShowQuickLaunch()
+    public void ShowQuickLaunch() => ToggleQuickLaunch(trayAnchor: null);
+
+    /// <summary>
+    /// Opens the popup, or dismisses it when it is already up. <paramref name="trayAnchor"/> is
+    /// the tray icon it was opened from; without one it opens beside the cursor, which is where
+    /// the global shortcut wants it.
+    /// </summary>
+    private void ToggleQuickLaunch(System.Drawing.Point? trayAnchor)
     {
         if (_disposed) return;
 
         if (!_dispatcher.CheckAccess())
         {
-            Post(ShowQuickLaunch);
+            Post(() => ToggleQuickLaunch(trayAnchor));
             return;
         }
 
@@ -127,16 +135,21 @@ public sealed class TrayIconManager : IDisposable
             // click would immediately bring it back.
             if (Environment.TickCount64 - window.LastHiddenTicks < ReopenGuardMs) return;
 
-            var cursor = System.Windows.Forms.Cursor.Position;
-            var monitor = _services.Monitors.GetMonitorAt(cursor.X, cursor.Y);
-
-            _viewModel.PrepareForShow();
-            window.ShowAt(monitor, cursor.X, cursor.Y);
+            OpenQuickLaunch(window, _viewModel, trayAnchor);
         }
         catch (Exception ex)
         {
             AppLog.Error("Opening the quick-launch menu failed.", ex);
         }
+    }
+
+    private void OpenQuickLaunch(TrayMenuWindow window, TrayMenuViewModel viewModel, System.Drawing.Point? trayAnchor)
+    {
+        var anchor = trayAnchor ?? System.Windows.Forms.Cursor.Position;
+        var monitor = _services.Monitors.GetMonitorAt(anchor.X, anchor.Y);
+
+        viewModel.PrepareForShow();
+        window.ShowAt(monitor, anchor.X, anchor.Y, fromTray: trayAnchor.HasValue);
     }
 
     /// <summary>Shows a balloon from the tray icon.</summary>
@@ -326,6 +339,9 @@ public sealed class TrayIconManager : IDisposable
     {
         try
         {
+            // The menu opens where the icon was right-clicked; the cursor will have moved by the
+            // time "Quick launch" is chosen.
+            _menuAnchor = System.Windows.Forms.Cursor.Position;
             _closeAllItem.Enabled = ActiveSessionCount() > 0;
         }
         catch (Exception ex)
@@ -371,7 +387,7 @@ public sealed class TrayIconManager : IDisposable
         try
         {
             if (e.Button != System.Windows.Forms.MouseButtons.Left) return;
-            ShowQuickLaunch();
+            ToggleQuickLaunch(System.Windows.Forms.Cursor.Position);
         }
         catch (Exception ex)
         {
@@ -379,14 +395,25 @@ public sealed class TrayIconManager : IDisposable
         }
     }
 
+    /// <summary>
+    /// A double click does not open the manager - the popup's button and the tray menu do that. Its
+    /// first click opened the popup and its second, by activating the taskbar, hid it again, so all
+    /// a double click does is put the popup back.
+    /// </summary>
     private void OnMouseDoubleClick(object? sender, System.Windows.Forms.MouseEventArgs e)
     {
         try
         {
             if (e.Button != System.Windows.Forms.MouseButtons.Left) return;
 
-            _window?.HidePopup();
-            Post(() => _shell.ShowMain());
+            var anchor = System.Windows.Forms.Cursor.Position;
+            Post(() =>
+            {
+                if (_disposed) return;
+                var window = EnsureWindow();
+                if (window is null || _viewModel is null || window.IsVisible) return;
+                OpenQuickLaunch(window, _viewModel, anchor);
+            });
         }
         catch (Exception ex)
         {
