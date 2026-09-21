@@ -122,6 +122,11 @@ public static class MstscCommandLine
         var displayDefaults = new DisplaySettings();
         if (d.ColorDepth != displayDefaults.ColorDepth) return "a custom colour depth";
         if (d.SmartSizing != displayDefaults.SmartSizing) return "smart sizing";
+
+        // With no file, whether the session follows the window comes from the user's Default.rdp.
+        if (d.DynamicResolution != displayDefaults.DynamicResolution) return "dynamic resolution turned off";
+        if (DefaultRdpLaunch.DisablesDynamicResolution())
+            return "Default.rdp turning dynamic resolution off";
         if (d.DesktopScaleFactor != displayDefaults.DesktopScaleFactor
             || d.DeviceScaleFactor != displayDefaults.DeviceScaleFactor)
         {

@@ -145,23 +145,76 @@ public sealed class CredentialSet
     /// server rejects it and Remote Desktop falls back to asking for the password. A dotted domain
     /// therefore becomes the user principal form, user@contoso.local, which is valid.
     /// </summary>
-    public string QualifiedUsername
+    public string QualifiedUsername => BuildLogonName(null);
+
+    /// <summary>
+    /// The logon name to use against a particular host.
+    ///
+    /// With no domain the account is a local one on the far machine, and a bare user name is
+    /// resolved against the *client's* domain instead - so a local "administrator" is sent as
+    /// DOMAIN\administrator and rejected. Qualifying it with the target machine's own name says
+    /// plainly which account is meant. That makes the name host-specific, which is fine: the
+    /// credential vault is keyed per host anyway, one TERMSRV entry per machine.
+    /// </summary>
+    public string GetLogonName(string? host) => BuildLogonName(host);
+
+    private string BuildLogonName(string? host)
     {
-        get
+        var user = (Username ?? string.Empty).Trim();
+        var domain = (Domain ?? string.Empty).Trim();
+
+        if (user.Length == 0) return string.Empty;
+
+        // Already qualified by the user, either way round: leave it alone.
+        if (user.Contains('\\') || user.Contains('@')) return user;
+
+        if (domain.Length != 0)
         {
-            var user = (Username ?? string.Empty).Trim();
-            var domain = (Domain ?? string.Empty).Trim();
-
-            if (user.Length == 0) return string.Empty;
-            if (domain.Length == 0) return user;
-
-            // Already qualified by the user, either way round: leave it alone.
-            if (user.Contains('\\') || user.Contains('@')) return user;
-
             return domain.Contains('.')
                 ? $"{user}@{domain.TrimStart('@')}"
                 : $"{domain}\\{user}";
         }
+
+        var machine = MachineNameOf(host);
+        return machine.Length == 0 ? user : $"{machine}\\{user}";
+    }
+
+    /// <summary>
+    /// The far machine's own name, for qualifying a local account. Returns empty for anything that
+    /// cannot serve as one - an address literal has no machine name to use.
+    /// </summary>
+    private static string MachineNameOf(string? host)
+    {
+        var text = (host ?? string.Empty).Trim();
+        if (text.Length == 0) return string.Empty;
+
+        if (text.StartsWith('[')) return string.Empty;          // bracketed IPv6
+
+        // More than one colon can only be an IPv6 literal, which has no machine name. A single
+        // colon is a port.
+        var colon = text.IndexOf(':');
+        if (colon >= 0)
+        {
+            if (text.IndexOf(':', colon + 1) >= 0) return string.Empty;
+            text = text[..colon];
+        }
+
+        if (text.Length == 0) return string.Empty;
+
+        // A short host name may still be the DNS label of a domain member; the first label is the
+        // machine name either way.
+        var dot = text.IndexOf('.');
+        var candidate = dot > 0 ? text[..dot] : text;
+
+        // An address is not a machine name. A first label of pure digits means the whole thing was
+        // numeric, so there is nothing useful to qualify with.
+        var allDigits = true;
+        foreach (var c in candidate)
+        {
+            if (!char.IsAsciiDigit(c)) { allDigits = false; break; }
+        }
+
+        return allDigits ? string.Empty : candidate;
     }
 
     public bool HasPassword => ProtectedPassword is { Length: > 0 };

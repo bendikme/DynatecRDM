@@ -447,7 +447,8 @@ public sealed class SessionManager : ISessionManager, IDisposable
         if (wantsVault && credential is not null && hasPassword)
         {
             var host = connection.Host;
-            var user = credential.QualifiedUsername;
+            // Host-specific: a credential with no domain is a local account on that machine.
+            var user = credential.GetLogonName(host);
             var secret = password!;
             var method = Cfg.VaultWriteMethod;
 

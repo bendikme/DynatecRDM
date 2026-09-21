@@ -151,11 +151,11 @@ public sealed class RdpFileBuilder : IRdpFileBuilder
         {
             var bare = Clean(credential.Username);
             // A login that already carries its own domain must not be qualified a second time.
-            userName = HasDomainPart(bare) ? bare : Clean(credential.QualifiedUsername);
+            userName = HasDomainPart(bare) ? bare : Clean(credential.GetLogonName(connection.Host));
             if (userName.Length != 0)
             {
-                // The vault entry is written as DOMAIN\user, so the file has to say the same
-                // thing or mstsc treats it as a different login and prompts.
+                // The vault entry is written with exactly this name, so the file has to say the
+                // same thing or mstsc treats it as a different login and prompts.
                 lines.Text("username", userName);
                 if (!HasDomainPart(userName)) lines.Optional("domain", credential.Domain);
             }

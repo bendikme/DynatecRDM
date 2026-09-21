@@ -265,7 +265,7 @@ public sealed class CredentialsViewModel : ObservableObject
         get
         {
             var set = _selected;
-            return set is null || string.IsNullOrWhiteSpace(set.Username) ? "<username>" : set.QualifiedUsername;
+            return set is null || string.IsNullOrWhiteSpace(set.Username) ? "<username>" : set.GetLogonName(_vaultHost);
         }
     }
 
@@ -583,7 +583,7 @@ public sealed class CredentialsViewModel : ObservableObject
             var vault = _services.Credentials;
             var method = WriteMethod;
             var blob = set.ProtectedPassword;
-            var user = set.QualifiedUsername;
+            var user = set.GetLogonName(host);
 
             var written = await Task.Run(() =>
             {

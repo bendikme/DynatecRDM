@@ -173,6 +173,8 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
             if (string.Equals(_model.Host, value, StringComparison.Ordinal)) return;
             _model.Host = value ?? string.Empty;
             OnPropertyChanged();
+            // A credential without a domain is qualified with this host's machine name.
+            OnPropertyChanged(nameof(CredentialSummary));
             ClearTestResult();
             TestCommand.RaiseCanExecuteChanged();
             Invalidate();
@@ -241,9 +243,13 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         {
             var set = FindCredentialSet(_model.CredentialSetId);
             if (set is null) return "Windows will prompt for a user name and password.";
+
+            // Show the name actually sent, which for a credential with no domain includes this
+            // connection's machine name.
+            var logon = set.GetLogonName(_model.Host);
             return set.HasPassword
-                ? $"Signs in as {set.QualifiedUsername}."
-                : $"Signs in as {set.QualifiedUsername} - no password stored, Windows will ask.";
+                ? $"Signs in as {logon}."
+                : $"Signs in as {logon} - no password stored, Windows will ask.";
         }
     }
 

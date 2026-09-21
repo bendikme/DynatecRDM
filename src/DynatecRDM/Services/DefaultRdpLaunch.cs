@@ -57,6 +57,35 @@ public static class DefaultRdpLaunch
     }
 
     /// <summary>
+    /// True when the user's own Default.rdp stops the session from following the window size.
+    /// Started without a file, Remote Desktop takes every setting the command line does not name
+    /// from there, so a connection that wants dynamic resolution cannot rely on it.
+    /// </summary>
+    public static bool DisablesDynamicResolution()
+    {
+        try
+        {
+            var path = DefaultRdpPath;
+            if (!File.Exists(path)) return false;
+
+            foreach (var line in File.ReadLines(path))
+            {
+                var setting = line.Trim();
+                if (setting.Equals("dynamic resolution:i:0", StringComparison.OrdinalIgnoreCase) ||
+                    setting.Equals("smart sizing:i:1", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug_($"Reading Default.rdp for its display settings failed: {ex.Message}");
+        }
+        return false;
+    }
+
+    /// <summary>
     /// True when this host has already been allowed to use local devices, so the consent dialog
     /// will not appear.
     /// </summary>
