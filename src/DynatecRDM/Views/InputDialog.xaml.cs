@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 
 namespace DynatecRDM.Views;
@@ -14,7 +15,7 @@ public partial class InputDialog : Window
     {
         InitializeComponent();
 
-        Title = string.IsNullOrWhiteSpace(title) ? "Enter a value" : title;
+        Title = string.IsNullOrWhiteSpace(title) ? Strings.Dialog_Input_Title : title;
         HeadingText.Text = Title;
         PromptText.Text = prompt ?? string.Empty;
         InputBox.Text = initialValue ?? string.Empty;

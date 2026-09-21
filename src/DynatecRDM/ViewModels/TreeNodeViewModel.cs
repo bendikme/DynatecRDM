@@ -27,6 +27,10 @@ public sealed class TreeNodeViewModel : ObservableObject
     private bool _isVisible = true;
     private bool _isRunning;
     private bool _favorite;
+    private string? _snapshotPath;
+    private DateTime? _snapshotTakenUtc;
+    private DynatecRDM.Services.Reachability _reach;
+    private string _reachText = string.Empty;
 
     public TreeNodeViewModel(TreeNodeKind kind, Guid id, object model)
     {
@@ -93,6 +97,34 @@ public sealed class TreeNodeViewModel : ObservableObject
     }
 
     public bool HasColor => !string.IsNullOrWhiteSpace(_color);
+
+    /// <summary>A connection's last captured picture, or null when there is none.</summary>
+    public string? SnapshotPath
+    {
+        get => _snapshotPath;
+        set => SetProperty(ref _snapshotPath, value);
+    }
+
+    /// <summary>When that picture was taken; the file keeps its name, so this is what makes it reload.</summary>
+    public DateTime? SnapshotTakenUtc
+    {
+        get => _snapshotTakenUtc;
+        set => SetProperty(ref _snapshotTakenUtc, value);
+    }
+
+    /// <summary>Whether the host answered on its Remote Desktop port when last asked.</summary>
+    public DynatecRDM.Services.Reachability Reach
+    {
+        get => _reach;
+        set => SetProperty(ref _reach, value);
+    }
+
+    /// <summary>What was checked and when, for the tool tip on the reachability mark.</summary>
+    public string ReachText
+    {
+        get => _reachText;
+        set => SetProperty(ref _reachText, value ?? string.Empty);
+    }
 
     public bool Favorite
     {

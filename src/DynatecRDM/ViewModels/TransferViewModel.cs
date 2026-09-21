@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Windows.Data;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 using Microsoft.Win32;
 
@@ -18,7 +19,8 @@ public sealed class TransferViewModel : ObservableObject
 {
     private const int MinPassphraseLength = 8;
     private const int MaxMessageLength = 220;
-    private const string UngroupedName = "Ungrouped";
+
+    private static string UngroupedName => Strings.Transfer_Ungrouped;
 
     private readonly IDataStore _store;
     private readonly ConfigTransfer _transfer;
@@ -228,7 +230,8 @@ public sealed class TransferViewModel : ObservableObject
         }
     }
 
-    public string SelectionText => _selectedCount == 1 ? "1 selected" : $"{_selectedCount} selected";
+    public string SelectionText =>
+        UiLanguage.Plural(_selectedCount, Strings.Transfer_Export_Selection_One, Strings.Transfer_Export_Selection_Many);
 
     /// <summary>What the last export produced, shown in the success card.</summary>
     public string ExportSummary
@@ -284,12 +287,13 @@ public sealed class TransferViewModel : ObservableObject
             var version = string.IsNullOrWhiteSpace(preview.AppVersion) ? null : preview.AppVersion.Trim();
             var written = DescribeExportDate(preview.ExportedUtc);
 
+            // The date pattern is part of each string, because the two languages write a date differently.
             return (version, written) switch
             {
-                (not null, not null) => $"Exported by version {version} on {written}",
-                (not null, null) => $"Exported by version {version}",
-                (null, not null) => $"Exported on {written}",
-                _ => "This file does not say when it was written.",
+                (not null, { } date) => UiLanguage.Format(Strings.Transfer_Preview_Origin_VersionAndDate, version, date),
+                (not null, null) => UiLanguage.Format(Strings.Transfer_Preview_Origin_Version, version),
+                (null, { } date) => UiLanguage.Format(Strings.Transfer_Preview_Origin_Date, date),
+                _ => Strings.Transfer_Preview_Origin_Unknown,
             };
         }
     }
@@ -334,12 +338,22 @@ public sealed class TransferViewModel : ObservableObject
             if (_result is not { } r) return string.Empty;
 
             var parts = new List<string>(4);
-            if (r.ConnectionsAdded > 0) parts.Add(Plural(r.ConnectionsAdded, "connection"));
-            if (r.MultiConfigsAdded > 0) parts.Add(Plural(r.MultiConfigsAdded, "multi-config"));
-            if (r.GroupsAdded > 0) parts.Add(Plural(r.GroupsAdded, "folder"));
-            if (r.CredentialsAdded > 0) parts.Add(Plural(r.CredentialsAdded, "credential"));
+            if (r.ConnectionsAdded > 0) parts.Add(ConnectionCount(r.ConnectionsAdded));
+            if (r.MultiConfigsAdded > 0) parts.Add(MultiConfigCount(r.MultiConfigsAdded));
+            if (r.GroupsAdded > 0)
+            {
+                parts.Add(UiLanguage.Plural(
+                    r.GroupsAdded, Strings.Transfer_Count_Groups_One, Strings.Transfer_Count_Groups_Many));
+            }
+            if (r.CredentialsAdded > 0)
+            {
+                parts.Add(UiLanguage.Plural(
+                    r.CredentialsAdded, Strings.Transfer_Count_Credentials_One, Strings.Transfer_Count_Credentials_Many));
+            }
 
-            return parts.Count == 0 ? "Nothing new was added." : "Added " + string.Join(", ", parts) + ".";
+            return parts.Count == 0
+                ? Strings.Transfer_Result_NothingAdded
+                : UiLanguage.Format(Strings.Transfer_Result_AddedSummary, JoinList(parts));
         }
     }
 
@@ -378,8 +392,8 @@ public sealed class TransferViewModel : ObservableObject
                 var count = config.Items.Count;
                 _items.Add(new TransferItemViewModel(
                     config.Id,
-                    string.IsNullOrWhiteSpace(config.Name) ? "Multi-config" : config.Name,
-                    count == 1 ? "1 connection" : $"{count} connections",
+                    string.IsNullOrWhiteSpace(config.Name) ? Strings.Transfer_UnnamedMultiConfig : config.Name,
+                    ConnectionCount(count),
                     GroupNameFor(paths, config.GroupId),
                     isMultiConfig: true,
                     OnItemSelectionChanged));
@@ -393,7 +407,7 @@ public sealed class TransferViewModel : ObservableObject
         {
             _suspendSelectionUpdates = false;
             AppLog.Error("The export list could not be loaded.", ex);
-            ShowMessage($"The library could not be read: {Concise(ex)}", true);
+            ShowMessage(UiLanguage.Format(Strings.Transfer_Error_LoadLibrary, Concise(ex)), true);
         }
         finally
         {
@@ -419,7 +433,7 @@ public sealed class TransferViewModel : ObservableObject
         // The depth guard keeps a corrupt parent cycle from spinning here forever.
         for (var depth = 0; depth < 16; depth++)
         {
-            parts.Add(string.IsNullOrWhiteSpace(current.Name) ? "Group" : current.Name.Trim());
+            parts.Add(string.IsNullOrWhiteSpace(current.Name) ? Strings.Transfer_UnnamedGroup : current.Name.Trim());
             if (current.ParentId is not { } parentId || !byId.TryGetValue(parentId, out var parent)) break;
             current = parent;
         }
@@ -539,7 +553,7 @@ public sealed class TransferViewModel : ObservableObject
 
         if (_passphrase.Length < MinPassphraseLength)
         {
-            PassphraseError = $"Use at least {MinPassphraseLength} characters.";
+            PassphraseError = UiLanguage.Format(Strings.Transfer_Passphrase_TooShort, MinPassphraseLength);
             return;
         }
 
@@ -547,7 +561,7 @@ public sealed class TransferViewModel : ObservableObject
         // offered rather than failing once the file dialog has already been answered.
         if (string.IsNullOrWhiteSpace(_passphrase))
         {
-            PassphraseError = "Use something other than spaces.";
+            PassphraseError = Strings.Transfer_Passphrase_OnlySpaces;
             return;
         }
 
@@ -559,7 +573,7 @@ public sealed class TransferViewModel : ObservableObject
 
         PassphraseError = string.Equals(_passphrase, _passphraseConfirm, StringComparison.Ordinal)
             ? null
-            : "The two passphrases do not match.";
+            : Strings.Transfer_Passphrase_Mismatch;
     }
 
     // ------------------------------------------------------------------ export commands
@@ -576,9 +590,9 @@ public sealed class TransferViewModel : ObservableObject
         var extension = FileExtension();
         var dialog = new SaveFileDialog
         {
-            Title = "Export configurations",
-            Filter = $"DYNATEC RDM library (*{extension})|*{extension}|All files (*.*)|*.*",
-            FileName = $"DynatecRDM-library-{DateTime.Now:yyyy-MM-dd}{extension}",
+            Title = Strings.Transfer_ExportDialog_Title,
+            Filter = UiLanguage.Format(Strings.Transfer_FileFilter, extension),
+            FileName = UiLanguage.Format(Strings.Transfer_ExportDialog_FileName, $"{DateTime.Now:yyyy-MM-dd}", extension),
             DefaultExt = extension,
             AddExtension = true,
             OverwritePrompt = true,
@@ -596,7 +610,7 @@ public sealed class TransferViewModel : ObservableObject
         var connectionIds = SelectedIds(multiConfigs: false);
         var multiConfigIds = SelectedIds(multiConfigs: true);
 
-        SetBusy("Building the export...");
+        SetBusy(Strings.Transfer_Busy_Building);
         try
         {
             // Task.Run keeps the compression and the re-encryption off the UI thread even if
@@ -606,17 +620,17 @@ public sealed class TransferViewModel : ObservableObject
                     : _transfer.BuildBundleAsync(connectionIds, multiConfigIds, includeCredentials, passphrase))
                 .ConfigureAwait(true);
 
-            BusyText = "Writing the file...";
+            BusyText = Strings.Transfer_Busy_Writing;
             await Task.Run(() => _transfer.ExportAsync(bundle, path)).ConfigureAwait(true);
 
             // The bundle is what actually reached the file, which is not always what was asked
             // for: a multi-config drags in the connections its entries launch.
-            ExportSummary =
-                $"Exported {Plural(bundle.Connections.Count, "connection")} and " +
-                $"{Plural(bundle.MultiConfigs.Count, "multi-config")}" +
-                (bundle.ContainsSecrets ? ", with saved passwords." : ".");
+            ExportSummary = UiLanguage.Format(
+                bundle.ContainsSecrets ? Strings.Transfer_Export_Summary_WithPasswords : Strings.Transfer_Export_Summary,
+                ConnectionCount(bundle.Connections.Count),
+                MultiConfigCount(bundle.MultiConfigs.Count));
             ExportPath = path;
-            ShowMessage($"The export finished: {Path.GetFileName(path)}", false);
+            ShowMessage(UiLanguage.Format(Strings.Transfer_Status_ExportDone, Path.GetFileName(path)), false);
             AppLog.Info($"Exported the library to '{path}'.");
 
             // The passphrase protected one file and has no further use here.
@@ -625,7 +639,7 @@ public sealed class TransferViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error($"Exporting the library to '{path}' failed.", ex);
-            ShowMessage($"The export failed: {Concise(ex)}", true);
+            ShowMessage(UiLanguage.Format(Strings.Transfer_Status_ExportFailed, Concise(ex)), true);
         }
         finally
         {
@@ -637,9 +651,9 @@ public sealed class TransferViewModel : ObservableObject
     {
         var dialog = new SaveFileDialog
         {
-            Title = "Back up the database",
-            Filter = "Database files (*.db)|*.db|All files (*.*)|*.*",
-            FileName = $"DynatecRDM-backup-{DateTime.Now:yyyy-MM-dd}.db",
+            Title = Strings.Transfer_BackupDialog_Title,
+            Filter = Strings.Transfer_BackupDialog_Filter,
+            FileName = UiLanguage.Format(Strings.Transfer_BackupDialog_FileName, $"{DateTime.Now:yyyy-MM-dd}"),
             DefaultExt = ".db",
             AddExtension = true,
             OverwritePrompt = true,
@@ -650,20 +664,20 @@ public sealed class TransferViewModel : ObservableObject
         var target = dialog.FileName;
         if (RefuseDataDirectory(target)) return;
 
-        SetBusy("Copying the database...");
+        SetBusy(Strings.Transfer_Busy_CopyingDatabase);
         try
         {
             var written = await Task.Run(() => _transfer.BackupDatabaseAsync(target)).ConfigureAwait(true);
 
-            ExportSummary = "The whole database was copied, including everything this dialog can export.";
+            ExportSummary = Strings.Transfer_Backup_Summary;
             ExportPath = string.IsNullOrWhiteSpace(written) ? dialog.FileName : written;
-            ShowMessage($"The backup finished: {Path.GetFileName(ExportPath)}", false);
+            ShowMessage(UiLanguage.Format(Strings.Transfer_Status_BackupDone, Path.GetFileName(ExportPath)), false);
             AppLog.Info($"Backed the database up to '{ExportPath}'.");
         }
         catch (Exception ex)
         {
             AppLog.Error("Backing the database up failed.", ex);
-            ShowMessage($"The backup failed: {Concise(ex)}", true);
+            ShowMessage(UiLanguage.Format(Strings.Transfer_Status_BackupFailed, Concise(ex)), true);
         }
         finally
         {
@@ -690,8 +704,8 @@ public sealed class TransferViewModel : ObservableObject
         var extension = FileExtension();
         var dialog = new OpenFileDialog
         {
-            Title = "Choose a configuration file",
-            Filter = $"DYNATEC RDM library (*{extension})|*{extension}|All files (*.*)|*.*",
+            Title = Strings.Transfer_OpenDialog_Title,
+            Filter = UiLanguage.Format(Strings.Transfer_FileFilter, extension),
             CheckFileExists = true,
             Multiselect = false,
         };
@@ -700,7 +714,7 @@ public sealed class TransferViewModel : ObservableObject
 
         var path = dialog.FileName;
 
-        SetBusy("Reading the file...");
+        SetBusy(Strings.Transfer_Busy_Reading);
         try
         {
             Result = null;
@@ -717,7 +731,7 @@ public sealed class TransferViewModel : ObservableObject
             SafeRaise(ClearImportPassphraseRequested, "clear the import passphrase box");
 
             if (NeedsPassphrase)
-                ShowMessage("This file carries saved passwords. Enter the passphrase it was exported with.", false);
+                ShowMessage(Strings.Transfer_Status_PassphraseNeeded, false);
             else
                 ClearMessage();
         }
@@ -729,7 +743,7 @@ public sealed class TransferViewModel : ObservableObject
             ImportFileName = string.Empty;
 
             AppLog.Error($"Reading the configuration file '{path}' failed.", ex);
-            ShowMessage($"That file could not be read: {Concise(ex)}", true);
+            ShowMessage(UiLanguage.Format(Strings.Transfer_Status_ReadFailed, Concise(ex)), true);
         }
         finally
         {
@@ -744,7 +758,7 @@ public sealed class TransferViewModel : ObservableObject
 
         var passphrase = _needsPassphrase ? _importPassphrase : null;
 
-        SetBusy("Importing...");
+        SetBusy(Strings.Transfer_Busy_Importing);
         try
         {
             var mode = _mode;
@@ -754,7 +768,10 @@ public sealed class TransferViewModel : ObservableObject
 
             var notes = result.Warnings?.Count ?? 0;
             ShowMessage(
-                notes == 0 ? "The import finished." : $"The import finished, with {Plural(notes, "note")} below.",
+                notes == 0
+                    ? Strings.Transfer_Status_ImportDone
+                    : UiLanguage.Plural(
+                        notes, Strings.Transfer_Status_ImportDoneWithNotes_One, Strings.Transfer_Status_ImportDoneWithNotes_Many),
                 false);
             AppLog.Info($"Imported '{_importFileName}' using mode {_mode}.");
 
@@ -776,7 +793,7 @@ public sealed class TransferViewModel : ObservableObject
         {
             Result = null;
             AppLog.Error($"Importing '{_importFileName}' failed.", ex);
-            ShowMessage($"The import failed: {Concise(ex)}", true);
+            ShowMessage(UiLanguage.Format(Strings.Transfer_Status_ImportFailed, Concise(ex)), true);
         }
         finally
         {
@@ -804,9 +821,7 @@ public sealed class TransferViewModel : ObservableObject
     {
         if (!IsInsideDataDirectory(path)) return false;
 
-        ShowMessage(
-            "Choose a folder outside DYNATEC RDM's own data folder - that folder holds the live database.",
-            true);
+        ShowMessage(Strings.Transfer_Error_InsideDataFolder, true);
         return true;
     }
 
@@ -841,7 +856,7 @@ public sealed class TransferViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error("The file dialog could not be opened.", ex);
-            ShowMessage($"The file dialog could not be opened: {Concise(ex)}", true);
+            ShowMessage(UiLanguage.Format(Strings.Transfer_Error_FileDialog, Concise(ex)), true);
             return false;
         }
     }
@@ -881,10 +896,20 @@ public sealed class TransferViewModel : ObservableObject
         CloseCommand.RaiseCanExecuteChanged();
     }
 
-    private static string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+    private static string ConnectionCount(int count) =>
+        UiLanguage.Plural(count, Strings.Transfer_Count_Connections_One, Strings.Transfer_Count_Connections_Many);
+
+    private static string MultiConfigCount(int count) =>
+        UiLanguage.Plural(count, Strings.Transfer_Count_MultiConfigs_One, Strings.Transfer_Count_MultiConfigs_Many);
+
+    /// <summary>"a, b, c" in English and "a, b og c" in Norwegian: only the last separator is translated.</summary>
+    private static string JoinList(IReadOnlyList<string> parts) =>
+        parts.Count < 2
+            ? string.Concat(parts)
+            : string.Join(", ", parts.Take(parts.Count - 1)) + Strings.Transfer_List_LastSeparator + parts[^1];
 
     /// <summary>The export stamp as a local date, or null when the file carries no usable one.</summary>
-    private static string? DescribeExportDate(DateTime exportedUtc)
+    private static DateTime? DescribeExportDate(DateTime exportedUtc)
     {
         if (exportedUtc == default || exportedUtc.Year < 2000) return null;
 
@@ -892,13 +917,21 @@ public sealed class TransferViewModel : ObservableObject
             ? exportedUtc
             : DateTime.SpecifyKind(exportedUtc, DateTimeKind.Utc);
 
-        return utc.ToLocalTime().ToString("d MMMM yyyy");
+        return utc.ToLocalTime();
     }
 
     private static string Concise(Exception ex)
     {
         var text = ex.Message?.Trim();
-        if (string.IsNullOrEmpty(text)) return "the reason is in the application log";
+        if (string.IsNullOrEmpty(text)) return Strings.Transfer_Error_ReasonInLog;
+
+        // An ArgumentException appends " (Parameter 'name')" in English whatever the UI language.
+        // The parameter name is for the log, which records the whole exception, not for this line.
+        if (ex is ArgumentException { ParamName: { Length: > 0 } parameter })
+        {
+            var suffix = $" (Parameter '{parameter}')";
+            if (text.EndsWith(suffix, StringComparison.Ordinal)) text = text[..^suffix.Length].TrimEnd();
+        }
 
         text = text.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal);
         return text.Length <= MaxMessageLength ? text : text[..MaxMessageLength].TrimEnd() + "...";
@@ -922,7 +955,7 @@ public sealed class TransferItemViewModel : ObservableObject
         Id = id;
         Name = name ?? string.Empty;
         Detail = detail ?? string.Empty;
-        GroupName = string.IsNullOrWhiteSpace(groupName) ? "Ungrouped" : groupName;
+        GroupName = string.IsNullOrWhiteSpace(groupName) ? Strings.Transfer_Ungrouped : groupName;
         IsMultiConfig = isMultiConfig;
         _selectionChanged = selectionChanged;
     }
@@ -933,7 +966,7 @@ public sealed class TransferItemViewModel : ObservableObject
     public string GroupName { get; }
     public bool IsMultiConfig { get; }
 
-    public string Kind => IsMultiConfig ? "Multi-config" : "Connection";
+    public string Kind => IsMultiConfig ? Strings.Transfer_Kind_MultiConfig : Strings.Transfer_Kind_Connection;
 
     public bool IsSelected
     {

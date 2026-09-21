@@ -1,0 +1,268 @@
+<UserControl x:Class="DynatecRDM.Views.MonitorMapView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:DynatecRDM.Converters"
+             xmlns:res="clr-namespace:DynatecRDM.Resources">
+
+    <!-- The monitors, drawn to scale, for one set of display settings (the DataContext, a
+         DisplayEditorViewModel). Clicking a monitor aims the session at it; a session in a window
+         at a chosen position shows as a rectangle that is dragged, resized and nudged here.
+         Other things can be drawn over the monitors through Companions - the multi-config editor
+         shows every item of the set that way - each with a chip that selects it. -->
+    <Border Background="{DynamicResource BackgroundBrush}"
+            BorderBrush="{DynamicResource BorderBrushSoft}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource RadiusMedium}"
+            SnapsToDevicePixels="True">
+        <Grid x:Name="MonitorMapHost" ClipToBounds="True" SizeChanged="OnMapSizeChanged">
+            <ItemsControl ItemsSource="{Binding MonitorTiles}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="Canvas.Left" Value="{Binding X}" />
+                        <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Style="{StaticResource MonitorTileStyle}"
+                                Width="{Binding W}"
+                                Height="{Binding H}"
+                                Command="{Binding DataContext.SelectMonitorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}">
+                            <Button.ToolTip>
+                                <!-- A tool tip lives in its own tree, so the tile is reached
+                                     through the placement target rather than by inheritance. -->
+                                <ToolTip Style="{StaticResource AppToolTipStyle}"
+                                         Content="{Binding PlacementTarget.DataContext.Description, RelativeSource={RelativeSource Self}}" />
+                            </Button.ToolTip>
+                            <!-- Bottom right, so the top left stays free for the chips drawn over it. -->
+                            <Grid Margin="6,4" ClipToBounds="True">
+                                <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding Title}"
+                                               HorizontalAlignment="Right"
+                                               FontSize="{StaticResource FontSizeLarge}"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding FriendlyName}"
+                                               HorizontalAlignment="Right"
+                                               FontSize="{StaticResource FontSizeSmall}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding ResolutionText}"
+                                               HorizontalAlignment="Right"
+                                               FontSize="{StaticResource FontSizeSmall}"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <Border Style="{StaticResource StatusPillStyle}"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"
+                                        Visibility="{Binding IsPrimary, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                                    <TextBlock Text="{x:Static res:Strings.Editor_Monitor_Primary}"
+                                               FontSize="{StaticResource FontSizeSmall}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                </Border>
+                            </Grid>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Everything else on the map. The shapes let clicks through to the monitors under
+                 them; only their name chip is clickable, and it selects what the shape stands for. -->
+            <ItemsControl ItemsSource="{Binding Companions, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="Canvas.Left" Value="{Binding X}" />
+                        <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid x:Name="Shape" Width="{Binding W}" Height="{Binding H}">
+                            <Border x:Name="Fill"
+                                    IsHitTestVisible="False"
+                                    CornerRadius="3"
+                                    Opacity="0.13"
+                                    Background="{Binding ColorHex, Converter={x:Static conv:HexToBrushConverter.Instance}}" />
+                            <Border x:Name="Outline"
+                                    IsHitTestVisible="False"
+                                    CornerRadius="3"
+                                    BorderThickness="1.5"
+                                    BorderBrush="{Binding ColorHex, Converter={x:Static conv:HexToBrushConverter.Instance}}" />
+                            <Button x:Name="Chip"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Margin="5,5,5,0"
+                                    Cursor="Hand"
+                                    Focusable="False"
+                                    Command="{Binding CompanionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding Item}"
+                                    ToolTip="{Binding Label}">
+                                <Button.RenderTransform>
+                                    <TranslateTransform Y="{Binding ChipOffset}" />
+                                </Button.RenderTransform>
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="ChipBd"
+                                                Padding="3,2,8,2"
+                                                CornerRadius="9"
+                                                Background="{Binding ColorHex, Converter={x:Static conv:HexToBrushConverter.Instance}}"
+                                                SnapsToDevicePixels="True">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Width="16" Height="16" CornerRadius="8" Background="#33000000">
+                                                    <TextBlock Text="{Binding Number}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="10"
+                                                               FontWeight="Bold"
+                                                               Foreground="White" />
+                                                </Border>
+                                                <TextBlock Margin="5,0,0,0"
+                                                           VerticalAlignment="Center"
+                                                           MaxWidth="170"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           FontSize="{StaticResource FontSizeSmall}"
+                                                           FontWeight="SemiBold"
+                                                           Text="{Binding Label}"
+                                                           Foreground="{Binding ColorHex, Converter={x:Static conv:ContrastForegroundConverter.Instance}, FallbackValue=White}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding ColorHex, Converter={x:Static conv:IsColorConverter.Instance}}" Value="False">
+                                                <Setter TargetName="ChipBd" Property="Background" Value="{DynamicResource AccentStrongBrush}" />
+                                            </DataTrigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ChipBd" Property="Opacity" Value="0.85" />
+                                            </Trigger>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <Setter TargetName="ChipBd" Property="BorderBrush" Value="{DynamicResource TextPrimaryBrush}" />
+                                                <Setter TargetName="ChipBd" Property="BorderThickness" Value="1.5" />
+                                            </DataTrigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding ColorHex, Converter={x:Static conv:IsColorConverter.Instance}}" Value="False">
+                                <Setter TargetName="Fill" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="Outline" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter TargetName="Fill" Property="Opacity" Value="0.24" />
+                                <Setter TargetName="Outline" Property="BorderThickness" Value="2.5" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsDimmed}" Value="True">
+                                <Setter TargetName="Shape" Property="Opacity" Value="0.45" />
+                                <Setter TargetName="Outline" Property="BorderBrush" Value="{DynamicResource TextMutedBrush}" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- The window for "at a position I choose". The middle moves it, an edge or corner
+                 resizes it, the arrow keys nudge it; the view model keeps it on the screens. The
+                 canvas has no background, so clicks beside the rectangle still reach the monitors. -->
+            <Canvas>
+                <Border x:Name="CustomRectBody"
+                        Canvas.Left="{Binding CustomRectX}"
+                        Canvas.Top="{Binding CustomRectY}"
+                        Width="{Binding CustomRectW}"
+                        Height="{Binding CustomRectH}"
+                        Background="{DynamicResource AccentSubtleBrush}"
+                        BorderThickness="2"
+                        CornerRadius="{StaticResource RadiusSmall}"
+                        Focusable="True"
+                        FocusVisualStyle="{StaticResource AppFocusVisual}"
+                        AutomationProperties.Name="{x:Static res:Strings.Editor_Rectangle_Name}"
+                        AutomationProperties.HelpText="{x:Static res:Strings.Editor_MapHint_Rectangle}"
+                        IsHitTestVisible="{Binding CanEditRectangle}"
+                        Visibility="{Binding ShowCustomRect, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}"
+                        MouseLeftButtonDown="OnRectangleMouseDown"
+                        MouseMove="OnRectangleMouseMove"
+                        MouseLeftButtonUp="OnRectangleMouseUp"
+                        LostMouseCapture="OnRectangleLostCapture"
+                        KeyDown="OnRectangleKeyDown"
+                        SnapsToDevicePixels="True">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CustomRectOffScreen}" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="7" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="7" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="7" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="7" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="1" Grid.Column="1" Background="Transparent" Tag="None" Cursor="SizeAll" />
+
+                        <Border Grid.Row="0" Grid.Column="1" Background="Transparent" Tag="Top" Cursor="SizeNS" />
+                        <Border Grid.Row="2" Grid.Column="1" Background="Transparent" Tag="Bottom" Cursor="SizeNS" />
+                        <Border Grid.Row="1" Grid.Column="0" Background="Transparent" Tag="Left" Cursor="SizeWE" />
+                        <Border Grid.Row="1" Grid.Column="2" Background="Transparent" Tag="Right" Cursor="SizeWE" />
+
+                        <Border Grid.Row="0" Grid.Column="0" Background="{DynamicResource AccentBrush}" Tag="Left,Top" Cursor="SizeNWSE" />
+                        <Border Grid.Row="0" Grid.Column="2" Background="{DynamicResource AccentBrush}" Tag="Right,Top" Cursor="SizeNESW" />
+                        <Border Grid.Row="2" Grid.Column="0" Background="{DynamicResource AccentBrush}" Tag="Left,Bottom" Cursor="SizeNESW" />
+                        <Border Grid.Row="2" Grid.Column="2" Background="{DynamicResource AccentBrush}" Tag="Right,Bottom" Cursor="SizeNWSE" />
+
+                        <TextBlock Grid.Row="0"
+                                   Grid.RowSpan="3"
+                                   Grid.ColumnSpan="3"
+                                   Text="{Binding CustomRectCaption}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontSize="{StaticResource FontSizeSmall}"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsHitTestVisible="False" />
+                    </Grid>
+                </Border>
+            </Canvas>
+
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Visibility="{Binding HasMonitors, Converter={x:Static conv:BoolToVisibilityConverter.Instance}, ConverterParameter=invert}">
+                <Path Width="32"
+                      Height="32"
+                      Stretch="Uniform"
+                      HorizontalAlignment="Center"
+                      Data="{StaticResource IconMonitor}"
+                      Stroke="{DynamicResource TextMutedBrush}"
+                      StrokeThickness="1.3"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round"
+                      StrokeLineJoin="Round" />
+                <TextBlock Text="{Binding MonitorSummary}"
+                           Margin="0,10,0,0"
+                           HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextMutedBrush}" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

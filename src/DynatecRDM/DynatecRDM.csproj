@@ -28,6 +28,20 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
   </ItemGroup>
 
+  <!-- Interop for the Remote Desktop ActiveX control (mstscax.dll), which the app hosts in-process
+       instead of launching mstsc/msrdc. These are pre-generated because the .NET SDK build cannot
+       resolve <COMReference> (MSB4803); see lib\RdpInterop\README.md for how to regenerate. -->
+  <ItemGroup>
+    <Reference Include="MSTSCLib">
+      <HintPath>lib\RdpInterop\MSTSCLib.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="AxMSTSCLib">
+      <HintPath>lib\RdpInterop\AxMSTSCLib.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
   <!-- WinForms is referenced only for NotifyIcon and GDI+ interop. Its implicit global using
        collides with WPF on Application, MessageBox, Clipboard, Point, Size, Color and more,
        so WinForms types are always written out in full instead. -->
@@ -40,5 +54,35 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <!-- Roboto is compiled into the assembly so the UI looks the same on machines that do not have
+       it installed. Its licence (Assets\Fonts\OFL.txt) still ships beside the exe, as the OFL asks. -->
+  <ItemGroup>
+    <None Remove="Assets\Fonts\*.ttf" />
+    <Resource Include="Assets\Fonts\*.ttf" />
+  </ItemGroup>
+
+  <!-- Every piece of UI text is in Resources\Strings.resx (English) and Strings.nb.resx (Norwegian
+       Bokmål, built into nb\DynatecRDM.resources.dll). The build generates the Strings class from
+       the English file, so adding a string means adding it to both files and nothing else. -->
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\Strings.resx">
+      <StronglyTypedFileName>$(IntermediateOutputPath)Strings.g.cs</StronglyTypedFileName>
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>DynatecRDM.Resources</StronglyTypedNamespace>
+      <StronglyTypedClassName>Strings</StronglyTypedClassName>
+      <PublicClass>true</PublicClass>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- WPF compiles a throwaway copy of the assembly before the XAML, to resolve the local types the
+       XAML uses, and resource generation normally runs after that - so the copy would not see the
+       Strings class. Generating it first and handing it to that compile as a generated file fixes
+       the order. -->
+  <Target Name="GenerateStringsBeforeXaml" BeforeTargets="MarkupCompilePass1" DependsOnTargets="PrepareResourceNames;ResGen">
+    <ItemGroup>
+      <_GeneratedCodeFiles Include="$(IntermediateOutputPath)Strings.g.cs" />
+    </ItemGroup>
+  </Target>
 
 </Project>

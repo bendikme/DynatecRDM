@@ -27,6 +27,8 @@ public sealed class AppServices : IDisposable
     public HotkeyService Hotkeys { get; private set; } = null!;
     public UpdateService Updates { get; private set; } = null!;
     public ConfigTransfer Transfer { get; private set; } = null!;
+    public ConnectionHistoryService History { get; private set; } = null!;
+    public ReachabilityService Reachability { get; private set; } = null!;
 
     private AppSettings _settings = new();
 
@@ -61,21 +63,37 @@ public sealed class AppServices : IDisposable
         services.Monitors = new MonitorService();
         services.Placement = new WindowPlacementService(services.Monitors);
         services.Snapshots = new SnapshotService(() => services.Settings);
-        services.Sessions = new SessionManager(
-            services.Store,
-            services.RdpBuilder,
-            services.Protector,
-            services.Credentials,
-            services.Monitors,
-            services.Placement,
-            services.Snapshots,
-            () => services.Settings);
+
+        // Settings decide which session manager to build, so the store is opened and settings loaded
+        // before the graph is finished. The client model is read once here: switching it mid-run
+        // would strand live sessions in the other manager, so it takes effect on the next app launch.
+        await services.Store.InitializeAsync(ct).ConfigureAwait(false);
+        services._settings = await services.Store.GetSettingsAsync(ct).ConfigureAwait(false);
+
+        services.Sessions = services._settings.UseEmbeddedClient
+            ? new EmbeddedSessionManager(
+                services.Store,
+                services.Protector,
+                services.Monitors,
+                services.Placement,
+                services.Snapshots,
+                () => services.Settings)
+            : new SessionManager(
+                services.Store,
+                services.RdpBuilder,
+                services.Protector,
+                services.Credentials,
+                services.Monitors,
+                services.Placement,
+                services.Snapshots,
+                () => services.Settings);
         services.Hotkeys = new HotkeyService();
         services.Updates = new UpdateService(() => services.Settings, () => services.SaveSettingsAsync());
         services.Transfer = new ConfigTransfer(services.Store, services.Protector);
 
-        await services.Store.InitializeAsync(ct).ConfigureAwait(false);
-        services._settings = await services.Store.GetSettingsAsync(ct).ConfigureAwait(false);
+        services.History = new ConnectionHistoryService(services.Sessions, services.Store);
+        await services.History.InitializeAsync(ct).ConfigureAwait(false);
+        services.Reachability = new ReachabilityService(services.Store, services.Sessions);
 
         _current = services;
         return services;
@@ -87,6 +105,9 @@ public sealed class AppServices : IDisposable
 
     public void Dispose()
     {
+        // First, while the store is still open: it records the sessions that outlive the app.
+        History?.Dispose();
+        Reachability?.Dispose();
         (Sessions as IDisposable)?.Dispose();
         (Monitors as IDisposable)?.Dispose();
         Updates?.Dispose();

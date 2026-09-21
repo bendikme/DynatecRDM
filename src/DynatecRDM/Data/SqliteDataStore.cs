@@ -17,10 +17,14 @@ namespace DynatecRDM.Data;
 /// </summary>
 public sealed class SqliteDataStore : IDataStore, IDisposable
 {
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2;
+
+    /// <summary>History kept per connection; the oldest sessions beyond this are dropped.</summary>
+    private const int LogEntriesPerConnection = 500;
     private const int SqliteCorrupt = 11;
     private const int SqliteNotADatabase = 26;
     private const string SettingsRowKey = "app";
+    private const string ProtectedTokenPrefix = "dpapi:v1:";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -177,6 +181,26 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
         CREATE INDEX IF NOT EXISTS ix_connections_group_id ON connections(group_id);
         CREATE INDEX IF NOT EXISTS ix_connections_name ON connections(name);
         CREATE INDEX IF NOT EXISTS ix_multiconfig_items_parent ON multiconfig_items(multiconfig_id);
+        """;
+
+    // Version 2: the connection history. A deleted connection takes its history with it. Older
+    // builds open a version 2 database without complaint and simply never read this table.
+    private const string SchemaV2Sql = """
+        CREATE TABLE IF NOT EXISTS connection_log (
+            id             TEXT    NOT NULL PRIMARY KEY,
+            connection_id  TEXT    NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
+            multiconfig_id TEXT    NULL,
+            host           TEXT    NOT NULL DEFAULT '',
+            started_utc    TEXT    NOT NULL,
+            connected_utc  TEXT    NULL,
+            ended_utc      TEXT    NULL,
+            outcome        INTEGER NOT NULL DEFAULT 0,
+            reconnects     INTEGER NOT NULL DEFAULT 0,
+            error          TEXT    NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS ix_connection_log_connection
+            ON connection_log(connection_id, started_utc DESC);
         """;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -619,7 +643,31 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
 
         try
         {
-            return JsonSerializer.Deserialize<AppSettings>(raw, Json) ?? new AppSettings();
+            var settings = JsonSerializer.Deserialize<AppSettings>(raw, Json) ?? new AppSettings();
+            var token = settings.UpdateAccessToken;
+            if (token?.StartsWith(ProtectedTokenPrefix, StringComparison.Ordinal) == true)
+            {
+                try
+                {
+                    settings.UpdateAccessToken = new SecretProtector().Unprotect(
+                        Convert.FromBase64String(token[ProtectedTokenPrefix.Length..]));
+                }
+                catch (FormatException)
+                {
+                    settings.UpdateAccessToken = null;
+                    AppLog.Warn("The stored update token is damaged; enter it again in Settings.");
+                }
+            }
+            else if (!string.IsNullOrEmpty(token))
+            {
+                // Upgrade older plaintext settings while holding the existing database lease.
+                using var upgrade = lease.Connection.CreateCommand();
+                upgrade.CommandText = "UPDATE settings SET value = $value WHERE key = $key;";
+                upgrade.Parameters.AddWithValue("$key", SettingsRowKey);
+                upgrade.Parameters.AddWithValue("$value", SerializeSettings(settings));
+                await upgrade.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+            return settings;
         }
         catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
@@ -631,7 +679,7 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
     public async Task SaveSettingsAsync(AppSettings settings, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        var payload = JsonSerializer.Serialize(settings, Json);
+        var payload = SerializeSettings(settings);
 
         using var lease = await LeaseAsync(ct).ConfigureAwait(false);
         using var cmd = lease.Connection.CreateCommand();
@@ -641,6 +689,16 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
         cmd.Parameters.AddWithValue("$key", SettingsRowKey);
         cmd.Parameters.AddWithValue("$value", payload);
         await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+    }
+
+    private static string SerializeSettings(AppSettings settings)
+    {
+        // The UI keeps the plaintext in memory; only the isolated persisted copy is encrypted.
+        var stored = settings.Clone();
+        if (!string.IsNullOrEmpty(stored.UpdateAccessToken))
+            stored.UpdateAccessToken = ProtectedTokenPrefix
+                + Convert.ToBase64String(new SecretProtector().Protect(stored.UpdateAccessToken));
+        return JsonSerializer.Serialize(stored, Json);
     }
 
     public async Task RecordLaunchAsync(Guid connectionId, CancellationToken ct = default)
@@ -657,6 +715,140 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
         await ExecuteAsync(lease.Connection, null,
             "UPDATE multiconfigs SET launch_count = launch_count + 1, last_launched_utc = $now WHERE id = $id;",
             ct, ("$now", ToDb(DateTime.UtcNow)), ("$id", ToDb(multiConfigId))).ConfigureAwait(false);
+    }
+
+    public async Task UpdateLayoutAsync(IReadOnlyList<LayoutChange> changes, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(changes);
+        if (changes.Count == 0) return;
+
+        using var lease = await LeaseAsync(ct).ConfigureAwait(false);
+        var cn = lease.Connection;
+        using var tx = cn.BeginTransaction();
+
+        foreach (var change in changes)
+        {
+            var sql = change.Kind switch
+            {
+                LibraryItemKind.Group =>
+                    "UPDATE \"groups\" SET parent_id = $parent, sort_order = $order WHERE id = $id;",
+                LibraryItemKind.Connection =>
+                    "UPDATE connections SET group_id = $parent, sort_order = $order WHERE id = $id;",
+                _ =>
+                    "UPDATE multiconfigs SET group_id = $parent, sort_order = $order WHERE id = $id;",
+            };
+
+            // A group can never hold itself; the tree would lose it.
+            var parent = change.Kind == LibraryItemKind.Group && change.ParentId == change.Id ? null : change.ParentId;
+
+            await ExecuteAsync(cn, tx, sql, ct,
+                ("$parent", ToDb(parent)), ("$order", change.SortOrder), ("$id", ToDb(change.Id))).ConfigureAwait(false);
+        }
+
+        tx.Commit();
+    }
+
+    public async Task SaveLogEntryAsync(ConnectionLogEntry entry, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        using var lease = await LeaseAsync(ct).ConfigureAwait(false);
+        var cn = lease.Connection;
+        using var tx = cn.BeginTransaction();
+
+        await ExecuteAsync(cn, tx, """
+            INSERT INTO connection_log
+                (id, connection_id, multiconfig_id, host, started_utc, connected_utc, ended_utc, outcome, reconnects, error)
+            VALUES
+                ($id, $connection, $multi, $host, $started, $connected, $ended, $outcome, $reconnects, $error)
+            ON CONFLICT(id) DO UPDATE SET
+                connected_utc = excluded.connected_utc,
+                ended_utc     = excluded.ended_utc,
+                outcome       = excluded.outcome,
+                reconnects    = excluded.reconnects,
+                error         = excluded.error;
+            """, ct,
+            ("$id", ToDb(entry.Id)),
+            ("$connection", ToDb(entry.ConnectionId)),
+            ("$multi", ToDb(entry.MultiConfigId)),
+            ("$host", Text(entry.Host)),
+            ("$started", ToDb(entry.StartedUtc)),
+            ("$connected", ToDb(entry.ConnectedUtc)),
+            ("$ended", ToDb(entry.EndedUtc)),
+            ("$outcome", (int)entry.Outcome),
+            ("$reconnects", entry.Reconnects),
+            ("$error", NullIfEmpty(entry.Error))).ConfigureAwait(false);
+
+        // Every session is first saved while still open, so trimming then keeps the limit.
+        if (entry.Outcome == SessionOutcome.Open)
+        {
+            await ExecuteAsync(cn, tx, """
+                DELETE FROM connection_log
+                WHERE connection_id = $connection
+                  AND id NOT IN (SELECT id FROM connection_log
+                                 WHERE connection_id = $connection
+                                 ORDER BY started_utc DESC
+                                 LIMIT $keep);
+                """, ct,
+                ("$connection", ToDb(entry.ConnectionId)),
+                ("$keep", LogEntriesPerConnection)).ConfigureAwait(false);
+        }
+
+        tx.Commit();
+    }
+
+    public async Task<IReadOnlyList<ConnectionLogEntry>> GetConnectionLogAsync(
+        Guid connectionId, int limit, CancellationToken ct = default)
+    {
+        using var lease = await LeaseAsync(ct).ConfigureAwait(false);
+        using var cmd = lease.Connection.CreateCommand();
+        cmd.CommandText = """
+            SELECT id, connection_id, multiconfig_id, host, started_utc, connected_utc, ended_utc,
+                   outcome, reconnects, error
+            FROM connection_log
+            WHERE connection_id = $connection
+            ORDER BY started_utc DESC
+            LIMIT $limit;
+            """;
+        cmd.Parameters.AddWithValue("$connection", ToDb(connectionId));
+        cmd.Parameters.AddWithValue("$limit", Math.Max(1, limit));
+
+        var result = new List<ConnectionLogEntry>();
+        using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var outcome = GetInt(reader, 7);
+            result.Add(new ConnectionLogEntry
+            {
+                Id = GetGuid(reader, 0),
+                ConnectionId = GetGuid(reader, 1),
+                MultiConfigId = GetNullableGuid(reader, 2),
+                Host = GetText(reader, 3),
+                StartedUtc = GetUtc(reader, 4),
+                ConnectedUtc = GetNullableUtc(reader, 5),
+                EndedUtc = GetNullableUtc(reader, 6),
+                Outcome = Enum.IsDefined(typeof(SessionOutcome), outcome) ? (SessionOutcome)outcome : SessionOutcome.Unknown,
+                Reconnects = GetInt(reader, 8),
+                Error = GetTextOrNull(reader, 9),
+            });
+        }
+        return result;
+    }
+
+    public async Task<int> CloseAbandonedLogEntriesAsync(CancellationToken ct = default)
+    {
+        using var lease = await LeaseAsync(ct).ConfigureAwait(false);
+        return await ExecuteAsync(lease.Connection, null,
+            "UPDATE connection_log SET outcome = $unknown WHERE outcome = $open;",
+            ct, ("$unknown", (int)SessionOutcome.Unknown), ("$open", (int)SessionOutcome.Open)).ConfigureAwait(false);
+    }
+
+    public async Task<int> ClearConnectionLogAsync(Guid connectionId, CancellationToken ct = default)
+    {
+        using var lease = await LeaseAsync(ct).ConfigureAwait(false);
+        return await ExecuteAsync(lease.Connection, null,
+            "DELETE FROM connection_log WHERE connection_id = $connection AND outcome <> $open;",
+            ct, ("$connection", ToDb(connectionId)), ("$open", (int)SessionOutcome.Open)).ConfigureAwait(false);
     }
 
     public void Dispose()
@@ -814,7 +1006,10 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
                 case 0:
                     await ExecuteAsync(cn, tx, SchemaV1Sql, ct).ConfigureAwait(false);
                     break;
-                // Future migrations: add "case 1:" here and raise SchemaVersion.
+                case 1:
+                    await ExecuteAsync(cn, tx, SchemaV2Sql, ct).ConfigureAwait(false);
+                    break;
+                // Future migrations: add the next case here and raise SchemaVersion.
             }
         }
 

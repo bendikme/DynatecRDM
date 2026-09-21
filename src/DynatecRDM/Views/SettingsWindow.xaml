@@ -2,11 +2,12 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:DynatecRDM.Converters"
+        xmlns:res="clr-namespace:DynatecRDM.Resources"
         Style="{StaticResource AppWindowStyle}"
-        Title="Settings"
-        Width="660"
-        Height="820"
-        MinWidth="560"
+        Title="{x:Static res:Strings.Settings_Title}"
+        Width="820"
+        Height="860"
+        MinWidth="680"
         MinHeight="520"
         WindowStartupLocation="CenterOwner"
         UseLayoutRounding="True"
@@ -31,13 +32,13 @@
 
         <Style x:Key="SetLabelStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeNormal}" />
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
 
         <Style x:Key="SetHintStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
-            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="LineHeight" Value="17" />
         </Style>
@@ -56,19 +57,19 @@
 
         <Style x:Key="SetErrorStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
-            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Margin" Value="0,4,0,0" />
         </Style>
 
         <Style x:Key="SetStatusStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding StatusIsError}" Value="True">
-                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -83,14 +84,14 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
-            <TextBlock Text="Settings"
+            <TextBlock Text="{x:Static res:Strings.Settings_Title}"
                        FontSize="{StaticResource FontSizeLarge}"
                        FontWeight="SemiBold"
-                       Foreground="{StaticResource TextPrimaryBrush}" />
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
             <TextBlock Margin="0,2,0,0"
                        FontSize="{StaticResource FontSizeNormal}"
-                       Foreground="{StaticResource TextSecondaryBrush}"
-                       Text="Changes are applied when you save." />
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       Text="{x:Static res:Strings.Settings_Subtitle}" />
         </StackPanel>
 
         <ScrollViewer Grid.Row="1" Style="{StaticResource AppScrollViewerStyle}" Padding="0,0,12,0">
@@ -99,34 +100,34 @@
                 <!-- ================================================== startup -->
                 <Border Style="{StaticResource SetCardStyle}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="STARTUP" />
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Settings_Startup_Header}" />
 
                         <CheckBox Style="{StaticResource AppToggleStyle}"
-                                  Content="Start in the notification area"
+                                  Content="{x:Static res:Strings.Settings_Startup_StartInTray}"
                                   IsChecked="{Binding StartInTray, Mode=TwoWay}" />
                         <TextBlock Style="{StaticResource SetToggleHintStyle}"
-                                   Text="The main window stays hidden until you open it from the tray icon." />
+                                   Text="{x:Static res:Strings.Settings_Startup_StartInTray_Hint}" />
 
                         <CheckBox Margin="0,12,0,0"
                                   Style="{StaticResource AppToggleStyle}"
-                                  Content="Close button hides to the notification area"
+                                  Content="{x:Static res:Strings.Settings_Startup_CloseToTray}"
                                   IsChecked="{Binding CloseToTray, Mode=TwoWay}" />
                         <TextBlock Style="{StaticResource SetToggleHintStyle}"
-                                   Text="Turn this off to make the close button exit the application." />
+                                   Text="{x:Static res:Strings.Settings_Startup_CloseToTray_Hint}" />
 
                         <CheckBox Margin="0,12,0,0"
                                   Style="{StaticResource AppToggleStyle}"
-                                  Content="Launch at logon"
+                                  Content="{x:Static res:Strings.Settings_Startup_LaunchAtLogon}"
                                   IsChecked="{Binding LaunchAtLogon, Mode=TwoWay}" />
                         <TextBlock Style="{StaticResource SetToggleHintStyle}"
-                                   Text="Registers the app under the current user's Run key. The state shown here is read back from the registry." />
+                                   Text="{x:Static res:Strings.Settings_Startup_LaunchAtLogon_Hint}" />
                     </StackPanel>
                 </Border>
 
                 <!-- ============================================== quick launch -->
                 <Border Style="{StaticResource SetCardStyle}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="QUICK LAUNCH" />
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Settings_QuickLaunch_Header}" />
 
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -134,9 +135,9 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="Global shortcut" />
+                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_QuickLaunch_Hotkey}" />
                                 <TextBlock Style="{StaticResource SetHintStyle}"
-                                           Text="For example Ctrl+Alt+R. Leave it empty to turn the shortcut off." />
+                                           Text="{x:Static res:Strings.Settings_QuickLaunch_Hotkey_Hint}" />
                             </StackPanel>
                             <TextBox Grid.Column="1"
                                      Width="150"
@@ -152,12 +153,12 @@
 
                         <CheckBox Margin="0,14,0,0"
                                   Style="{StaticResource AppToggleStyle}"
-                                  Content="Show groups in the tray menu"
+                                  Content="{x:Static res:Strings.Settings_QuickLaunch_ShowGroups}"
                                   IsChecked="{Binding ShowGroupsInTray, Mode=TwoWay}" />
 
                         <CheckBox Margin="0,12,0,0"
                                   Style="{StaticResource AppToggleStyle}"
-                                  Content="Show session thumbnails in the tray menu"
+                                  Content="{x:Static res:Strings.Settings_QuickLaunch_ShowThumbnails}"
                                   IsChecked="{Binding ShowSnapshotsInTray, Mode=TwoWay}" />
 
                         <Grid Margin="0,14,0,0">
@@ -166,9 +167,9 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="Tray menu maximum items" />
+                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_QuickLaunch_MaxItems}" />
                                 <TextBlock Style="{StaticResource SetHintStyle}"
-                                           Text="Keeps the popup short on large connection lists (5 to 200)." />
+                                           Text="{x:Static res:Strings.Settings_QuickLaunch_MaxItems_Hint}" />
                             </StackPanel>
                             <TextBox Grid.Column="1"
                                      Style="{StaticResource SetNumberBoxStyle}"
@@ -177,16 +178,31 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ============================================== full screen -->
+                <Border Style="{StaticResource SetCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Settings_FullScreen_Header}" />
+
+                        <CheckBox Style="{StaticResource AppToggleStyle}"
+                                  Content="{x:Static res:Strings.Settings_FullScreen_SessionBar}"
+                                  IsChecked="{Binding SessionBarEnabled, Mode=TwoWay}" />
+                        <TextBlock Style="{StaticResource SetToggleHintStyle}"
+                                   Text="{x:Static res:Strings.Settings_FullScreen_SessionBar_Hint}" />
+                        <TextBlock Style="{StaticResource SetToggleHintStyle}"
+                                   Text="{x:Static res:Strings.Settings_FullScreen_ConnectionBar_Hint}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- ================================================ snapshots -->
                 <Border Style="{StaticResource SetCardStyle}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="SNAPSHOTS" />
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Settings_Snapshots_Header}" />
 
                         <CheckBox Style="{StaticResource AppToggleStyle}"
-                                  Content="Capture session thumbnails"
+                                  Content="{x:Static res:Strings.Settings_Snapshots_Enable}"
                                   IsChecked="{Binding EnableSnapshots, Mode=TwoWay}" />
                         <TextBlock Style="{StaticResource SetToggleHintStyle}"
-                                   Text="Thumbnails are captured on a background thread and stored as JPEG files in the data folder." />
+                                   Text="{x:Static res:Strings.Settings_Snapshots_Enable_Hint}" />
 
                         <Grid Margin="0,14,0,0">
                             <Grid.ColumnDefinitions>
@@ -194,9 +210,9 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="Refresh interval" />
+                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Snapshots_Interval}" />
                                 <TextBlock Style="{StaticResource SetHintStyle}"
-                                           Text="Seconds between background captures. 0 captures only on demand." />
+                                           Text="{x:Static res:Strings.Settings_Snapshots_Interval_Hint}" />
                             </StackPanel>
                             <TextBox Grid.Column="1"
                                      Style="{StaticResource SetNumberBoxStyle}"
@@ -209,9 +225,9 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="Longest edge" />
+                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Snapshots_MaxEdge}" />
                                 <TextBlock Style="{StaticResource SetHintStyle}"
-                                           Text="Pixels on the longer side of a stored thumbnail (48 to 4096)." />
+                                           Text="{x:Static res:Strings.Settings_Snapshots_MaxEdge_Hint}" />
                             </StackPanel>
                             <TextBox Grid.Column="1"
                                      Style="{StaticResource SetNumberBoxStyle}"
@@ -224,9 +240,9 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="JPEG quality" />
+                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Snapshots_Quality}" />
                                 <TextBlock Style="{StaticResource SetHintStyle}"
-                                           Text="1 to 100. Lower values write smaller files." />
+                                           Text="{x:Static res:Strings.Settings_Snapshots_Quality_Hint}" />
                             </StackPanel>
                             <TextBox Grid.Column="1"
                                      Style="{StaticResource SetNumberBoxStyle}"
@@ -239,7 +255,7 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="Stored snapshots" />
+                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Snapshots_Stored}" />
                                 <TextBlock Style="{StaticResource SetHintStyle}" Text="{Binding SnapshotFolderText}" />
                             </StackPanel>
                             <Button Grid.Column="1"
@@ -247,14 +263,14 @@
                                     VerticalAlignment="Center"
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Command="{Binding ClearSnapshotsCommand}"
-                                    ToolTip="Delete every stored thumbnail">
+                                    ToolTip="{x:Static res:Strings.Settings_Snapshots_Clear_Tooltip}">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource SetIconTrash}"
                                           Width="12" Height="12" Stretch="Uniform"
-                                          Stroke="{StaticResource TextPrimaryBrush}" StrokeThickness="1.5"
+                                          Stroke="{DynamicResource TextPrimaryBrush}" StrokeThickness="1.5"
                                           StrokeLineJoin="Round"
                                           VerticalAlignment="Center" />
-                                    <TextBlock Text="Clear snapshots" Margin="6,0,0,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{x:Static res:Strings.Settings_Snapshots_Clear}" Margin="6,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
                         </Grid>
@@ -264,13 +280,13 @@
                 <!-- ================================================= watchdog -->
                 <Border Style="{StaticResource SetCardStyle}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="WATCHDOG" />
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Settings_Watchdog_Header}" />
 
                         <CheckBox Style="{StaticResource AppToggleStyle}"
-                                  Content="Watch sessions and reconnect them"
+                                  Content="{x:Static res:Strings.Settings_Watchdog_Enable}"
                                   IsChecked="{Binding WatchdogEnabled, Mode=TwoWay}" />
                         <TextBlock Style="{StaticResource SetToggleHintStyle}"
-                                   Text="The watchdog checks every live session window on a timer and relaunches any connection that drops, until its own reconnect limit is reached." />
+                                   Text="{x:Static res:Strings.Settings_Watchdog_Enable_Hint}" />
 
                         <Grid Margin="0,14,0,0">
                             <Grid.ColumnDefinitions>
@@ -278,9 +294,9 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="Poll interval" />
+                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Watchdog_Interval}" />
                                 <TextBlock Style="{StaticResource SetHintStyle}"
-                                           Text="Seconds between health checks (1 to 120)." />
+                                           Text="{x:Static res:Strings.Settings_Watchdog_Interval_Hint}" />
                             </StackPanel>
                             <TextBox Grid.Column="1"
                                      Style="{StaticResource SetNumberBoxStyle}"
@@ -289,25 +305,43 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ========================================= connection files -->
+                <!-- ===================================== remote desktop client -->
                 <Border Style="{StaticResource SetCardStyle}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="CONNECTION FILES" />
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Settings_Client_Header}" />
 
                         <TextBlock Style="{StaticResource SetHintStyle}"
-                                   Text="Connections that only use settings the command line can express are started without an .rdp file, and Windows never warns about those. The rest need a file, and Windows warns about every unsigned one." />
+                                   Text="{x:Static res:Strings.Settings_Client_Intro}" />
 
                         <CheckBox Style="{StaticResource AppToggleStyle}"
                                   Margin="0,12,0,0"
-                                  Content="Sign the connection files this app generates"
+                                  Content="{x:Static res:Strings.Settings_Client_UseEmbedded}"
+                                  IsChecked="{Binding UseEmbeddedClient, Mode=TwoWay}" />
+                        <TextBlock Style="{StaticResource SetToggleHintStyle}"
+                                   Text="{Binding EmbeddedClientStateText}" />
+
+                    </StackPanel>
+                </Border>
+
+                <!-- ========================================= connection files -->
+                <Border Style="{StaticResource SetCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Settings_Files_Header}" />
+
+                        <TextBlock Style="{StaticResource SetHintStyle}"
+                                   Text="{x:Static res:Strings.Settings_Files_Intro}" />
+
+                        <CheckBox Style="{StaticResource AppToggleStyle}"
+                                  Margin="0,12,0,0"
+                                  Content="{x:Static res:Strings.Settings_Files_Sign}"
                                   IsChecked="{Binding SignRdpFiles, Mode=TwoWay}" />
                         <TextBlock Style="{StaticResource SetToggleHintStyle}"
                                    Text="{Binding SigningStateText}" />
 
                         <StackPanel Margin="0,14,0,0">
-                            <TextBlock Style="{StaticResource SetLabelStyle}" Text="Signing certificate thumbprint" />
+                            <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Files_Thumbprint}" />
                             <TextBlock Style="{StaticResource SetHintStyle}"
-                                       Text="Leave empty to use a self-signed certificate. A certificate issued by an authority this machine trusts, such as your internal CA, is what lets Windows name the publisher and remember your answer." />
+                                       Text="{x:Static res:Strings.Settings_Files_Thumbprint_Hint}" />
                             <TextBox Style="{StaticResource AppTextBoxStyle}"
                                      Margin="0,6,0,0"
                                      Text="{Binding SigningThumbprint, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
@@ -318,33 +352,33 @@
                 <!-- ================================================== updates -->
                 <Border Style="{StaticResource SetCardStyle}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="UPDATES" />
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Settings_Updates_Header}" />
 
                         <CheckBox Style="{StaticResource AppToggleStyle}"
-                                  Content="Check GitHub for new releases"
+                                  Content="{x:Static res:Strings.Settings_Updates_Enable}"
                                   IsChecked="{Binding UpdateCheckEnabled, Mode=TwoWay}" />
                         <TextBlock Style="{StaticResource SetToggleHintStyle}"
                                    Text="{Binding UpdateStateText}" />
 
                         <StackPanel Margin="0,14,0,0">
-                            <TextBlock Style="{StaticResource SetLabelStyle}" Text="Release repository" />
+                            <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Updates_Repository}" />
                             <TextBlock Style="{StaticResource SetHintStyle}"
-                                       Text="The GitHub repository releases are published to, as owner/repo. Leave empty to turn update checking off." />
+                                       Text="{x:Static res:Strings.Settings_Updates_Repository_Hint}" />
                             <TextBox Style="{StaticResource AppTextBoxStyle}"
                                      Margin="0,6,0,0"
                                      Text="{Binding UpdateRepository, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             <TextBlock Margin="0,4,0,0"
                                        FontSize="{StaticResource FontSizeSmall}"
-                                       Foreground="{StaticResource DangerBrush}"
+                                       Foreground="{DynamicResource DangerBrush}"
                                        TextWrapping="Wrap"
                                        Text="{Binding UpdateRepositoryError}"
                                        Visibility="{Binding HasUpdateRepositoryError, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
                         </StackPanel>
 
                         <StackPanel Margin="0,14,0,0">
-                            <TextBlock Style="{StaticResource SetLabelStyle}" Text="Access token" />
+                            <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Updates_Token}" />
                             <TextBlock Style="{StaticResource SetHintStyle}"
-                                       Text="Only needed for a private repository. Public repositories need nothing here." />
+                                       Text="{x:Static res:Strings.Settings_Updates_Token_Hint}" />
                             <TextBox Style="{StaticResource AppTextBoxStyle}"
                                      Margin="0,6,0,0"
                                      Text="{Binding UpdateAccessToken, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
@@ -356,9 +390,9 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="Check every" />
+                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Updates_Interval}" />
                                 <TextBlock Style="{StaticResource SetHintStyle}"
-                                           Text="Hours between background checks (1 to 720)." />
+                                           Text="{x:Static res:Strings.Settings_Updates_Interval_Hint}" />
                             </StackPanel>
                             <TextBox Grid.Column="1"
                                      Style="{StaticResource SetNumberBoxStyle}"
@@ -367,23 +401,23 @@
 
                         <CheckBox Style="{StaticResource AppToggleStyle}"
                                   Margin="0,14,0,0"
-                                  Content="Include pre-release builds"
+                                  Content="{x:Static res:Strings.Settings_Updates_Prereleases}"
                                   IsChecked="{Binding UpdateIncludePrereleases, Mode=TwoWay}" />
 
                         <CheckBox Style="{StaticResource AppToggleStyle}"
                                   Margin="0,10,0,0"
-                                  Content="Download and install without asking"
+                                  Content="{x:Static res:Strings.Settings_Updates_AutoInstall}"
                                   IsChecked="{Binding UpdateInstallAutomatically, Mode=TwoWay}" />
                         <TextBlock Style="{StaticResource SetToggleHintStyle}"
-                                   Text="The installer is per-user, so an update never prompts for administrator rights. Your connections and credentials live outside the install folder and are untouched by an update." />
+                                   Text="{x:Static res:Strings.Settings_Updates_AutoInstall_Hint}" />
 
                         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                             <Button Style="{StaticResource SecondaryButtonStyle}"
-                                    Content="Check for updates"
+                                    Content="{x:Static res:Strings.Settings_Updates_CheckNow}"
                                     Command="{Binding CheckForUpdatesCommand}" />
                             <Button Style="{StaticResource SubtleButtonStyle}"
                                     Margin="8,0,0,0"
-                                    Content="Export or import configurations"
+                                    Content="{x:Static res:Strings.Settings_Updates_Transfer}"
                                     Command="{Binding OpenTransferCommand}" />
                         </StackPanel>
                         <TextBlock Style="{StaticResource SetHintStyle}"
@@ -395,7 +429,7 @@
                 <!-- ================================================= security -->
                 <Border Style="{StaticResource SetCardStyle}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="SECURITY" />
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Settings_Security_Header}" />
 
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -403,9 +437,9 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="Default credential delivery" />
+                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Security_Delivery}" />
                                 <TextBlock Style="{StaticResource SetHintStyle}"
-                                           Text="How new connections hand the password to mstsc." />
+                                           Text="{x:Static res:Strings.Settings_Security_Delivery_Hint}" />
                             </StackPanel>
                             <ComboBox Grid.Column="1"
                                       Width="220"
@@ -413,10 +447,10 @@
                                       VerticalAlignment="Center"
                                       Style="{StaticResource AppComboBoxStyle}"
                                       SelectedIndex="{Binding CredentialDeliveryIndex, Mode=TwoWay}">
-                                <ComboBoxItem Content="Windows Credential Vault" />
-                                <ComboBoxItem Content="Embedded in the .rdp file" />
-                                <ComboBoxItem Content="Both (most reliable)" />
-                                <ComboBoxItem Content="Always prompt" />
+                                <ComboBoxItem Content="{x:Static res:Strings.Settings_Security_Delivery_Vault}" />
+                                <ComboBoxItem Content="{x:Static res:Strings.Settings_Security_Delivery_Embedded}" />
+                                <ComboBoxItem Content="{x:Static res:Strings.Settings_Security_Delivery_Both}" />
+                                <ComboBoxItem Content="{x:Static res:Strings.Settings_Security_Delivery_Prompt}" />
                             </ComboBox>
                         </Grid>
 
@@ -426,7 +460,7 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="Vault write method" />
+                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Security_VaultMethod}" />
                                 <TextBlock Style="{StaticResource SetHintStyle}" Text="{Binding VaultWriteMethodExplanation}" />
                             </StackPanel>
                             <ComboBox Grid.Column="1"
@@ -435,26 +469,53 @@
                                       VerticalAlignment="Center"
                                       Style="{StaticResource AppComboBoxStyle}"
                                       SelectedIndex="{Binding VaultWriteMethodIndex, Mode=TwoWay}">
-                                <ComboBoxItem Content="Windows credential API" />
+                                <ComboBoxItem Content="{x:Static res:Strings.Settings_Security_VaultMethod_Api}" />
                                 <ComboBoxItem Content="cmdkey.exe" />
                             </ComboBox>
                         </Grid>
 
                         <CheckBox Margin="0,16,0,0"
                                   Style="{StaticResource AppToggleStyle}"
-                                  Content="Delete generated .rdp files after launch"
+                                  Content="{x:Static res:Strings.Settings_Security_Shred}"
                                   IsChecked="{Binding ShredRdpFiles, Mode=TwoWay}" />
                         <TextBlock Style="{StaticResource SetToggleHintStyle}"
-                                   Text="A generated .rdp file can carry the password as an encrypted blob, so leaving it in the temp folder leaves a usable copy of the login behind." />
+                                   Text="{x:Static res:Strings.Settings_Security_Shred_Hint}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- ================================================= language -->
+                <Border Style="{StaticResource SetCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Language_Header}" />
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Language_Label}" />
+                                <TextBlock Style="{StaticResource SetHintStyle}" Text="{x:Static res:Strings.Language_Hint}" />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      Width="220"
+                                      Margin="12,0,0,0"
+                                      VerticalAlignment="Center"
+                                      Style="{StaticResource AppComboBoxStyle}"
+                                      ItemsSource="{Binding LanguageOptions}"
+                                      DisplayMemberPath="Label"
+                                      SelectedValuePath="Code"
+                                      SelectedValue="{Binding Language, Mode=TwoWay}" />
+                        </Grid>
                     </StackPanel>
                 </Border>
 
                 <!-- =============================================== appearance -->
                 <Border Style="{StaticResource SetCardStyle}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="APPEARANCE" />
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Settings_Appearance_Header}" />
 
-                        <TextBlock Style="{StaticResource SetLabelStyle}" Text="Accent colour" />
+                        <TextBlock Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_Appearance_Accent}" />
                         <ListBox Margin="0,6,0,0"
                                  HorizontalAlignment="Left"
                                  Style="{StaticResource AppListBoxStyle}"
@@ -474,7 +535,7 @@
                                     <Border Width="22"
                                             Height="22"
                                             CornerRadius="{StaticResource RadiusSmall}"
-                                            BorderBrush="{StaticResource BorderBrushStrong}"
+                                            BorderBrush="{DynamicResource BorderBrushStrong}"
                                             BorderThickness="1"
                                             ToolTip="{Binding}"
                                             Background="{Binding Converter={x:Static conv:HexToBrushConverter.Instance}}" />
@@ -483,11 +544,11 @@
                         </ListBox>
                         <TextBlock Margin="0,6,0,0"
                                    Style="{StaticResource SetHintStyle}"
-                                   Text="The accent is applied across the app when you save." />
+                                   Text="{x:Static res:Strings.Settings_Appearance_Accent_Hint}" />
 
                         <CheckBox Margin="0,14,0,0"
                                   Style="{StaticResource AppToggleStyle}"
-                                  Content="Confirm before closing a running session"
+                                  Content="{x:Static res:Strings.Settings_Appearance_ConfirmClose}"
                                   IsChecked="{Binding ConfirmSessionClose, Mode=TwoWay}" />
                     </StackPanel>
                 </Border>
@@ -495,17 +556,21 @@
                 <!-- ==================================================== about -->
                 <Border Style="{StaticResource SetCardStyle}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="ABOUT" />
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Settings_About_Header}" />
 
                         <TextBlock Style="{StaticResource SetLabelStyle}"
                                    FontWeight="SemiBold"
                                    Text="{Binding ProductName}" />
                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                            <TextBlock Style="{StaticResource SetHintStyle}" Text="Version" />
+                            <TextBlock Style="{StaticResource SetHintStyle}" Text="{x:Static res:Strings.Settings_About_Publisher}" />
+                            <TextBlock Margin="4,0,0,0" Style="{StaticResource SetHintStyle}" Text="{Binding Publisher}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <TextBlock Style="{StaticResource SetHintStyle}" Text="{x:Static res:Strings.Settings_About_Version}" />
                             <TextBlock Margin="4,0,0,0" Style="{StaticResource SetHintStyle}" Text="{Binding VersionText}" />
                         </StackPanel>
 
-                        <TextBlock Margin="0,14,0,0" Style="{StaticResource SetLabelStyle}" Text="Data folder" />
+                        <TextBlock Margin="0,14,0,0" Style="{StaticResource SetLabelStyle}" Text="{x:Static res:Strings.Settings_About_DataFolder}" />
                         <TextBlock Margin="0,2,0,0"
                                    Style="{StaticResource SetHintStyle}"
                                    TextTrimming="CharacterEllipsis"
@@ -516,27 +581,27 @@
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                             <Button Style="{StaticResource SecondaryButtonStyle}"
                                     Command="{Binding OpenDataFolderCommand}"
-                                    ToolTip="Open the data folder in File Explorer">
+                                    ToolTip="{x:Static res:Strings.Settings_About_OpenFolder_Tooltip}">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource SetIconFolder}"
                                           Width="13" Height="13" Stretch="Uniform"
-                                          Stroke="{StaticResource TextPrimaryBrush}" StrokeThickness="1.5"
+                                          Stroke="{DynamicResource TextPrimaryBrush}" StrokeThickness="1.5"
                                           StrokeLineJoin="Round"
                                           VerticalAlignment="Center" />
-                                    <TextBlock Text="Open folder" Margin="6,0,0,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{x:Static res:Strings.Settings_About_OpenFolder}" Margin="6,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
                             <Button Margin="8,0,0,0"
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Command="{Binding OpenLogCommand}"
-                                    ToolTip="Open the application log">
+                                    ToolTip="{x:Static res:Strings.Settings_About_OpenLog_Tooltip}">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource SetIconDocument}"
                                           Width="13" Height="13" Stretch="Uniform"
-                                          Stroke="{StaticResource TextPrimaryBrush}" StrokeThickness="1.5"
+                                          Stroke="{DynamicResource TextPrimaryBrush}" StrokeThickness="1.5"
                                           StrokeLineJoin="Round"
                                           VerticalAlignment="Center" />
-                                    <TextBlock Text="Open log" Margin="6,0,0,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{x:Static res:Strings.Settings_About_OpenLog}" Margin="6,0,0,0" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
                         </StackPanel>
@@ -553,11 +618,11 @@
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Style="{StaticResource SetStatusStyle}" Text="{Binding Status}" />
             <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0">
-                <Button Content="Cancel"
+                <Button Content="{x:Static res:Strings.Common_Cancel}"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Command="{Binding CancelCommand}" />
                 <Button Margin="8,0,0,0"
-                        Content="Save"
+                        Content="{x:Static res:Strings.Common_Save}"
                         Style="{StaticResource PrimaryButtonStyle}"
                         Command="{Binding SaveCommand}"
                         IsDefault="True" />

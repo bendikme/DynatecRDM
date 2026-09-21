@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Publishes DYNATEC Remote Desktop Manager into a folder that is ready to package.
+    Publishes Remote Desktop Manager into a folder that is ready to package.
 
 .DESCRIPTION
     Produces a plain folder (not a single file): the MSI installs a folder, single-file

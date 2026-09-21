@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using DynatecRDM.Services;
@@ -22,6 +23,7 @@ public partial class MultiConfigEditorWindow : Window
 
         DataContext = _viewModel;
         _viewModel.RequestClose += OnRequestClose;
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         Loaded += OnLoaded;
         Closed += OnClosed;
@@ -73,11 +75,26 @@ public partial class MultiConfigEditorWindow : Window
         try
         {
             _viewModel.RequestClose -= OnRequestClose;
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
             _viewModel.Detach();
         }
         catch (Exception ex)
         {
             AppLog.Warn("Tidying up the multi-config editor failed.", ex);
+        }
+    }
+
+    /// <summary>Another item's properties start at the top, not wherever the last one was scrolled to.</summary>
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MultiConfigEditorViewModel.SelectedItem)) return;
+        try
+        {
+            PropertiesScroller.ScrollToTop();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug_($"Scrolling the item properties to the top failed: {ex.Message}");
         }
     }
 

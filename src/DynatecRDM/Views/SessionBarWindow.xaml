@@ -1,0 +1,338 @@
+<Window x:Class="DynatecRDM.Views.SessionBarWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
+        xmlns:models="clr-namespace:DynatecRDM.Models"
+        xmlns:vm="clr-namespace:DynatecRDM.ViewModels"
+        xmlns:res="clr-namespace:DynatecRDM.Resources"
+        xmlns:views="clr-namespace:DynatecRDM.Views"
+        mc:Ignorable="po"
+        Title="{x:Static res:Strings.SessionBar_Window_Title}"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="Manual"
+        FontFamily="{StaticResource AppFontFamily}"
+        FontSize="{StaticResource FontSizeNormal}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display">
+
+    <Window.Resources>
+
+        <!-- Icons: 24x24 outlines, the same drawing language as the tray menu. -->
+        <PathGeometry x:Key="BarIconPlus" po:Freeze="True" Figures="M12,5 V19 M5,12 H19" />
+        <PathGeometry x:Key="BarIconMinimize" po:Freeze="True" Figures="M5,12 H19" />
+        <PathGeometry x:Key="BarIconExitFullScreen" po:Freeze="True" Figures="M9,3.5 V9 H3.5 M15,3.5 V9 H20.5 M9,20.5 V15 H3.5 M15,20.5 V15 H20.5" />
+        <PathGeometry x:Key="BarIconPower" po:Freeze="True" Figures="M12,3 V10.5 M6.6,6.2 A7.6,7.6 0 1 0 17.4,6.2" />
+
+        <!-- Tool tips hang below the bar, never over the edge it came from. -->
+        <Style TargetType="ToolTip" BasedOn="{StaticResource AppToolTipStyle}" />
+
+        <!-- Glyphs take the colour of the button they sit in, so hover states need no second trigger. -->
+        <Style x:Key="BarGlyph" TargetType="Path">
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="Width" Value="14" />
+            <Setter Property="Height" Value="14" />
+            <Setter Property="StrokeThickness" Value="1.8" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+
+        <Style x:Key="BarSeparator" TargetType="Border">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="Margin" Value="6,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource BorderBrushSoft}" />
+        </Style>
+
+        <!-- The bar never takes focus - the remote session keeps the keyboard - so nothing in it
+             is focusable, and there is no focus visual to design. -->
+        <Style x:Key="BarButtonBase" TargetType="Button">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="MinWidth" Value="32" />
+            <Setter Property="Padding" Value="9,0" />
+            <Setter Property="Margin" Value="1,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="ToolTipService.InitialShowDelay" Value="450" />
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource RadiusMedium}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              SnapsToDevicePixels="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceSelectedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                <Setter Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="BarIconButton" TargetType="Button" BasedOn="{StaticResource BarButtonBase}">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <!-- The way out. Red on hover, and red at rest while it waits for the confirming click. -->
+        <Style x:Key="BarDisconnectButton" TargetType="Button" BasedOn="{StaticResource BarButtonBase}">
+            <Setter Property="Padding" Value="9,0,11,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource RadiusMedium}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              SnapsToDevicePixels="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DangerSubtleBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsConfirmingDisconnect}" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DangerSubtleBrush}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                            </DataTrigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                <Setter Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A session tab. The one in front is tinted with the accent and underlined. -->
+        <Style x:Key="BarTabButton" TargetType="Button" BasedOn="{StaticResource BarButtonBase}">
+            <Setter Property="Padding" Value="10,0,12,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="{StaticResource RadiusMedium}"
+                                    SnapsToDevicePixels="True" />
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"
+                                              SnapsToDevicePixels="True" />
+                            <Border x:Name="Underline"
+                                    Width="18"
+                                    Height="2"
+                                    Margin="0,0,0,1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Bottom"
+                                    CornerRadius="1"
+                                    Background="{DynamicResource AccentBrush}"
+                                    Visibility="Collapsed" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+                                <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </DataTrigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceSelectedBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="BarStateDot" TargetType="Ellipse">
+            <Setter Property="Width" Value="7" />
+            <Setter Property="Height" Value="7" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Session.State}" Value="{x:Static models:SessionState.Connected}">
+                    <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Session.State}" Value="{x:Static models:SessionState.Launching}">
+                    <Setter Property="Fill" Value="{DynamicResource WarningBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Session.State}" Value="{x:Static models:SessionState.Connecting}">
+                    <Setter Property="Fill" Value="{DynamicResource WarningBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Session.State}" Value="{x:Static models:SessionState.Reconnecting}">
+                    <Setter Property="Fill" Value="{DynamicResource WarningBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Session.State}" Value="{x:Static models:SessionState.Failed}">
+                    <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+    </Window.Resources>
+
+    <!-- The margin is room for the shadow; the top stays flush so the bar hangs from the edge. -->
+    <Grid x:Name="Root" Margin="16,0,16,18" Opacity="0">
+        <Grid.RenderTransform>
+            <TranslateTransform x:Name="SlideTransform" Y="-80" />
+        </Grid.RenderTransform>
+
+        <!-- The shadow has a layer of its own: an effect on the bar itself would blur its text. -->
+        <Border CornerRadius="0,0,12,12" Background="{DynamicResource SurfaceBrush}">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="22"
+                                  ShadowDepth="4"
+                                  Direction="270"
+                                  Opacity="0.4"
+                                  RenderingBias="Performance"
+                                  Color="{StaticResource ShadowColor}" />
+            </Border.Effect>
+        </Border>
+
+        <Border x:Name="BarPanel"
+                Padding="6,5,6,6"
+                CornerRadius="0,0,12,12"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrushSoft}"
+                BorderThickness="1,0,1,1">
+            <DockPanel LastChildFill="True">
+
+                <!-- The app's icon - the same pixel-exact drawing as the .ico, the headers and quick launch. -->
+                <Button DockPanel.Dock="Left"
+                        Style="{StaticResource BarIconButton}"
+                        Command="{Binding OpenManagerCommand}"
+                        AutomationProperties.Name="{x:Static res:Strings.SessionBar_OpenManager_Tooltip}"
+                        ToolTip="{x:Static res:Strings.SessionBar_OpenManager_Tooltip}">
+                    <views:AppIcon Width="20" Height="20" />
+                </Button>
+
+                <Border DockPanel.Dock="Left" Style="{StaticResource BarSeparator}" />
+
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Border Style="{StaticResource BarSeparator}" />
+                    <Button Style="{StaticResource BarIconButton}"
+                            Command="{Binding MinimizeCommand}"
+                            AutomationProperties.Name="{x:Static res:Strings.SessionBar_Minimize_Tooltip}"
+                            ToolTip="{x:Static res:Strings.SessionBar_Minimize_Tooltip}">
+                        <Path Style="{StaticResource BarGlyph}" Data="{StaticResource BarIconMinimize}" />
+                    </Button>
+                    <Button Style="{StaticResource BarIconButton}"
+                            Command="{Binding ExitFullScreenCommand}"
+                            AutomationProperties.Name="{x:Static res:Strings.SessionBar_ExitFullScreen_Tooltip}"
+                            ToolTip="{x:Static res:Strings.SessionBar_ExitFullScreen_Tooltip}">
+                        <Path Style="{StaticResource BarGlyph}" Data="{StaticResource BarIconExitFullScreen}" />
+                    </Button>
+                    <Button Margin="4,0,0,0"
+                            Style="{StaticResource BarDisconnectButton}"
+                            Command="{Binding DisconnectCommand}"
+                            AutomationProperties.Name="{x:Static res:Strings.SessionBar_Disconnect_Tooltip}"
+                            ToolTip="{x:Static res:Strings.SessionBar_Disconnect_Tooltip}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource BarGlyph}" Width="12" Height="12" StrokeThickness="2" Data="{StaticResource BarIconPower}" />
+                            <TextBlock Margin="6,0,0,0" VerticalAlignment="Center" Text="{Binding DisconnectText}" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <Button DockPanel.Dock="Right"
+                        Style="{StaticResource BarIconButton}"
+                        Command="{Binding LaunchCommand}"
+                        AutomationProperties.Name="{x:Static res:Strings.SessionBar_Launch_Tooltip}"
+                        ToolTip="{x:Static res:Strings.SessionBar_Launch_Tooltip}">
+                    <Path Style="{StaticResource BarGlyph}" Width="13" Height="13" Data="{StaticResource BarIconPlus}" />
+                </Button>
+
+                <!-- Many sessions scroll sideways rather than push the bar off the screen. -->
+                <ScrollViewer x:Name="TabScroller"
+                              Focusable="False"
+                              HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Disabled">
+                    <ItemsControl x:Name="TabList" Focusable="False" ItemsSource="{Binding Tabs}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:SessionBarTab}">
+                                <Button Style="{StaticResource BarTabButton}"
+                                        Command="{Binding DataContext.SwitchCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}">
+                                    <Button.ToolTip>
+                                        <ToolTip>
+                                            <StackPanel>
+                                                <TextBlock FontWeight="SemiBold" Text="{Binding Session.DisplayName}" />
+                                                <TextBlock Margin="0,2,0,0"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           Text="{Binding Session.Host}" />
+                                                <TextBlock Margin="0,2,0,0"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           Text="{Binding Session.StateText}" />
+                                            </StackPanel>
+                                        </ToolTip>
+                                    </Button.ToolTip>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Style="{StaticResource BarStateDot}" />
+                                        <TextBlock Margin="8,0,0,0"
+                                                   MaxWidth="180"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Text="{Binding Session.DisplayName}" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

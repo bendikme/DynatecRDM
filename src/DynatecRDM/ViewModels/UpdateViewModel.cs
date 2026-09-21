@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 
 namespace DynatecRDM.ViewModels;
@@ -12,18 +13,13 @@ namespace DynatecRDM.ViewModels;
 /// </summary>
 public sealed class UpdateViewModel : ObservableObject, IDisposable
 {
-    private const string CheckFailedText =
-        "The update check could not be completed. Check your internet connection and try again.";
+    private static string CheckFailedText => Strings.Update_Error_CheckFailed;
 
-    private const string DownloadFailedText =
-        "The update could not be downloaded. You can try again, or download it from the release page.";
+    private static string DownloadFailedText => Strings.Update_Error_DownloadFailed;
 
-    private const string NoRepositoryText =
-        "No GitHub repository is set for updates, so there is nothing to check. " +
-        "Add the repository that publishes the releases in Settings.";
+    private static string NoRepositoryText => Strings.Update_NotConfigured_NoRepository;
 
-    private const string DisabledText =
-        "Update checking is switched off. Turn it back on in Settings to be told about new versions.";
+    private static string DisabledText => Strings.Update_NotConfigured_Disabled;
 
     private const int MaxMessageLength = 300;
     private const int MaxReleaseNotesLength = 20000;
@@ -147,7 +143,7 @@ public sealed class UpdateViewModel : ObservableObject, IDisposable
     /// <summary>The release being offered; the view binds its assets through this.</summary>
     public UpdateInfo? Update => _update;
 
-    public string CurrentVersionText => $"You are running version {UpdateService.CurrentVersion}";
+    public string CurrentVersionText => UiLanguage.Format(Strings.Update_CurrentVersion, UpdateService.CurrentVersion);
 
     public string RepositoryText
     {
@@ -155,24 +151,27 @@ public sealed class UpdateViewModel : ObservableObject, IDisposable
         {
             var repository = _services.Settings.UpdateRepository;
             return string.IsNullOrWhiteSpace(repository)
-                ? "No repository is configured"
+                ? Strings.Update_Repository_None
                 : $"github.com/{repository.Trim()}";
         }
     }
 
-    public string UpToDateText => $"You are on the latest version ({UpdateService.CurrentVersion})";
+    public string UpToDateText => UiLanguage.Format(Strings.Update_UpToDate, UpdateService.CurrentVersion);
 
     public string AvailableVersionText =>
-        _newVersion.Length == 0 ? "An update is available" : $"Version {_newVersion} is available";
+        _newVersion.Length == 0
+            ? Strings.Update_Available
+            : UiLanguage.Format(Strings.Update_Available_Version, _newVersion);
 
     public string ReadyToInstallText =>
         _newVersion.Length == 0
-            ? "The update is ready to install"
-            : $"Version {_newVersion} is ready to install";
+            ? Strings.Update_Ready
+            : UiLanguage.Format(Strings.Update_Ready_Version, _newVersion);
 
     public string VersionComparisonText =>
-        $"You have {UpdateService.CurrentVersion}" +
-        (_publishedText.Length == 0 ? string.Empty : $"  ·  Published {_publishedText}");
+        _publishedText.Length == 0
+            ? UiLanguage.Format(Strings.Update_Comparison, UpdateService.CurrentVersion)
+            : UiLanguage.Format(Strings.Update_Comparison_Published, UpdateService.CurrentVersion, _publishedText);
 
     public string PublishedText
     {
@@ -241,7 +240,7 @@ public sealed class UpdateViewModel : ObservableObject, IDisposable
         }
     }
 
-    public string ProgressText => $"{_downloadProgress:0} %";
+    public string ProgressText => UiLanguage.Format("{0:0} %", _downloadProgress);
 
     // ------------------------------------------------------------------ flow
 
@@ -303,7 +302,7 @@ public sealed class UpdateViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            LastCheckedText = $"Checked at {DateTime.Now:HH:mm}";
+            LastCheckedText = UiLanguage.Format(Strings.Update_CheckedAt, DateTime.Now);
 
             switch (result.Status)
             {
@@ -401,7 +400,7 @@ public sealed class UpdateViewModel : ObservableObject, IDisposable
 
             if (cts.IsCancellationRequested)
             {
-                Notice = "The download was cancelled.";
+                Notice = Strings.Update_Notice_DownloadCancelled;
                 SetStage(Stage.Available);
                 return;
             }
@@ -418,7 +417,7 @@ public sealed class UpdateViewModel : ObservableObject, IDisposable
         }
         catch (OperationCanceledException)
         {
-            Notice = "The download was cancelled.";
+            Notice = Strings.Update_Notice_DownloadCancelled;
             SetStage(Stage.Available);
         }
         catch (Exception ex)
@@ -483,7 +482,7 @@ public sealed class UpdateViewModel : ObservableObject, IDisposable
 
         if (!started)
         {
-            Fail("The installer could not be started. You can run it yourself from the release page.");
+            Fail(Strings.Update_Error_InstallerNotStarted);
             return;
         }
 
@@ -527,7 +526,7 @@ public sealed class UpdateViewModel : ObservableObject, IDisposable
             (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
         {
             AppLog.Warn("The release page address was refused; it is not an http or https address.");
-            Notice = "The release page address could not be used.";
+            Notice = Strings.Update_Notice_BadReleaseUrl;
             return;
         }
 
@@ -538,7 +537,7 @@ public sealed class UpdateViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             AppLog.Warn($"Opening the release page '{url}' failed.", ex);
-            Notice = "The release page could not be opened in your browser.";
+            Notice = Strings.Update_Notice_ReleasePageNotOpened;
         }
     }
 
@@ -629,14 +628,14 @@ public sealed class UpdateViewModel : ObservableObject, IDisposable
 
     private static string CleanNotes(string? notes)
     {
-        if (string.IsNullOrWhiteSpace(notes)) return "This release does not have any notes.";
+        if (string.IsNullOrWhiteSpace(notes)) return Strings.Update_Notes_None;
 
         var text = notes.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Trim();
 
         if (text.Length > MaxReleaseNotesLength)
-            text = text[..MaxReleaseNotesLength].TrimEnd() + "\n\n(These notes were shortened.)";
+            text = text[..MaxReleaseNotesLength].TrimEnd() + "\n\n" + Strings.Update_Notes_Shortened;
 
-        return text.Length == 0 ? "This release does not have any notes." : text;
+        return text.Length == 0 ? Strings.Update_Notes_None : text;
     }
 
     private static string? Shorten(string? message)
@@ -656,15 +655,15 @@ public sealed class UpdateViewModel : ObservableObject, IDisposable
             ? publishedUtc
             : DateTime.SpecifyKind(publishedUtc, DateTimeKind.Utc);
 
-        return utc.ToLocalTime().ToString("d MMMM yyyy");
+        return utc.ToLocalTime().ToString(Strings.Update_PublishedDate_Format, UiLanguage.Culture);
     }
 
     private static string DescribeStoredCheck(DateTime? stamp)
     {
-        if (stamp is not { } utc || utc == default) return "Not checked yet";
+        if (stamp is not { } utc || utc == default) return Strings.Update_NotCheckedYet;
 
         var normalised = utc.Kind == DateTimeKind.Utc ? utc : DateTime.SpecifyKind(utc, DateTimeKind.Utc);
-        return $"Last checked {normalised.ToLocalTime():d MMM yyyy, HH:mm}";
+        return UiLanguage.Format(Strings.Update_LastChecked, normalised.ToLocalTime());
     }
 
     public void Dispose()

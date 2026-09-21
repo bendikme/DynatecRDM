@@ -6,7 +6,8 @@ namespace DynatecRDM.Services;
 
 /// <summary>
 /// DPAPI-backed secret protection. Secrets at rest are bound to the current user and to a fixed
-/// application entropy, so a blob lifted out of the database is useless to any other application.
+/// application entropy. Other processes running as the same Windows user can still decrypt them;
+/// DPAPI protects storage, not a compromised user account.
 /// The .rdp payload deliberately does not use that entropy: mstsc decrypts it itself and only
 /// understands its own convention.
 /// </summary>

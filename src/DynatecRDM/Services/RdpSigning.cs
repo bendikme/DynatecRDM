@@ -315,19 +315,27 @@ public static class RdpSigning
 
     private static X509Certificate2? FindCertificate()
     {
+        // The machine store first: the installer's publisher-trust step puts one certificate there,
+        // trusted for every account, and lists exactly its thumbprint in the machine policy - so a
+        // file signed with it opens without a prompt. A per-user certificate (the fallback when
+        // trust was never set up) is only used when there is no machine one. Only a certificate
+        // whose private key this process can actually sign with is accepted.
+        return FindIn(StoreLocation.LocalMachine) ?? FindIn(StoreLocation.CurrentUser);
+    }
+
+    private static X509Certificate2? FindIn(StoreLocation location)
+    {
         try
         {
-            using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+            using var store = new X509Store(StoreName.My, location);
             store.Open(OpenFlags.ReadOnly);
 
             var wanted = PreferredThumbprint?.Replace(" ", string.Empty).Trim();
             if (!string.IsNullOrEmpty(wanted))
             {
                 foreach (var candidate in store.Certificates)
-                    if (string.Equals(candidate.Thumbprint, wanted, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(candidate.Thumbprint, wanted, StringComparison.OrdinalIgnoreCase) && Usable(candidate))
                         return candidate;
-
-                AppLog.Warn($"The configured signing certificate {wanted} is not in this user's store.");
             }
 
             X509Certificate2? best = null;
@@ -335,6 +343,7 @@ public static class RdpSigning
             {
                 if (!string.Equals(candidate.Subject, Subject, StringComparison.OrdinalIgnoreCase)) continue;
                 if (candidate.NotAfter <= DateTime.Now) continue;
+                if (!Usable(candidate)) continue;
                 if (best is null || candidate.NotAfter > best.NotAfter) best = candidate;
             }
 
@@ -342,8 +351,15 @@ public static class RdpSigning
         }
         catch (Exception ex)
         {
-            AppLog.Debug_($"Looking up the signing certificate failed: {ex.Message}");
+            AppLog.Debug_($"Looking up the signing certificate in {location} failed: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>True when the certificate has a private key this process may sign with.</summary>
+    private static bool Usable(X509Certificate2 cert)
+    {
+        try { return cert.HasPrivateKey; }
+        catch { return false; }
     }
 }

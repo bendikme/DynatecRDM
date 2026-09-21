@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using DynatecRDM.Interop;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 
 namespace DynatecRDM.Services;
 
@@ -27,7 +28,10 @@ public sealed class WindowsCredentialService : IWindowsCredentialService
             if (raw.Count == 0) return [];
 
             var seen = new HashSet<(string Host, uint Type)>(raw.Count);
-            var list = new List<StoredCredentialInfo>(raw.Count);
+
+            // The type column is shown in the UI language; ordering by the English name keeps the
+            // row order the same in every language.
+            var list = new List<(StoredCredentialInfo Info, string SortType)>(raw.Count);
 
             for (var i = 0; i < raw.Count; i++)
             {
@@ -44,22 +48,22 @@ public sealed class WindowsCredentialService : IWindowsCredentialService
 
                 if (!seen.Add((host.ToLowerInvariant(), entry.Type))) continue;
 
-                list.Add(new StoredCredentialInfo(
+                list.Add((new StoredCredentialInfo(
                     target,
                     host,
                     string.IsNullOrWhiteSpace(entry.UserName) ? null : entry.UserName,
-                    TypeName(entry.Type),
+                    TypeDisplayName(entry.Type),
                     PersistName(entry.Persist),
-                    entry.LastWrittenUtc));
+                    entry.LastWrittenUtc), TypeName(entry.Type)));
             }
 
             list.Sort(static (a, b) =>
             {
-                var c = string.Compare(a.Host, b.Host, StringComparison.OrdinalIgnoreCase);
-                return c != 0 ? c : string.CompareOrdinal(a.TypeName, b.TypeName);
+                var c = string.Compare(a.Info.Host, b.Info.Host, StringComparison.OrdinalIgnoreCase);
+                return c != 0 ? c : string.CompareOrdinal(a.SortType, b.SortType);
             });
 
-            return list;
+            return list.ConvertAll(static item => item.Info);
         }
         catch (Exception ex)
         {
@@ -396,6 +400,7 @@ public sealed class WindowsCredentialService : IWindowsCredentialService
         return "cmdkey.exe";
     }
 
+    /// <summary>English name of a credential type, for the log and for ordering.</summary>
     private static string TypeName(uint type)
     {
         if (type == CredentialApi.CRED_TYPE_GENERIC) return "Generic";
@@ -407,11 +412,23 @@ public sealed class WindowsCredentialService : IWindowsCredentialService
         return $"Type {type}";
     }
 
+    /// <summary>Name of a credential type in the UI language, for the vault table.</summary>
+    private static string TypeDisplayName(uint type)
+    {
+        if (type == CredentialApi.CRED_TYPE_GENERIC) return Strings.Vault_Type_Generic;
+        if (type == CredentialApi.CRED_TYPE_DOMAIN_PASSWORD) return Strings.Vault_Type_DomainPassword;
+        if (type == 3) return Strings.Vault_Type_DomainCertificate;
+        if (type == 4) return Strings.Vault_Type_DomainVisiblePassword;
+        if (type == 5) return Strings.Vault_Type_GenericCertificate;
+        if (type == 6) return Strings.Vault_Type_DomainExtended;
+        return UiLanguage.Format(Strings.Vault_Type_Other, type);
+    }
+
     private static string PersistName(uint persist)
     {
-        if (persist == CredentialApi.CRED_PERSIST_SESSION) return "Session";
-        if (persist == CredentialApi.CRED_PERSIST_LOCAL_MACHINE) return "Local machine";
-        if (persist == CredentialApi.CRED_PERSIST_ENTERPRISE) return "Enterprise";
-        return "Unknown";
+        if (persist == CredentialApi.CRED_PERSIST_SESSION) return Strings.Vault_Persist_Session;
+        if (persist == CredentialApi.CRED_PERSIST_LOCAL_MACHINE) return Strings.Vault_Persist_LocalMachine;
+        if (persist == CredentialApi.CRED_PERSIST_ENTERPRISE) return Strings.Vault_Persist_Enterprise;
+        return Strings.Vault_Persist_Unknown;
     }
 }

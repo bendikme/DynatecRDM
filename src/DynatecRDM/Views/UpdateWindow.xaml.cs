@@ -94,8 +94,9 @@ public sealed class ByteSizeConverter : IValueConverter
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
+        // The binding's culture is WPF's en-US default, not the UI language, so it is not used.
         var bytes = ToBytes(value);
-        return bytes is null or < 0 ? string.Empty : Describe(bytes.Value, culture ?? CultureInfo.CurrentCulture);
+        return bytes is null or < 0 ? string.Empty : Describe(bytes.Value, UiLanguage.Culture);
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>

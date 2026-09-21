@@ -7,6 +7,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 using DynatecRDM.Views;
 using Microsoft.Win32;
@@ -17,7 +18,7 @@ namespace DynatecRDM.ViewModels;
 /// Drives the main shell: the connection library on the left, the detail panel on the right
 /// and the live-session strip along the bottom.
 /// </summary>
-public sealed class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject
 {
     /// <summary>Which subset of the library the tree shows.</summary>
     public enum LibraryFilter
@@ -40,6 +41,9 @@ public sealed class MainViewModel : ObservableObject
 
     private const int MaxDepth = 64;
 
+    /// <summary>Flicking back and forth to the window must not re-photograph every session each time.</summary>
+    private const int SnapshotRefreshMinimumMs = 5_000;
+
     private readonly AppServices _services;
     private readonly IAppShell _shell;
     private readonly Dispatcher _dispatcher;
@@ -59,6 +63,8 @@ public sealed class MainViewModel : ObservableObject
     private Guid? _pendingSelection;
     private bool _loadedOnce;
     private bool _detached;
+    private bool _showSnapshots;
+    private long _lastSnapshotRefreshTicks = -SnapshotRefreshMinimumMs;
 
     private int _connectionCount;
     private int _groupCount;
@@ -133,10 +139,14 @@ public sealed class MainViewModel : ObservableObject
         OpenTransferCommand = Sync(_ => SafeShell(() => _shell.ShowTransfer()));
         FocusSearchCommand = Sync(_ => RaiseFocusSearch());
         ClearSearchCommand = Sync(_ => SearchText = string.Empty);
+        ClearHistoryCommand = Async(_ => ClearHistoryAsync(), _ => CanClearHistory);
 
         _services.Sessions.SessionStarted += OnSessionStarted;
         _services.Sessions.SessionStateChanged += OnSessionStateChanged;
         _services.Sessions.SessionEnded += OnSessionEnded;
+
+        _showSnapshots = _services.Settings?.EnableSnapshots ?? true;
+        _services.SettingsChanged += OnSettingsChanged;
 
         UpdateTreeSummary();
         RefreshDetail();
@@ -153,6 +163,13 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>Live sessions. Mutated only on the dispatcher.</summary>
     public ObservableCollection<RdpSession> Sessions { get; } = new();
+
+    /// <summary>Session cards carry a thumbnail of the remote screen while capture is switched on.</summary>
+    public bool ShowSnapshots
+    {
+        get => _showSnapshots;
+        private set => SetProperty(ref _showSnapshots, value);
+    }
 
     /// <summary>Entries of the selected multi-config.</summary>
     public ObservableCollection<MultiItemRow> MultiItems { get; } = new();
@@ -315,6 +332,7 @@ public sealed class MainViewModel : ObservableObject
     {
         _window = window;
         ApplyStartupPlacement(window);
+        AttachReachability(window);
     }
 
     /// <summary>
@@ -333,6 +351,7 @@ public sealed class MainViewModel : ObservableObject
             _services.Sessions.SessionStarted -= OnSessionStarted;
             _services.Sessions.SessionStateChanged -= OnSessionStateChanged;
             _services.Sessions.SessionEnded -= OnSessionEnded;
+            _services.SettingsChanged -= OnSettingsChanged;
         }
         catch (Exception ex)
         {
@@ -357,6 +376,9 @@ public sealed class MainViewModel : ObservableObject
             node.ActivateCommand = null;
         }
 
+        DetachHistory();
+        DetachSnapshots();
+        DetachReachability();
         _window = null;
     }
 
@@ -505,6 +527,8 @@ public sealed class MainViewModel : ObservableObject
             }).ConfigureAwait(true);
 
             Adopt(snapshot);
+            ApplyLastKnownSnapshots();
+            ApplyReachability();
             _loadedOnce = true;
 
             if (selectedId is { } id) SelectById(id);
@@ -512,7 +536,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error("Could not load the connection library.", ex);
-            Notify($"The connection library could not be loaded: {ex.Message}", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_LoadLibrary, ex.Message), true);
         }
         finally
         {
@@ -565,7 +589,7 @@ public sealed class MainViewModel : ObservableObject
 
             var node = new TreeNodeViewModel(TreeNodeKind.Group, group.Id, group)
             {
-                Name = string.IsNullOrWhiteSpace(group.Name) ? "Untitled group" : group.Name,
+                Name = string.IsNullOrWhiteSpace(group.Name) ? Strings.Main_UntitledGroup : group.Name,
                 Color = group.Color,
                 SortOrder = group.SortOrder,
                 IsExpanded = preferCapturedExpansion && expanded is not null
@@ -631,8 +655,8 @@ public sealed class MainViewModel : ObservableObject
 
             var node = new TreeNodeViewModel(TreeNodeKind.MultiConfig, config.Id, config)
             {
-                Name = string.IsNullOrWhiteSpace(config.Name) ? "Untitled set" : config.Name,
-                Subtitle = enabled == 1 ? "1 connection" : $"{enabled} connections",
+                Name = string.IsNullOrWhiteSpace(config.Name) ? Strings.Main_UntitledMultiConfig : config.Name,
+                Subtitle = UiLanguage.Plural(enabled, Strings.Main_Count_Connections_One, Strings.Main_Count_Connections_Many),
                 Color = config.Color,
                 Favorite = config.Favorite,
                 SortOrder = config.SortOrder,
@@ -721,15 +745,7 @@ public sealed class MainViewModel : ObservableObject
     }
 
     private static void SortNodes(List<TreeNodeViewModel> nodes) =>
-        nodes.Sort(static (a, b) =>
-        {
-            if (a.IsGroup != b.IsGroup) return a.IsGroup ? -1 : 1;
-
-            var order = a.SortOrder.CompareTo(b.SortOrder);
-            return order != 0
-                ? order
-                : string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase);
-        });
+        nodes.Sort(static (a, b) => LibraryOrder.Compare(a.IsGroup, a.SortOrder, a.Name, b.IsGroup, b.SortOrder, b.Name));
 
     private static string Haystack(string? name, string? description, string? host, string? tags)
     {
@@ -813,6 +829,14 @@ public sealed class MainViewModel : ObservableObject
         SelectedNode = node;
     }
 
+    /// <summary>Selects nothing, which brings back the overview in the detail pane.</summary>
+    public void ClearSelection()
+    {
+        _pendingSelection = null;
+        if (_selectedNode is { } node) node.IsSelected = false;
+        SelectedNode = null;
+    }
+
     private void OnNodeSelectionChanged(TreeNodeViewModel node, bool selected)
     {
         if (selected) SelectedNode = node;
@@ -880,19 +904,16 @@ public sealed class MainViewModel : ObservableObject
     private void UpdateTreeSummary()
     {
         var builder = new StringBuilder(72);
-        builder.Append(Plural(_connectionCount, "connection", "connections"));
-        builder.Append(", ").Append(Plural(_groupCount, "group", "groups"));
+        builder.Append(UiLanguage.Plural(_connectionCount, Strings.Main_Count_Connections_One, Strings.Main_Count_Connections_Many));
+        builder.Append(", ").Append(UiLanguage.Plural(_groupCount, Strings.Main_Count_Groups_One, Strings.Main_Count_Groups_Many));
 
         if (_multiConfigCount > 0)
-            builder.Append(", ").Append(Plural(_multiConfigCount, "multi-config", "multi-configs"));
+            builder.Append(", ").Append(UiLanguage.Plural(_multiConfigCount, Strings.Main_Count_MultiConfigs_One, Strings.Main_Count_MultiConfigs_Many));
 
-        builder.Append(", ").Append(Sessions.Count).Append(" running");
+        builder.Append(", ").Append(UiLanguage.Plural(Sessions.Count, Strings.Main_Count_Running_One, Strings.Main_Count_Running_Many));
 
         TreeSummary = builder.ToString();
     }
-
-    private static string Plural(int count, string one, string many) =>
-        count == 1 ? $"{count} {one}" : $"{count} {many}";
 
     // ------------------------------------------------------------- detail pane
 
@@ -904,6 +925,9 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowEmptyState));
 
         var node = _selectedNode;
+        RefreshHistory(node);
+        RefreshDetailSnapshot(node);
+        RefreshDetailReach(node, checkIfStale: true);
         if (node is null)
         {
             ClearDetail();
@@ -917,7 +941,7 @@ public sealed class MainViewModel : ObservableObject
 
         if (node.Kind == TreeNodeKind.Connection && node.AsConnection is { } connection)
         {
-            DetailKind = "Connection";
+            DetailKind = Strings.Main_Kind_Connection;
             DetailAddress = connection.FullAddress;
             DetailBreadcrumb = DescribeGroupPath(connection.GroupId);
             DetailCredential = DescribeCredential(connection);
@@ -925,9 +949,8 @@ public sealed class MainViewModel : ObservableObject
             DetailTags = string.IsNullOrWhiteSpace(connection.Tags) ? string.Empty : connection.Tags.Trim();
             DetailDescription = connection.Description ?? string.Empty;
             DetailLastConnectedUtc = connection.LastConnectedUtc;
-            DetailLaunchCount = connection.LaunchCount == 1
-                ? "Launched once"
-                : $"Launched {connection.LaunchCount} times";
+            DetailLaunchCount = UiLanguage.Plural(
+                connection.LaunchCount, Strings.Main_Detail_Launched_One, Strings.Main_Detail_Launched_Many);
             DetailGroupSummary = string.Empty;
             MultiSummary = string.Empty;
             MultiItems.Clear();
@@ -936,7 +959,7 @@ public sealed class MainViewModel : ObservableObject
 
         if (node.Kind == TreeNodeKind.MultiConfig && node.AsMultiConfig is { } config)
         {
-            DetailKind = "Multi-config";
+            DetailKind = Strings.Main_Kind_MultiConfig;
             DetailAddress = string.Empty;
             DetailBreadcrumb = DescribeGroupPath(config.GroupId);
             DetailCredential = string.Empty;
@@ -944,9 +967,8 @@ public sealed class MainViewModel : ObservableObject
             DetailTags = string.Empty;
             DetailDescription = config.Description ?? string.Empty;
             DetailLastConnectedUtc = config.LastLaunchedUtc;
-            DetailLaunchCount = config.LaunchCount == 1
-                ? "Launched once"
-                : $"Launched {config.LaunchCount} times";
+            DetailLaunchCount = UiLanguage.Plural(
+                config.LaunchCount, Strings.Main_Detail_Launched_One, Strings.Main_Detail_Launched_Many);
             DetailGroupSummary = string.Empty;
             MultiSummary = DescribeMultiConfig(config);
             FillMultiItems(config);
@@ -955,7 +977,7 @@ public sealed class MainViewModel : ObservableObject
 
         if (node.Kind == TreeNodeKind.Group && node.AsGroup is { } group)
         {
-            DetailKind = "Group";
+            DetailKind = Strings.Main_Kind_Group;
             DetailAddress = string.Empty;
             DetailBreadcrumb = DescribeGroupPath(group.ParentId);
             DetailCredential = string.Empty;
@@ -1007,7 +1029,7 @@ public sealed class MainViewModel : ObservableObject
 
             var name = !string.IsNullOrWhiteSpace(item.DisplayNameOverride)
                 ? item.DisplayNameOverride!.Trim()
-                : connection?.Name ?? "Missing connection";
+                : connection?.Name ?? Strings.Main_MultiItem_MissingConnection;
 
             var display = item.Display.ApplyTo(connection?.Display ?? new DisplaySettings());
 
@@ -1019,7 +1041,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 Order = position.ToString(CultureInfo.InvariantCulture),
                 Name = name,
-                Address = connection?.FullAddress ?? "Not found",
+                Address = connection?.FullAddress ?? Strings.Main_MultiItem_NotFound,
                 Target = DescribeDisplay(display),
                 StateText = state,
                 Enabled = item.Enabled,
@@ -1031,7 +1053,7 @@ public sealed class MainViewModel : ObservableObject
 
     private string DescribeGroupPath(Guid? groupId)
     {
-        if (groupId is null) return "Library";
+        if (groupId is null) return Strings.Main_Breadcrumb_Library;
 
         var parts = new List<string>(8);
         var walker = groupId;
@@ -1039,12 +1061,12 @@ public sealed class MainViewModel : ObservableObject
 
         while (walker is { } id && _groupsById.TryGetValue(id, out var group) && depth++ < MaxDepth)
         {
-            parts.Add(string.IsNullOrWhiteSpace(group.Name) ? "Untitled group" : group.Name);
+            parts.Add(string.IsNullOrWhiteSpace(group.Name) ? Strings.Main_UntitledGroup : group.Name);
             walker = group.ParentId;
         }
 
         parts.Reverse();
-        parts.Insert(0, "Library");
+        parts.Insert(0, Strings.Main_Breadcrumb_Library);
         return string.Join("  /  ", parts);
     }
 
@@ -1057,8 +1079,8 @@ public sealed class MainViewModel : ObservableObject
         }
 
         return connection.CredentialDelivery == CredentialDelivery.Prompt
-            ? "Windows will ask for a password"
-            : "No credential attached";
+            ? Strings.Main_Credential_Prompt
+            : Strings.Main_Credential_None;
     }
 
     private static string DescribeMultiConfig(MultiConfig config)
@@ -1069,9 +1091,15 @@ public sealed class MainViewModel : ObservableObject
             if (item.Enabled) enabled++;
         }
 
-        var order = config.Sequential ? "started one after another" : "started together";
-        var closing = config.CloseTogether ? ", closed together" : string.Empty;
-        return $"{Plural(enabled, "connection", "connections")}, {order}{closing}";
+        var format = (config.Sequential, config.CloseTogether) switch
+        {
+            (true, true) => Strings.Main_MultiSummary_Sequential_CloseTogether,
+            (true, false) => Strings.Main_MultiSummary_Sequential,
+            (false, true) => Strings.Main_MultiSummary_Together_CloseTogether,
+            (false, false) => Strings.Main_MultiSummary_Together,
+        };
+        var count = UiLanguage.Plural(enabled, Strings.Main_Count_Connections_One, Strings.Main_Count_Connections_Many);
+        return UiLanguage.Format(format, count);
     }
 
     private static string DescribeGroupContents(TreeNodeViewModel node)
@@ -1090,9 +1118,9 @@ public sealed class MainViewModel : ObservableObject
         }
 
         var builder = new StringBuilder(64);
-        builder.Append(Plural(connections, "connection", "connections"));
-        if (sets > 0) builder.Append(", ").Append(Plural(sets, "multi-config", "multi-configs"));
-        if (groups > 0) builder.Append(", ").Append(Plural(groups, "sub-group", "sub-groups"));
+        builder.Append(UiLanguage.Plural(connections, Strings.Main_Count_Connections_One, Strings.Main_Count_Connections_Many));
+        if (sets > 0) builder.Append(", ").Append(UiLanguage.Plural(sets, Strings.Main_Count_MultiConfigs_One, Strings.Main_Count_MultiConfigs_Many));
+        if (groups > 0) builder.Append(", ").Append(UiLanguage.Plural(groups, Strings.Main_Count_SubGroups_One, Strings.Main_Count_SubGroups_Many));
         return builder.ToString();
     }
 
@@ -1102,29 +1130,35 @@ public sealed class MainViewModel : ObservableObject
         if (display is null) return string.Empty;
 
         if (display.Placement == WindowPlacementMode.SpecificMonitorFullscreen)
-            return $"Full screen on monitor {display.TargetMonitorIndex + 1}";
+            return UiLanguage.Format(Strings.Main_Display_MonitorFullscreen, display.TargetMonitorIndex + 1);
 
         if (display.Placement == WindowPlacementMode.SpecificMonitorMaximized)
-            return $"Maximized on monitor {display.TargetMonitorIndex + 1}";
+            return UiLanguage.Format(Strings.Main_Display_MonitorMaximized, display.TargetMonitorIndex + 1);
 
         if (display.Placement == WindowPlacementMode.SpanAllMonitors)
-            return "Spanning all monitors";
+            return Strings.Main_Display_SpanAll;
 
         if (display.Placement == WindowPlacementMode.SelectedMonitors)
         {
             return display.SelectedMonitors.Count > 0
-                ? $"Monitors {string.Join(", ", display.SelectedMonitors.Select(static i => i + 1))}"
-                : "Selected monitors";
+                ? UiLanguage.Format(
+                    Strings.Main_Display_MonitorList,
+                    string.Join(", ", display.SelectedMonitors.Select(static i => i + 1)))
+                : Strings.Main_Display_SelectedMonitors;
         }
 
         if (display.Placement == WindowPlacementMode.CustomRectangle)
-            return $"{display.CustomWidth}x{display.CustomHeight} at {display.CustomLeft}, {display.CustomTop}";
+        {
+            return UiLanguage.Format(
+                Strings.Main_Display_CustomRectangle,
+                display.CustomWidth, display.CustomHeight, display.CustomLeft, display.CustomTop);
+        }
 
-        if (display.UseAllMonitors) return "All monitors";
+        if (display.UseAllMonitors) return Strings.Main_Display_AllMonitors;
 
         return display.ScreenMode == ScreenMode.Fullscreen
-            ? "Full screen"
-            : $"{display.DesktopWidth}x{display.DesktopHeight} windowed";
+            ? Strings.Main_Display_Fullscreen
+            : UiLanguage.Format(Strings.Main_Display_Windowed, display.DesktopWidth, display.DesktopHeight);
     }
 
     // ---------------------------------------------------------------- sessions
@@ -1150,6 +1184,34 @@ public sealed class MainViewModel : ObservableObject
             RemoveSession(session);
             RefreshRunningFlags();
         });
+
+    private void OnSettingsChanged(object? sender, AppSettings settings) =>
+        OnUi(() => ShowSnapshots = settings.EnableSnapshots);
+
+    /// <summary>
+    /// Called when the window comes to the front. The watchdog only re-photographs sessions every
+    /// half minute or so, which is stale by the time the user switches back here to look.
+    /// </summary>
+    public void RefreshSnapshotsIfStale()
+    {
+        if (!ShowSnapshots || Sessions.Count == 0) return;
+
+        var now = Environment.TickCount64;
+        if (now - _lastSnapshotRefreshTicks < SnapshotRefreshMinimumMs) return;
+        _lastSnapshotRefreshTicks = now;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _services.Sessions.RefreshSnapshotsAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AppLog.Warn("Refreshing the session thumbnails failed.", ex);
+            }
+        });
+    }
 
     private void AddSession(RdpSession session)
     {
@@ -1250,7 +1312,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Warn($"Could not focus '{session.DisplayName}'.", ex);
-            Notify($"'{session.DisplayName}' could not be brought to the front.", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_Focus, session.DisplayName), true);
         }
     }
 
@@ -1265,7 +1327,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error($"Could not reconnect '{session.DisplayName}'.", ex);
-            Notify($"'{session.DisplayName}' could not be reconnected: {ex.Message}", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_Reconnect, session.DisplayName, ex.Message), true);
         }
     }
 
@@ -1274,7 +1336,10 @@ public sealed class MainViewModel : ObservableObject
         if (parameter is not RdpSession session) return;
 
         if (_services.Settings.ConfirmSessionClose
-            && !Confirm("Close session", $"Close the session '{session.DisplayName}'?", "Close"))
+            && !Confirm(
+                Strings.Main_CloseSession_Title,
+                UiLanguage.Format(Strings.Main_CloseSession_Message, session.DisplayName),
+                Strings.Main_Session_Close))
         {
             return;
         }
@@ -1286,7 +1351,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error($"Could not close '{session.DisplayName}'.", ex);
-            Notify($"'{session.DisplayName}' could not be closed: {ex.Message}", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_CloseSession, session.DisplayName, ex.Message), true);
         }
     }
 
@@ -1315,7 +1380,7 @@ public sealed class MainViewModel : ObservableObject
             var session = await _services.Sessions.LaunchAsync(connection).ConfigureAwait(true);
             if (session is null)
             {
-                Notify($"'{connection.Name}' could not be started.", true);
+                Notify(UiLanguage.Format(Strings.Main_Error_StartNoSession, connection.Name), true);
                 return;
             }
 
@@ -1325,7 +1390,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error($"Could not launch '{connection.Name}'.", ex);
-            Notify($"'{connection.Name}' could not be started: {ex.Message}", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_Start, connection.Name, ex.Message), true);
         }
     }
 
@@ -1339,12 +1404,12 @@ public sealed class MainViewModel : ObservableObject
             foreach (var session in sessions) AddSession(session);
             RefreshRunningFlags();
 
-            if (sessions.Count == 0) Notify($"'{config.Name}' has nothing to launch.", true);
+            if (sessions.Count == 0) Notify(UiLanguage.Format(Strings.Main_Multi_NothingToLaunch, config.Name), true);
         }
         catch (Exception ex)
         {
             AppLog.Error($"Could not launch '{config.Name}'.", ex);
-            Notify($"'{config.Name}' could not be started: {ex.Message}", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_Start, config.Name, ex.Message), true);
         }
     }
 
@@ -1353,7 +1418,10 @@ public sealed class MainViewModel : ObservableObject
         if (_selectedNode?.AsMultiConfig is not { } config) return;
 
         if (_services.Settings.ConfirmSessionClose
-            && !Confirm("Close sessions", $"Close every session started by '{config.Name}'?", "Close"))
+            && !Confirm(
+                Strings.Main_CloseMulti_Title,
+                UiLanguage.Format(Strings.Main_CloseMulti_Message, config.Name),
+                Strings.Main_Session_Close))
         {
             return;
         }
@@ -1366,7 +1434,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error($"Could not close '{config.Name}'.", ex);
-            Notify($"The sessions of '{config.Name}' could not be closed: {ex.Message}", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_CloseMulti, config.Name, ex.Message), true);
         }
     }
 
@@ -1376,7 +1444,10 @@ public sealed class MainViewModel : ObservableObject
         if (!ShowDialog(new ConnectionEditorWindow(editor))) return;
 
         var connection = editor.Result;
-        if (!await RunStoreAsync("save the connection", () => _services.Store.UpsertConnectionAsync(connection)))
+        connection.SortOrder = NextLeafPosition(connection.GroupId);
+        if (!await RunStoreAsync(
+                "save the connection", Strings.Main_Error_SaveConnection,
+                () => _services.Store.UpsertConnectionAsync(connection)))
             return;
 
         await LoadAsync().ConfigureAwait(true);
@@ -1389,7 +1460,10 @@ public sealed class MainViewModel : ObservableObject
         if (!ShowDialog(new MultiConfigEditorWindow(editor))) return;
 
         var config = editor.Result;
-        if (!await RunStoreAsync("save the multi-config", () => _services.Store.UpsertMultiConfigAsync(config)))
+        config.SortOrder = NextLeafPosition(config.GroupId);
+        if (!await RunStoreAsync(
+                "save the multi-config", Strings.Main_Error_SaveMultiConfig,
+                () => _services.Store.UpsertMultiConfigAsync(config)))
             return;
 
         await LoadAsync().ConfigureAwait(true);
@@ -1398,17 +1472,21 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task NewGroupAsync()
     {
-        var name = Prompt("New group", "Name for the new group", "New group");
+        var name = Prompt(Strings.Main_NewGroup, Strings.Main_NewGroup_Prompt, Strings.Main_NewGroup_DefaultName);
         if (string.IsNullOrWhiteSpace(name)) return;
 
+        var parentId = CurrentGroupId();
         var group = new ConnectionGroup
         {
             Name = name.Trim(),
-            ParentId = CurrentGroupId(),
-            SortOrder = _groupCount,
+            ParentId = parentId,
+            SortOrder = NextGroupPosition(parentId),
         };
 
-        if (!await RunStoreAsync("create the group", () => _services.Store.UpsertGroupAsync(group))) return;
+        if (!await RunStoreAsync(
+                "create the group", Strings.Main_Error_CreateGroup,
+                () => _services.Store.UpsertGroupAsync(group)))
+            return;
 
         await LoadAsync().ConfigureAwait(true);
         SelectById(group.Id);
@@ -1425,7 +1503,9 @@ public sealed class MainViewModel : ObservableObject
             if (!ShowDialog(new ConnectionEditorWindow(editor))) return;
 
             var edited = editor.Result;
-            if (!await RunStoreAsync("save the connection", () => _services.Store.UpsertConnectionAsync(edited)))
+            if (!await RunStoreAsync(
+                    "save the connection", Strings.Main_Error_SaveConnection,
+                    () => _services.Store.UpsertConnectionAsync(edited)))
                 return;
 
             await LoadAsync().ConfigureAwait(true);
@@ -1439,7 +1519,9 @@ public sealed class MainViewModel : ObservableObject
             if (!ShowDialog(new MultiConfigEditorWindow(editor))) return;
 
             var edited = editor.Result;
-            if (!await RunStoreAsync("save the multi-config", () => _services.Store.UpsertMultiConfigAsync(edited)))
+            if (!await RunStoreAsync(
+                    "save the multi-config", Strings.Main_Error_SaveMultiConfig,
+                    () => _services.Store.UpsertMultiConfigAsync(edited)))
                 return;
 
             await LoadAsync().ConfigureAwait(true);
@@ -1455,7 +1537,7 @@ public sealed class MainViewModel : ObservableObject
         var node = _selectedNode;
         if (node is null) return;
 
-        var name = Prompt("Rename", "New name", node.Name);
+        var name = Prompt(Strings.Main_Rename, Strings.Main_Rename_Prompt, node.Name);
         if (string.IsNullOrWhiteSpace(name)) return;
 
         var trimmed = name.Trim();
@@ -1469,21 +1551,27 @@ public sealed class MainViewModel : ObservableObject
             var edited = group.Clone();
             edited.Name = trimmed;
             edited.ModifiedUtc = now;
-            saved = await RunStoreAsync("rename the group", () => _services.Store.UpsertGroupAsync(edited));
+            saved = await RunStoreAsync(
+                "rename the group", Strings.Main_Error_RenameGroup,
+                () => _services.Store.UpsertGroupAsync(edited));
         }
         else if (node.IsConnection && node.AsConnection is { } connection)
         {
             var edited = connection.Clone();
             edited.Name = trimmed;
             edited.ModifiedUtc = now;
-            saved = await RunStoreAsync("rename the connection", () => _services.Store.UpsertConnectionAsync(edited));
+            saved = await RunStoreAsync(
+                "rename the connection", Strings.Main_Error_RenameConnection,
+                () => _services.Store.UpsertConnectionAsync(edited));
         }
         else if (node.IsMultiConfig && node.AsMultiConfig is { } config)
         {
             var edited = config.Clone();
             edited.Name = trimmed;
             edited.ModifiedUtc = now;
-            saved = await RunStoreAsync("rename the multi-config", () => _services.Store.UpsertMultiConfigAsync(edited));
+            saved = await RunStoreAsync(
+                "rename the multi-config", Strings.Main_Error_RenameMultiConfig,
+                () => _services.Store.UpsertMultiConfigAsync(edited));
         }
         else
         {
@@ -1510,36 +1598,42 @@ public sealed class MainViewModel : ObservableObject
         {
             var copy = connection.Clone();
             copy.Id = Guid.NewGuid();
-            copy.Name = $"{connection.Name} copy";
+            copy.Name = UiLanguage.Format(Strings.Main_CopyName, connection.Name);
             copy.CreatedUtc = now;
             copy.ModifiedUtc = now;
             copy.LastConnectedUtc = null;
             copy.LaunchCount = 0;
             copyId = copy.Id;
-            saved = await RunStoreAsync("duplicate the connection", () => _services.Store.UpsertConnectionAsync(copy));
+            saved = await RunStoreAsync(
+                "duplicate the connection", Strings.Main_Error_DuplicateConnection,
+                () => _services.Store.UpsertConnectionAsync(copy));
         }
         else if (node.IsMultiConfig && node.AsMultiConfig is { } config)
         {
             var copy = config.Clone();
             copy.Id = Guid.NewGuid();
-            copy.Name = $"{config.Name} copy";
+            copy.Name = UiLanguage.Format(Strings.Main_CopyName, config.Name);
             copy.CreatedUtc = now;
             copy.ModifiedUtc = now;
             copy.LastLaunchedUtc = null;
             copy.LaunchCount = 0;
             foreach (var item in copy.Items) item.Id = Guid.NewGuid();
             copyId = copy.Id;
-            saved = await RunStoreAsync("duplicate the multi-config", () => _services.Store.UpsertMultiConfigAsync(copy));
+            saved = await RunStoreAsync(
+                "duplicate the multi-config", Strings.Main_Error_DuplicateMultiConfig,
+                () => _services.Store.UpsertMultiConfigAsync(copy));
         }
         else if (node.IsGroup && node.AsGroup is { } group)
         {
             var copy = group.Clone();
             copy.Id = Guid.NewGuid();
-            copy.Name = $"{group.Name} copy";
+            copy.Name = UiLanguage.Format(Strings.Main_CopyName, group.Name);
             copy.CreatedUtc = now;
             copy.ModifiedUtc = now;
             copyId = copy.Id;
-            saved = await RunStoreAsync("duplicate the group", () => _services.Store.UpsertGroupAsync(copy));
+            saved = await RunStoreAsync(
+                "duplicate the group", Strings.Main_Error_DuplicateGroup,
+                () => _services.Store.UpsertGroupAsync(copy));
         }
         else
         {
@@ -1560,24 +1654,28 @@ public sealed class MainViewModel : ObservableObject
         string title;
         string message;
         string what;
+        string failure;
 
         if (node.IsConnection)
         {
-            title = "Delete connection";
-            message = $"Delete the connection '{node.Name}'? This cannot be undone.";
+            title = Strings.Main_DeleteConnection_Title;
+            message = UiLanguage.Format(Strings.Main_DeleteConnection_Message, node.Name);
             what = "delete the connection";
+            failure = Strings.Main_Error_DeleteConnection;
         }
         else if (node.IsMultiConfig)
         {
-            title = "Delete multi-config";
-            message = $"Delete the multi-config '{node.Name}'? The connections inside it are kept.";
+            title = Strings.Main_DeleteMultiConfig_Title;
+            message = UiLanguage.Format(Strings.Main_DeleteMultiConfig_Message, node.Name);
             what = "delete the multi-config";
+            failure = Strings.Main_Error_DeleteMultiConfig;
         }
         else
         {
-            title = "Delete group";
-            message = $"Delete the group '{node.Name}'? Everything inside it moves up to the parent group.";
+            title = Strings.Main_DeleteGroup_Title;
+            message = UiLanguage.Format(Strings.Main_DeleteGroup_Message, node.Name);
             what = "delete the group";
+            failure = Strings.Main_Error_DeleteGroup;
         }
 
         if (!Confirm(title, message)) return;
@@ -1586,13 +1684,14 @@ public sealed class MainViewModel : ObservableObject
         bool deleted;
 
         if (node.IsConnection)
-            deleted = await RunStoreAsync(what, () => _services.Store.DeleteConnectionAsync(id));
+            deleted = await RunStoreAsync(what, failure, () => _services.Store.DeleteConnectionAsync(id));
         else if (node.IsMultiConfig)
-            deleted = await RunStoreAsync(what, () => _services.Store.DeleteMultiConfigAsync(id));
+            deleted = await RunStoreAsync(what, failure, () => _services.Store.DeleteMultiConfigAsync(id));
         else
-            deleted = await RunStoreAsync(what, () => _services.Store.DeleteGroupAsync(id));
+            deleted = await RunStoreAsync(what, failure, () => _services.Store.DeleteGroupAsync(id));
 
         if (!deleted) return;
+        if (node.IsConnection) SnapshotService.ForgetConnection(id);
 
         _pendingSelection = null;
         _selectedNode = null;
@@ -1616,14 +1715,18 @@ public sealed class MainViewModel : ObservableObject
             var edited = connection.Clone();
             edited.Favorite = !edited.Favorite;
             edited.ModifiedUtc = now;
-            saved = await RunStoreAsync("update the connection", () => _services.Store.UpsertConnectionAsync(edited));
+            saved = await RunStoreAsync(
+                "update the connection", Strings.Main_Error_UpdateConnection,
+                () => _services.Store.UpsertConnectionAsync(edited));
         }
         else if (node.IsMultiConfig && node.AsMultiConfig is { } config)
         {
             var edited = config.Clone();
             edited.Favorite = !edited.Favorite;
             edited.ModifiedUtc = now;
-            saved = await RunStoreAsync("update the multi-config", () => _services.Store.UpsertMultiConfigAsync(edited));
+            saved = await RunStoreAsync(
+                "update the multi-config", Strings.Main_Error_UpdateMultiConfig,
+                () => _services.Store.UpsertMultiConfigAsync(edited));
         }
         else
         {
@@ -1643,8 +1746,8 @@ public sealed class MainViewModel : ObservableObject
 
         var dialog = new SaveFileDialog
         {
-            Title = "Export Remote Desktop file",
-            Filter = "Remote Desktop files (*.rdp)|*.rdp|All files (*.*)|*.*",
+            Title = Strings.Main_Export_Title,
+            Filter = Strings.Main_FileDialog_RdpFilter,
             FileName = SafeFileName(connection.Name) + ".rdp",
             DefaultExt = ".rdp",
             AddExtension = true,
@@ -1667,12 +1770,12 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             await Task.Run(() => _services.RdpBuilder.WriteToFile(connection, context, path)).ConfigureAwait(true);
-            Notify($"'{connection.Name}' was exported to {Path.GetFileName(path)}.");
+            Notify(UiLanguage.Format(Strings.Main_Export_Done, connection.Name, Path.GetFileName(path)));
         }
         catch (Exception ex)
         {
             AppLog.Error($"Could not export '{connection.Name}'.", ex);
-            Notify($"'{connection.Name}' could not be exported: {ex.Message}", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_Export, connection.Name, ex.Message), true);
         }
     }
 
@@ -1680,8 +1783,8 @@ public sealed class MainViewModel : ObservableObject
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Import Remote Desktop files",
-            Filter = "Remote Desktop files (*.rdp)|*.rdp|All files (*.*)|*.*",
+            Title = Strings.Main_Import_Title,
+            Filter = Strings.Main_FileDialog_RdpFilter,
             CheckFileExists = true,
             Multiselect = true,
         };
@@ -1710,12 +1813,12 @@ public sealed class MainViewModel : ObservableObject
                 return last;
             }).ConfigureAwait(true);
 
-            Notify(files.Length == 1 ? "1 connection was imported." : $"{files.Length} connections were imported.");
+            Notify(UiLanguage.Plural(files.Length, Strings.Main_Import_Done_One, Strings.Main_Import_Done_Many));
         }
         catch (Exception ex)
         {
             AppLog.Error("Could not import the Remote Desktop files.", ex);
-            Notify($"The import failed: {ex.Message}", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_Import, ex.Message), true);
         }
 
         await LoadAsync().ConfigureAwait(true);
@@ -1752,7 +1855,7 @@ public sealed class MainViewModel : ObservableObject
 
     private static string SafeFileName(string name)
     {
-        if (string.IsNullOrWhiteSpace(name)) return "connection";
+        if (string.IsNullOrWhiteSpace(name)) return Strings.Main_Export_DefaultFileName;
 
         var invalid = Path.GetInvalidFileNameChars();
         var builder = new StringBuilder(name.Length);
@@ -1763,10 +1866,14 @@ public sealed class MainViewModel : ObservableObject
         }
 
         var result = builder.ToString().Trim();
-        return result.Length == 0 ? "connection" : result;
+        return result.Length == 0 ? Strings.Main_Export_DefaultFileName : result;
     }
 
-    private async Task<bool> RunStoreAsync(string what, Func<Task> action)
+    /// <summary>
+    /// Runs a store call off the UI thread. <paramref name="what"/> is the English phrase for the
+    /// log; <paramref name="failure"/> is the notification text, with {0} for the error message.
+    /// </summary>
+    private async Task<bool> RunStoreAsync(string what, string failure, Func<Task> action)
     {
         try
         {
@@ -1776,7 +1883,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error($"Could not {what}.", ex);
-            Notify($"Could not {what}: {ex.Message}", true);
+            Notify(UiLanguage.Format(failure, ex.Message), true);
             return false;
         }
     }
@@ -1795,7 +1902,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error("A dialog could not be opened.", ex);
-            Notify($"That window could not be opened: {ex.Message}", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_OpenWindow, ex.Message), true);
             return false;
         }
     }
@@ -1811,13 +1918,13 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error("The file dialog could not be opened.", ex);
-            Notify($"The file dialog could not be opened: {ex.Message}", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_OpenFileDialog, ex.Message), true);
             return false;
         }
     }
 
-    private bool Confirm(string title, string message, string confirmText = "Delete", bool destructive = true) =>
-        ShowDialog(new ConfirmDialog(title, message, confirmText, destructive));
+    private bool Confirm(string title, string message, string? confirmText = null, bool destructive = true) =>
+        ShowDialog(new ConfirmDialog(title, message, confirmText ?? Strings.Common_Delete, destructive));
 
     private string? Prompt(string title, string prompt, string? initial)
     {
@@ -1829,7 +1936,7 @@ public sealed class MainViewModel : ObservableObject
     {
         try
         {
-            _shell.Notify("DYNATEC RDM", message, isError);
+            _shell.Notify(AppIdentity.Name, message, isError);
         }
         catch (Exception ex)
         {
@@ -1846,7 +1953,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error("A shell command failed.", ex);
-            Notify($"That window could not be opened: {ex.Message}", true);
+            Notify(UiLanguage.Format(Strings.Main_Error_OpenWindow, ex.Message), true);
         }
     }
 
@@ -1897,9 +2004,9 @@ public sealed class MainWindowUptimeConverter : IMultiValueConverter
         var span = ended - started;
         if (span < TimeSpan.Zero) span = TimeSpan.Zero;
 
-        if (span.TotalHours >= 1) return $"{(int)span.TotalHours}h {span.Minutes:00}m";
-        if (span.TotalMinutes >= 1) return $"{span.Minutes}m {span.Seconds:00}s";
-        return $"{span.Seconds}s";
+        if (span.TotalHours >= 1) return UiLanguage.Format(Strings.Time_Uptime_Hours, (int)span.TotalHours, span.Minutes);
+        if (span.TotalMinutes >= 1) return UiLanguage.Format(Strings.Time_Uptime_Minutes, span.Minutes, span.Seconds);
+        return UiLanguage.Format(Strings.Time_Uptime_Seconds, span.Seconds);
     }
 
     public object?[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)

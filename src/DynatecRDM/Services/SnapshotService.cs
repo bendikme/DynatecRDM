@@ -34,6 +34,71 @@ public sealed class SnapshotService : ISnapshotService
     /// <summary>Folder holding the generated thumbnails.</summary>
     public static string SnapshotDirectory { get; } = Path.Combine(AppLog.DataDirectory, "snapshots");
 
+    /// <summary>
+    /// The last capture of each connection, one file per connection. A session's own thumbnail
+    /// goes when the session does; this copy stays, so the quick-launch list can show what a
+    /// connection looked like last time. Being a subfolder keeps it out of the orphan cleanup.
+    /// </summary>
+    public static string LastKnownDirectory { get; } = Path.Combine(SnapshotDirectory, "last");
+
+    public static string LastKnownPath(Guid connectionId) =>
+        Path.Combine(LastKnownDirectory, connectionId.ToString("D") + ".jpg");
+
+    /// <summary>Every connection with a last-known snapshot, and when it was taken. Never throws.</summary>
+    public static Dictionary<Guid, DateTime> LastKnownSnapshots()
+    {
+        var result = new Dictionary<Guid, DateTime>();
+        try
+        {
+            if (!Directory.Exists(LastKnownDirectory)) return result;
+
+            foreach (var path in Directory.EnumerateFiles(LastKnownDirectory, "*.jpg"))
+            {
+                if (Guid.TryParse(Path.GetFileNameWithoutExtension(path), out var id))
+                    result[id] = File.GetLastWriteTimeUtc(path);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug_($"Listing the last-known snapshots failed: {ex.Message}");
+        }
+        return result;
+    }
+
+    /// <summary>Drops a connection's last-known snapshot, for when the connection is deleted.</summary>
+    public static void ForgetConnection(Guid connectionId) => TryDelete(LastKnownPath(connectionId));
+
+    /// <summary>
+    /// A connection's last-known snapshot was replaced by a newer capture. Raised on the capture's
+    /// thread pool thread with the connection's id; listeners hop to their own thread.
+    /// </summary>
+    public static event EventHandler<Guid>? LastKnownChanged;
+
+    private static void KeepAsLastKnown(Guid connectionId, string capturePath)
+    {
+        if (connectionId == Guid.Empty) return;
+
+        var target = LastKnownPath(connectionId);
+        var temp = Path.ChangeExtension(target, ".tmp");
+        try
+        {
+            Directory.CreateDirectory(LastKnownDirectory);
+            File.Copy(capturePath, temp, overwrite: true);
+            if (!ReplaceFile(temp, target))
+            {
+                TryDelete(temp);
+                return;
+            }
+
+            LastKnownChanged?.Invoke(null, connectionId);
+        }
+        catch (Exception ex)
+        {
+            TryDelete(temp);
+            AppLog.Debug_($"Keeping the last snapshot of connection {connectionId} failed: {ex.Message}");
+        }
+    }
+
     public async Task<string?> CaptureAsync(RdpSession session, CancellationToken ct = default)
     {
         if (session is null || ct.IsCancellationRequested) return null;
@@ -134,8 +199,9 @@ public sealed class SnapshotService : ISnapshotService
                 return null;
             }
 
-            session.SnapshotPath = finalPath;
-            session.LastSnapshotUtc = DateTime.UtcNow;
+            KeepAsLastKnown(session.ConnectionId, finalPath);
+
+            // The session is bound to the UI, so the caller publishes the path on the UI thread.
             return finalPath;
         }
         catch (Exception ex)
@@ -468,13 +534,17 @@ public sealed class SnapshotService : ISnapshotService
         }
     }
 
-    /// <summary>Empties the snapshot folder (exposed for the settings screen).</summary>
+    /// <summary>Empties the snapshot folder, last-known ones included (exposed for the settings screen).</summary>
     public static void PurgeAll()
     {
         try
         {
             if (!Directory.Exists(SnapshotDirectory)) return;
             foreach (var path in Directory.EnumerateFiles(SnapshotDirectory))
+                TryDelete(path);
+
+            if (!Directory.Exists(LastKnownDirectory)) return;
+            foreach (var path in Directory.EnumerateFiles(LastKnownDirectory))
                 TryDelete(path);
         }
         catch (Exception ex)

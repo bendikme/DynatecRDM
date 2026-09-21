@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using DynatecRDM.Resources;
 
 namespace DynatecRDM.Interop;
 
@@ -13,7 +14,17 @@ internal static class MonitorApi
         Win32.RECT WorkArea,
         bool IsPrimary,
         uint DpiX,
-        uint DpiY);
+        uint DpiY)
+    {
+        /// <summary>
+        /// The display's position in the raw EnumDisplayDevices walk, which is the id Remote Desktop
+        /// numbers displays by: what "mstsc /l" prints and what selectedmonitors:s: holds. It is NOT
+        /// the position in this list, which is sorted left to right, and it must not be parsed out of
+        /// the device name - a real machine reports \\.\DISPLAY177 at ordinal 0. A detached adapter
+        /// still consumes an ordinal, so these ids are legitimately gapped (0, 3, 4).
+        /// </summary>
+        public int AdapterOrdinal { get; init; } = -1;
+    }
 
     private const uint MONITORINFOF_PRIMARY = 0x1;
     private const uint MONITOR_DEFAULTTONEAREST = 0x2;
@@ -132,7 +143,10 @@ internal static class MonitorApi
                 info.rcWork,
                 (info.dwFlags & MONITORINFOF_PRIMARY) != 0,
                 dpiX,
-                dpiY));
+                dpiY)
+            {
+                AdapterOrdinal = adapters.TryGetValue(deviceName, out var adapter) ? adapter.Ordinal : -1,
+            });
         }
 
         if (result.Count == 0) return new[] { SyntheticPrimary() };
@@ -180,24 +194,30 @@ internal static class MonitorApi
     }
 
     /// <summary>Maps an adapter device name (\\.\DISPLAY1) to its adapter description.</summary>
-    private static Dictionary<string, string> BuildAdapterMap()
+    private static Dictionary<string, AdapterInfo> BuildAdapterMap()
     {
-        var map = new Dictionary<string, string>(4, StringComparer.OrdinalIgnoreCase);
+        var map = new Dictionary<string, AdapterInfo>(4, StringComparer.OrdinalIgnoreCase);
         for (uint i = 0; i < 64; i++)
         {
             var device = NewDisplayDevice();
             if (!EnumDisplayDevices(null, i, ref device, 0)) break;
+            // A detached adapter is skipped but still consumes its ordinal, which is exactly why the
+            // ids Remote Desktop uses can have gaps in them.
             if ((device.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) == 0) continue;
 
             string name = device.DeviceName ?? string.Empty;
-            if (name.Length != 0) map[name] = (device.DeviceString ?? string.Empty).Trim();
+            if (name.Length != 0)
+                map[name] = new AdapterInfo((device.DeviceString ?? string.Empty).Trim(), (int)i);
         }
         return map;
     }
 
-    private static string ResolveFriendlyName(string deviceName, Dictionary<string, string> adapters)
+    /// <summary>An adapter's description and its ordinal in the enumeration walk.</summary>
+    private readonly record struct AdapterInfo(string Description, int Ordinal);
+
+    private static string ResolveFriendlyName(string deviceName, Dictionary<string, AdapterInfo> adapters)
     {
-        if (deviceName.Length == 0) return "Display";
+        if (deviceName.Length == 0) return Strings.Monitor_Display;
 
         var monitor = NewDisplayDevice();
         if (EnumDisplayDevices(deviceName, 0, ref monitor, EDD_GET_DEVICE_INTERFACE_NAME))
@@ -206,7 +226,8 @@ internal static class MonitorApi
             if (name.Length != 0) return name;
         }
 
-        if (adapters.TryGetValue(deviceName, out var adapter) && adapter.Length != 0) return adapter;
+        if (adapters.TryGetValue(deviceName, out var adapter) && adapter.Description.Length != 0)
+            return adapter.Description;
 
         return deviceName;
     }
@@ -250,6 +271,6 @@ internal static class MonitorApi
         if (height <= 0) height = 1080;
 
         var bounds = new Win32.RECT { Left = 0, Top = 0, Right = width, Bottom = height };
-        return new NativeMonitor(IntPtr.Zero, @"\\.\DISPLAY1", "Primary display", bounds, bounds, true, 96, 96);
+        return new NativeMonitor(IntPtr.Zero, @"\\.\DISPLAY1", Strings.Monitor_PrimaryDisplay, bounds, bounds, true, 96, 96);
     }
 }

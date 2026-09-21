@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using DynatecRDM.Resources;
+using DynatecRDM.Services;
 
 namespace DynatecRDM.Models;
 
@@ -99,12 +101,12 @@ public sealed class RdpSession : INotifyPropertyChanged
 
     public string StateText => State switch
     {
-        SessionState.Launching => "Starting",
-        SessionState.Connecting => "Connecting",
-        SessionState.Connected => "Connected",
-        SessionState.Reconnecting => "Reconnecting",
-        SessionState.Disconnected => "Disconnected",
-        SessionState.Failed => "Failed",
+        SessionState.Launching => Strings.Session_State_Starting,
+        SessionState.Connecting => Strings.Session_State_Connecting,
+        SessionState.Connected => Strings.Session_State_Connected,
+        SessionState.Reconnecting => Strings.Session_State_Reconnecting,
+        SessionState.Disconnected => Strings.Session_State_Disconnected,
+        SessionState.Failed => Strings.Session_State_Failed,
         _ => State.ToString(),
     };
 
@@ -141,11 +143,24 @@ public sealed record MonitorInfo(
     uint DpiX,
     uint DpiY)
 {
+    /// <summary>
+    /// The id "mstsc /l" prints for this display, which is what selectedmonitors:s: holds. It is
+    /// not the position in our own list: mstsc always numbers the primary display 0.
+    /// </summary>
+    public int MstscId { get; init; } = -1;
+
     public int Right => Left + Width;
     public int Bottom => Top + Height;
+    public PixelRect Bounds => new(Left, Top, Width, Height);
+
+    /// <summary>The monitor minus the taskbar and docked toolbars; the bounds when unknown.</summary>
+    public PixelRect WorkArea => WorkWidth > 0 && WorkHeight > 0
+        ? new PixelRect(WorkLeft, WorkTop, WorkWidth, WorkHeight)
+        : Bounds;
+
     public double ScaleFactor => DpiX / 96.0;
     public string ResolutionText => $"{Width} x {Height}";
     public string Label => IsPrimary
-        ? $"{Index + 1}. {FriendlyName} ({ResolutionText}, primary)"
+        ? UiLanguage.Format(Strings.Monitor_Label_Primary, Index + 1, FriendlyName, ResolutionText)
         : $"{Index + 1}. {FriendlyName} ({ResolutionText})";
 }

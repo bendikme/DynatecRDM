@@ -1,0 +1,96 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
+                    mc:Ignorable="po">
+
+    <!-- ....................................................................
+         Dark palette. Palette.Light.xaml defines exactly the same keys.
+
+         ThemeService swaps the whole dictionary when Windows changes app mode,
+         so everything outside the two palette files must reference these keys
+         with DynamicResource - a StaticResource keeps the old colour forever.
+
+         Contrast (WCAG 2.x AA), checked by ThemeService every time a palette
+         is applied:
+           TextPrimary                       >= 7:1   on every surface
+           TextSecondary, TextMuted          >= 4.5:1 on every surface, the
+                                                      selected row and the
+                                                      accent/danger tints
+           Accent, Success, Warning, Danger  >= 4.5:1 on every surface (text)
+           OnAccent / OnDanger               >= 4.5:1 on their fills
+           BorderStrong                      >= 3:1   against the surfaces a
+                                                      control sits on
+         BorderSoft is decoration only (cards, dividers) and has no target.
+
+         The Accent* entries are only defaults: ThemeService derives them from
+         the accent chosen in Settings, adjusted until they meet the targets.
+         .................................................................... -->
+
+    <Color x:Key="BackgroundColor">#FF16181D</Color>
+    <Color x:Key="SurfaceColor">#FF1D2026</Color>
+    <Color x:Key="SurfaceAltColor">#FF22262E</Color>
+    <Color x:Key="SurfaceHoverColor">#FF2A2F38</Color>
+    <Color x:Key="SurfaceSelectedColor">#FF2A3443</Color>
+
+    <Color x:Key="BorderSoftColor">#FF2C313A</Color>
+    <Color x:Key="BorderStrongColor">#FF6B7482</Color>
+
+    <Color x:Key="TextPrimaryColor">#FFEDEFF3</Color>
+    <Color x:Key="TextSecondaryColor">#FFB6BDC9</Color>
+    <Color x:Key="TextMutedColor">#FF949DAB</Color>
+
+    <Color x:Key="AccentColor">#FF41A0FF</Color>
+    <Color x:Key="AccentHoverColor">#FF5FAFFF</Color>
+    <Color x:Key="AccentPressedColor">#FF2190FF</Color>
+    <Color x:Key="AccentSubtleColor">#FF23364B</Color>
+    <!-- Dark text on the accent, as Windows 11 does in dark mode: a light accent is what
+         keeps accent-coloured text readable on the dark surfaces, and white on it would not be. -->
+    <Color x:Key="OnAccentColor">#FF0E1116</Color>
+    <!-- A darker accent that white text reads on (ThemeService derives it from the chosen accent). -->
+    <Color x:Key="AccentStrongColor">#FF0073E8</Color>
+    <Color x:Key="AccentStrongHoverColor">#FF0067D1</Color>
+    <Color x:Key="AccentStrongPressedColor">#FF005CBA</Color>
+
+    <Color x:Key="SuccessColor">#FF4ADE95</Color>
+    <Color x:Key="WarningColor">#FFF5B040</Color>
+    <Color x:Key="DangerColor">#FFFF8080</Color>
+    <Color x:Key="DangerSubtleColor">#FF3F2429</Color>
+    <!-- The danger button needs a deeper red than danger text: the light red that reads on
+         a dark surface cannot also carry white text. -->
+    <Color x:Key="DangerFillColor">#FFD13A3A</Color>
+    <Color x:Key="DangerFillHoverColor">#FFB83131</Color>
+    <Color x:Key="OnDangerColor">#FFFFFFFF</Color>
+
+    <!-- Brushes are frozen: a palette is never edited, only replaced. -->
+    <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="SurfaceAltBrush" Color="{StaticResource SurfaceAltColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="SurfaceSelectedBrush" Color="{StaticResource SurfaceSelectedColor}" po:Freeze="True" />
+
+    <SolidColorBrush x:Key="BorderBrushSoft" Color="{StaticResource BorderSoftColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BorderBrushStrong" Color="{StaticResource BorderStrongColor}" po:Freeze="True" />
+
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" po:Freeze="True" />
+
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressedColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="AccentSubtleBrush" Color="{StaticResource AccentSubtleColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="OnAccentBrush" Color="{StaticResource OnAccentColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="AccentStrongBrush" Color="{StaticResource AccentStrongColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="AccentStrongHoverBrush" Color="{StaticResource AccentStrongHoverColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="AccentStrongPressedBrush" Color="{StaticResource AccentStrongPressedColor}" po:Freeze="True" />
+
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="DangerSubtleBrush" Color="{StaticResource DangerSubtleColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="DangerFillBrush" Color="{StaticResource DangerFillColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="DangerFillHoverBrush" Color="{StaticResource DangerFillHoverColor}" po:Freeze="True" />
+    <SolidColorBrush x:Key="OnDangerBrush" Color="{StaticResource OnDangerColor}" po:Freeze="True" />
+
+</ResourceDictionary>

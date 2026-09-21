@@ -1,0 +1,213 @@
+<UserControl x:Class="DynatecRDM.Views.DisplaySettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:DynatecRDM.Converters"
+             xmlns:res="clr-namespace:DynatecRDM.Resources">
+
+    <!-- One set of display settings (the DataContext, a DisplayEditorViewModel): full screen or a
+         window first, then where - so no two choices here can contradict each other - then what
+         happens on resize, quality and scaling, and what it all amounts to. The connection editor
+         puts its monitor map in the Map slot; the multi-config editor has one big map of its own.
+         Rows are FormRowStyle, so they line up with the host's own rows. -->
+    <StackPanel>
+
+        <Border Style="{DynamicResource DisplaySectionStyle}">
+            <StackPanel>
+                <TextBlock Text="{x:Static res:Strings.Editor_ScreenMode_Header}" Style="{StaticResource SectionHeaderStyle}" />
+
+                <!-- The two top-level choices, evenly sharing the row so they read as a pair. -->
+                <UniformGrid Rows="1" Columns="2" Margin="0,4,0,0" HorizontalAlignment="Left" Width="320">
+                    <RadioButton Style="{StaticResource EditorRadioStyle}"
+                                 Content="{x:Static res:Strings.Editor_ScreenMode_Fullscreen}"
+                                 IsChecked="{Binding ScreenMode, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Fullscreen}" />
+                    <RadioButton Style="{StaticResource EditorRadioStyle}"
+                                 Content="{x:Static res:Strings.Editor_ScreenMode_Windowed}"
+                                 IsChecked="{Binding ScreenMode, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Windowed}" />
+                </UniformGrid>
+
+                <!-- Only the sub-choices that belong to the mode above are shown, as a vertical
+                     list so the long labels never wrap raggedly. -->
+                <Border Margin="1,10,0,4"
+                        Padding="14,2,0,2"
+                        BorderBrush="{DynamicResource BorderBrushSoft}"
+                        BorderThickness="2,0,0,0"
+                        SnapsToDevicePixels="True">
+                    <Grid>
+                        <StackPanel Visibility="{Binding IsFullScreen, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                            <RadioButton Style="{StaticResource EditorRadioStyle}" Margin="0,3,0,3"
+                                         Content="{x:Static res:Strings.Editor_FullScreen_OneMonitor}"
+                                         IsChecked="{Binding FullScreenChoice, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=OneMonitor}" />
+                            <RadioButton Style="{StaticResource EditorRadioStyle}" Margin="0,3,0,3"
+                                         Content="{x:Static res:Strings.Editor_FullScreen_SelectedMonitors}"
+                                         IsChecked="{Binding FullScreenChoice, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=SelectedMonitors}" />
+                            <RadioButton Style="{StaticResource EditorRadioStyle}" Margin="0,3,0,3"
+                                         Content="{x:Static res:Strings.Editor_FullScreen_AllMonitors}"
+                                         IsChecked="{Binding FullScreenChoice, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=AllMonitors}" />
+                        </StackPanel>
+                        <StackPanel Visibility="{Binding IsWindowed, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                            <RadioButton Style="{StaticResource EditorRadioStyle}" Margin="0,3,0,3"
+                                         Content="{x:Static res:Strings.Editor_Window_Automatic}"
+                                         IsChecked="{Binding WindowChoice, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Automatic}" />
+                            <RadioButton Style="{StaticResource EditorRadioStyle}" Margin="0,3,0,3"
+                                         Content="{x:Static res:Strings.Editor_Window_Maximized}"
+                                         IsChecked="{Binding WindowChoice, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Maximized}" />
+                            <RadioButton Style="{StaticResource EditorRadioStyle}" Margin="0,3,0,3"
+                                         Content="{x:Static res:Strings.Editor_Window_Rectangle}"
+                                         IsChecked="{Binding WindowChoice, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Rectangle}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- The host's map, with what clicking it does. -->
+                <StackPanel x:Name="MapSlot" Margin="0,6,0,0" Visibility="Collapsed">
+                    <ContentPresenter x:Name="MapPresenter" />
+                    <TextBlock Style="{StaticResource EditorHintStyle}" Text="{Binding MapHint}" />
+                </StackPanel>
+
+                <!-- The rectangle, typed. Two pairs, so the four fields fit a narrow panel too. -->
+                <Grid Margin="0,14,0,0"
+                      HorizontalAlignment="Left"
+                      Visibility="{Binding IsCustomRectangle, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="96" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="8" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static res:Strings.Editor_Custom_Left}" Style="{StaticResource EditorLabelStyle}" />
+                    <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource AppTextBoxStyle}" MaxLength="7"
+                             Text="{Binding CustomLeftText, UpdateSourceTrigger=PropertyChanged}"
+                             LostKeyboardFocus="OnCustomRectFieldLostFocus" />
+                    <TextBlock Grid.Row="0" Grid.Column="3" Text="{x:Static res:Strings.Editor_Custom_Top}" Style="{StaticResource EditorLabelStyle}" />
+                    <TextBox Grid.Row="0" Grid.Column="4" Style="{StaticResource AppTextBoxStyle}" MaxLength="7"
+                             Text="{Binding CustomTopText, UpdateSourceTrigger=PropertyChanged}"
+                             LostKeyboardFocus="OnCustomRectFieldLostFocus" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{x:Static res:Strings.Editor_Width}" Style="{StaticResource EditorLabelStyle}" />
+                    <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource AppTextBoxStyle}" MaxLength="6"
+                             Text="{Binding CustomWidthText, UpdateSourceTrigger=PropertyChanged}"
+                             LostKeyboardFocus="OnCustomRectFieldLostFocus" />
+                    <TextBlock Grid.Row="2" Grid.Column="3" Text="{x:Static res:Strings.Editor_Height}" Style="{StaticResource EditorLabelStyle}" />
+                    <TextBox Grid.Row="2" Grid.Column="4" Style="{StaticResource AppTextBoxStyle}" MaxLength="6"
+                             Text="{Binding CustomHeightText, UpdateSourceTrigger=PropertyChanged}"
+                             LostKeyboardFocus="OnCustomRectFieldLostFocus" />
+                </Grid>
+
+                <TextBlock Style="{StaticResource EditorHintStyle}"
+                           Text="{x:Static res:Strings.Editor_Custom_Hint}"
+                           Visibility="{Binding IsCustomRectangle, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+
+                <TextBlock Style="{StaticResource EditorHintStyle}"
+                           Foreground="{DynamicResource WarningBrush}"
+                           Text="{x:Static res:Strings.Editor_Custom_OffScreen}"
+                           Visibility="{Binding CustomRectOffScreen, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+
+                <!-- The window size, where a window of that size can appear. -->
+                <StackPanel Margin="0,14,0,0"
+                            Visibility="{Binding ShowWindowSize, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                    <HeaderedContentControl Style="{StaticResource FormRowStyle}" Margin="0" Header="{Binding WindowSizeLabel}">
+                        <StackPanel>
+                            <ComboBox Style="{StaticResource AppComboBoxStyle}"
+                                      ItemsSource="{Binding ResolutionOptions}"
+                                      DisplayMemberPath="Label"
+                                      IsSynchronizedWithCurrentItem="False"
+                                      SelectedItem="{Binding SelectedResolution, Mode=TwoWay}" />
+                            <Grid Margin="0,8,0,0"
+                                  Visibility="{Binding IsCustomResolution, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Style="{StaticResource AppTextBoxStyle}" MaxLength="5"
+                                         AutomationProperties.Name="{x:Static res:Strings.Editor_Width}"
+                                         Text="{Binding DesktopWidthText, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1" Text="&#215;" Margin="10,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBox Grid.Column="2" Style="{StaticResource AppTextBoxStyle}" MaxLength="5"
+                                         AutomationProperties.Name="{x:Static res:Strings.Editor_Height}"
+                                         Text="{Binding DesktopHeightText, UpdateSourceTrigger=PropertyChanged}" />
+                            </Grid>
+                        </StackPanel>
+                    </HeaderedContentControl>
+                    <TextBlock Style="{StaticResource EditorHintStyle}" Text="{Binding WindowSizeHint}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Border Style="{DynamicResource DisplaySectionStyle}">
+            <StackPanel>
+                <TextBlock Text="{x:Static res:Strings.Editor_Resize_Header}" Style="{StaticResource SectionHeaderStyle}" />
+                <RadioButton Style="{StaticResource EditorRadioStyle}"
+                             Margin="0,0,0,4"
+                             Content="{x:Static res:Strings.Editor_Resize_Follow}"
+                             IsChecked="{Binding Resize, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=FollowWindow}" />
+                <RadioButton Style="{StaticResource EditorRadioStyle}"
+                             Margin="0,0,0,4"
+                             Content="{x:Static res:Strings.Editor_Resize_Scale}"
+                             IsChecked="{Binding Resize, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Scale}" />
+                <RadioButton Style="{StaticResource EditorRadioStyle}"
+                             Margin="0,0,0,4"
+                             Content="{x:Static res:Strings.Editor_Resize_Fixed}"
+                             IsChecked="{Binding Resize, Mode=TwoWay, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Fixed}" />
+                <TextBlock Style="{StaticResource EditorHintStyle}" Text="{x:Static res:Strings.Editor_Resize_Hint}" />
+                <TextBlock Style="{StaticResource EditorHintStyle}"
+                           Foreground="{DynamicResource WarningBrush}"
+                           Text="{x:Static res:Strings.Editor_Resize_MultiMonitorNote}"
+                           Visibility="{Binding IsMultiMonitorLayout, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+            </StackPanel>
+        </Border>
+
+        <Border Style="{DynamicResource DisplaySectionStyle}">
+            <StackPanel>
+                <TextBlock Text="{x:Static res:Strings.Editor_Scaling_Header}" Style="{StaticResource SectionHeaderStyle}" />
+
+                <HeaderedContentControl Style="{StaticResource FormRowStyle}" Header="{x:Static res:Strings.Editor_ColourDepth}">
+                    <ComboBox Style="{StaticResource AppComboBoxStyle}"
+                              ItemsSource="{Binding ColorDepthOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="Value"
+                              IsSynchronizedWithCurrentItem="False"
+                              SelectedValue="{Binding ColorDepth, Mode=TwoWay}" />
+                </HeaderedContentControl>
+
+                <HeaderedContentControl Style="{StaticResource FormRowStyle}" Header="{x:Static res:Strings.Editor_DesktopScale}">
+                    <ComboBox Style="{StaticResource AppComboBoxStyle}"
+                              ItemsSource="{Binding DesktopScaleOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="Value"
+                              IsSynchronizedWithCurrentItem="False"
+                              SelectedValue="{Binding DesktopScaleFactor, Mode=TwoWay}" />
+                </HeaderedContentControl>
+
+                <HeaderedContentControl Style="{StaticResource FormRowStyle}" Header="{x:Static res:Strings.Editor_DeviceScale}">
+                    <ComboBox Style="{StaticResource AppComboBoxStyle}"
+                              ItemsSource="{Binding DeviceScaleOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="Value"
+                              IsSynchronizedWithCurrentItem="False"
+                              SelectedValue="{Binding DeviceScaleFactor, Mode=TwoWay}" />
+                </HeaderedContentControl>
+
+                <CheckBox Style="{StaticResource AppToggleStyle}"
+                          Margin="0,4,0,0"
+                          HorizontalAlignment="Left"
+                          IsChecked="{Binding AlwaysOnTop, Mode=TwoWay}"
+                          Content="{x:Static res:Strings.Editor_AlwaysOnTop}" />
+            </StackPanel>
+        </Border>
+
+        <Border Style="{DynamicResource DisplaySummaryStyle}">
+            <StackPanel>
+                <TextBlock Text="{x:Static res:Strings.Editor_WhatWillHappen_Header}" Style="{StaticResource SectionHeaderStyle}" />
+                <TextBlock Style="{StaticResource EditorValueStyle}" Text="{Binding PlacementPreview}" />
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+</UserControl>

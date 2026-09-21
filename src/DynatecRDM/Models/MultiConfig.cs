@@ -15,6 +15,7 @@ public sealed class DisplayOverride
     public bool? SmartSizing { get; set; }
     public bool? DynamicResolution { get; set; }
     public int? DesktopScaleFactor { get; set; }
+    public int? DeviceScaleFactor { get; set; }
     public WindowPlacementMode? Placement { get; set; }
     public int? TargetMonitorIndex { get; set; }
     public int? CustomLeft { get; set; }
@@ -28,7 +29,7 @@ public sealed class DisplayOverride
         ScreenMode.HasValue || UseAllMonitors.HasValue || SelectedMonitors is { Count: > 0 } ||
         DesktopWidth.HasValue || DesktopHeight.HasValue || ColorDepth.HasValue ||
         SmartSizing.HasValue || DynamicResolution.HasValue || DesktopScaleFactor.HasValue ||
-        Placement.HasValue || TargetMonitorIndex.HasValue || CustomLeft.HasValue ||
+        DeviceScaleFactor.HasValue || Placement.HasValue || TargetMonitorIndex.HasValue || CustomLeft.HasValue ||
         CustomTop.HasValue || CustomWidth.HasValue || CustomHeight.HasValue || AlwaysOnTop.HasValue;
 
     /// <summary>Returns a copy of <paramref name="baseline"/> with every set override applied.</summary>
@@ -44,6 +45,7 @@ public sealed class DisplayOverride
         if (SmartSizing.HasValue) d.SmartSizing = SmartSizing.Value;
         if (DynamicResolution.HasValue) d.DynamicResolution = DynamicResolution.Value;
         if (DesktopScaleFactor.HasValue) d.DesktopScaleFactor = DesktopScaleFactor.Value;
+        if (DeviceScaleFactor.HasValue) d.DeviceScaleFactor = DeviceScaleFactor.Value;
         if (Placement.HasValue) d.Placement = Placement.Value;
         if (TargetMonitorIndex.HasValue) d.TargetMonitorIndex = TargetMonitorIndex.Value;
         if (CustomLeft.HasValue) d.CustomLeft = CustomLeft.Value;
@@ -52,6 +54,63 @@ public sealed class DisplayOverride
         if (CustomHeight.HasValue) d.CustomHeight = CustomHeight.Value;
         if (AlwaysOnTop.HasValue) d.AlwaysOnTop = AlwaysOnTop.Value;
         return d;
+    }
+
+    /// <summary>
+    /// The override that turns <paramref name="baseline"/> into <paramref name="chosen"/>, holding
+    /// only what differs, so everything else keeps following the connection. Fields that only mean
+    /// something together are kept together: where the session goes (screen mode, placement,
+    /// monitors, rectangle), the session size, and what happens on resize. Otherwise a later change
+    /// to the connection could pair its new screen mode with the item's old placement.
+    /// </summary>
+    public static DisplayOverride Between(DisplaySettings baseline, DisplaySettings chosen)
+    {
+        ArgumentNullException.ThrowIfNull(baseline);
+        ArgumentNullException.ThrowIfNull(chosen);
+
+        var result = new DisplayOverride();
+
+        var layoutDiffers =
+            baseline.ScreenMode != chosen.ScreenMode
+            || baseline.UseAllMonitors != chosen.UseAllMonitors
+            || !baseline.SelectedMonitors.SequenceEqual(chosen.SelectedMonitors)
+            || baseline.Placement != chosen.Placement
+            || baseline.TargetMonitorIndex != chosen.TargetMonitorIndex
+            || baseline.CustomLeft != chosen.CustomLeft
+            || baseline.CustomTop != chosen.CustomTop
+            || baseline.CustomWidth != chosen.CustomWidth
+            || baseline.CustomHeight != chosen.CustomHeight;
+        if (layoutDiffers)
+        {
+            result.ScreenMode = chosen.ScreenMode;
+            result.UseAllMonitors = chosen.UseAllMonitors;
+            result.SelectedMonitors = new List<int>(chosen.SelectedMonitors);
+            result.Placement = chosen.Placement;
+            result.TargetMonitorIndex = chosen.TargetMonitorIndex;
+            result.CustomLeft = chosen.CustomLeft;
+            result.CustomTop = chosen.CustomTop;
+            result.CustomWidth = chosen.CustomWidth;
+            result.CustomHeight = chosen.CustomHeight;
+        }
+
+        if (baseline.DesktopWidth != chosen.DesktopWidth || baseline.DesktopHeight != chosen.DesktopHeight)
+        {
+            result.DesktopWidth = chosen.DesktopWidth;
+            result.DesktopHeight = chosen.DesktopHeight;
+        }
+
+        if (baseline.SmartSizing != chosen.SmartSizing || baseline.DynamicResolution != chosen.DynamicResolution)
+        {
+            result.SmartSizing = chosen.SmartSizing;
+            result.DynamicResolution = chosen.DynamicResolution;
+        }
+
+        if (baseline.ColorDepth != chosen.ColorDepth) result.ColorDepth = chosen.ColorDepth;
+        if (baseline.DesktopScaleFactor != chosen.DesktopScaleFactor) result.DesktopScaleFactor = chosen.DesktopScaleFactor;
+        if (baseline.DeviceScaleFactor != chosen.DeviceScaleFactor) result.DeviceScaleFactor = chosen.DeviceScaleFactor;
+        if (baseline.AlwaysOnTop != chosen.AlwaysOnTop) result.AlwaysOnTop = chosen.AlwaysOnTop;
+
+        return result;
     }
 
     public DisplayOverride Clone() => new()
@@ -65,6 +124,7 @@ public sealed class DisplayOverride
         SmartSizing = SmartSizing,
         DynamicResolution = DynamicResolution,
         DesktopScaleFactor = DesktopScaleFactor,
+        DeviceScaleFactor = DeviceScaleFactor,
         Placement = Placement,
         TargetMonitorIndex = TargetMonitorIndex,
         CustomLeft = CustomLeft,

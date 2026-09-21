@@ -5,6 +5,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Threading;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 
 namespace DynatecRDM.ViewModels;
@@ -26,16 +27,9 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
     private readonly DispatcherTimer _previewDebounce;
     private readonly Dispatcher _dispatcher;
 
-    private IReadOnlyList<MonitorInfo> _monitors = Array.Empty<MonitorInfo>();
-    private bool _mapRequested;
-    private bool _mapReady;
     private bool _previewRequested;
-    private bool _monitorsHooked;
     private bool _populating;
     private bool _disposed;
-
-    private double _mapViewportWidth = 560;
-    private double _mapViewportHeight = 240;
 
     public ConnectionEditorViewModel(AppServices services, RdpConnection? existing, Guid? defaultGroupId)
     {
@@ -49,21 +43,11 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         Normalize(_model);
 
         _portText = _model.Port.ToString(CultureInfo.InvariantCulture);
-        _desktopWidthText = _model.Display.DesktopWidth.ToString(CultureInfo.InvariantCulture);
-        _desktopHeightText = _model.Display.DesktopHeight.ToString(CultureInfo.InvariantCulture);
-        _customLeftText = _model.Display.CustomLeft.ToString(CultureInfo.InvariantCulture);
-        _customTopText = _model.Display.CustomTop.ToString(CultureInfo.InvariantCulture);
-        _customWidthText = _model.Display.CustomWidth.ToString(CultureInfo.InvariantCulture);
-        _customHeightText = _model.Display.CustomHeight.ToString(CultureInfo.InvariantCulture);
         _maxReconnectAttemptsText = _model.MaxReconnectAttempts.ToString(CultureInfo.InvariantCulture);
         _reconnectDelayText = _model.ReconnectDelaySeconds.ToString(CultureInfo.InvariantCulture);
 
         CredentialDeliveryOptions = BuildCredentialDeliveryOptions();
         ColorOptions = BuildColorOptions();
-        ResolutionOptions = BuildResolutionOptions();
-        ColorDepthOptions = BuildColorDepthOptions();
-        DesktopScaleOptions = BuildDesktopScaleOptions();
-        DeviceScaleOptions = BuildDeviceScaleOptions();
         QualityOptions = BuildQualityOptions();
         AudioPlaybackOptions = BuildAudioPlaybackOptions();
         AudioCaptureOptions = BuildAudioCaptureOptions();
@@ -75,7 +59,6 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         KnownPropertyNames = RdpFileBuilder.KnownPropertyNames;
 
         _selectedColorOption = MatchColor(_model.Color);
-        _selectedResolution = MatchResolution(_model.Display.DesktopWidth, _model.Display.DesktopHeight);
 
         foreach (var pair in _model.CustomProperties)
             CustomProperties.Add(new CustomProperty(pair.Key, pair.Value, OnCustomPropertyChanged));
@@ -86,8 +69,6 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         CancelCommand = new RelayCommand(() => Guard(Cancel, "Cancelling the connection editor failed."));
         TestCommand = new AsyncRelayCommand(TestAsync, () => !string.IsNullOrWhiteSpace(_model.Host));
         ManageCredentialsCommand = new RelayCommand(ManageCredentials);
-        SelectMonitorCommand = new RelayCommand(
-            p => Guard(() => SelectMonitor(p as MonitorTile), "Selecting a monitor failed."));
         AddCustomPropertyCommand = new RelayCommand(
             () => Guard(AddCustomProperty, "Adding a custom property failed."));
         RemoveCustomPropertyCommand = new RelayCommand(
@@ -105,9 +86,12 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         };
         _previewDebounce.Tick += OnPreviewTick;
 
+        // The Display tab is its own editor over the same settings object, so it can also be used
+        // for a multi-config's items. Its changes come back through Invalidate like any other tab's.
+        Display = new DisplayEditorViewModel(services, _model.Display, Invalidate);
+
         UpdateCredentialDeliveryHelp();
         UpdateWatchdogSummary();
-        UpdatePlacementPreview();
         Validate();
 
         _ = LoadListsAsync();
@@ -121,11 +105,11 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
 
     public bool IsNew { get; }
 
-    public string WindowTitle => IsNew ? "New connection" : "Edit connection";
+    public string WindowTitle => IsNew ? Strings.Editor_Title_New : Strings.Editor_Title_Edit;
 
     public string HeaderSubtitle => IsNew
-        ? "Every Remote Desktop option, including the ones mstsc keeps hidden."
-        : "Editing an existing connection. Changes apply the next time it launches.";
+        ? Strings.Editor_Subtitle_New
+        : Strings.Editor_Subtitle_Edit;
 
     // ....................................................................
     // Tab selection - the map and the preview are built on first sight
@@ -138,7 +122,7 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         set
         {
             if (!SetProperty(ref _selectedTabIndex, value)) return;
-            if (value == TabDisplay) EnsureMonitorMap();
+            if (value == TabDisplay) Display.EnsureMonitorMap();
             else if (value == TabAdvanced) EnsurePreview();
         }
     }
@@ -242,14 +226,14 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         get
         {
             var set = FindCredentialSet(_model.CredentialSetId);
-            if (set is null) return "Windows will prompt for a user name and password.";
+            if (set is null) return Strings.Editor_CredentialSummary_Prompt;
 
             // Show the name actually sent, which for a credential with no domain includes this
             // connection's machine name.
             var logon = set.GetLogonName(_model.Host);
             return set.HasPassword
-                ? $"Signs in as {logon}."
-                : $"Signs in as {logon} - no password stored, Windows will ask.";
+                ? UiLanguage.Format(Strings.Editor_CredentialSummary_SignsIn, logon)
+                : UiLanguage.Format(Strings.Editor_CredentialSummary_SignsInNoPassword, logon);
         }
     }
 
@@ -326,253 +310,6 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
     {
         get => _testSucceeded;
         private set => SetProperty(ref _testSucceeded, value);
-    }
-
-    // ....................................................................
-    // Display
-    // ....................................................................
-
-    public ScreenMode ScreenMode
-    {
-        get => _model.Display.ScreenMode;
-        set
-        {
-            if (_model.Display.ScreenMode == value) return;
-            _model.Display.ScreenMode = value;
-            OnPropertyChanged();
-            Invalidate();
-        }
-    }
-
-    public WindowPlacementMode Placement
-    {
-        get => _model.Display.Placement;
-        set
-        {
-            if (_model.Display.Placement == value) return;
-            _model.Display.Placement = value;
-            _model.Display.UseAllMonitors = value == WindowPlacementMode.SpanAllMonitors;
-            OnPropertyChanged();
-            Raise(nameof(IsCustomRectangle), nameof(IsMultiMonitorSelection), nameof(UseAllMonitors));
-            RefreshResolutionFromMonitor();
-            RebuildTiles();
-            Invalidate();
-        }
-    }
-
-    public bool IsCustomRectangle => Placement == WindowPlacementMode.CustomRectangle;
-
-    public bool IsMultiMonitorSelection => Placement == WindowPlacementMode.SelectedMonitors;
-
-    public bool UseAllMonitors => _model.Display.UseAllMonitors;
-
-    public ObservableCollection<MonitorTile> MonitorTiles { get; } = new();
-
-    private string _monitorSummary = "Reading the display layout...";
-    public string MonitorSummary
-    {
-        get => _monitorSummary;
-        private set => SetProperty(ref _monitorSummary, value);
-    }
-
-    private bool _hasMonitors;
-    public bool HasMonitors
-    {
-        get => _hasMonitors;
-        private set => SetProperty(ref _hasMonitors, value);
-    }
-
-    private bool _showCustomRect;
-    public bool ShowCustomRect
-    {
-        get => _showCustomRect;
-        private set => SetProperty(ref _showCustomRect, value);
-    }
-
-    private double _customRectX;
-    public double CustomRectX
-    {
-        get => _customRectX;
-        private set => SetProperty(ref _customRectX, value);
-    }
-
-    private double _customRectY;
-    public double CustomRectY
-    {
-        get => _customRectY;
-        private set => SetProperty(ref _customRectY, value);
-    }
-
-    private double _customRectW = 1;
-    public double CustomRectW
-    {
-        get => _customRectW;
-        private set => SetProperty(ref _customRectW, value);
-    }
-
-    private double _customRectH = 1;
-    public double CustomRectH
-    {
-        get => _customRectH;
-        private set => SetProperty(ref _customRectH, value);
-    }
-
-    private string _customLeftText;
-    public string CustomLeftText
-    {
-        get => _customLeftText;
-        set
-        {
-            if (!SetProperty(ref _customLeftText, value ?? string.Empty)) return;
-            _model.Display.CustomLeft = ParseSignedOrZero(_customLeftText);
-            RebuildTiles();
-            Invalidate();
-        }
-    }
-
-    private string _customTopText;
-    public string CustomTopText
-    {
-        get => _customTopText;
-        set
-        {
-            if (!SetProperty(ref _customTopText, value ?? string.Empty)) return;
-            _model.Display.CustomTop = ParseSignedOrZero(_customTopText);
-            RebuildTiles();
-            Invalidate();
-        }
-    }
-
-    private string _customWidthText;
-    public string CustomWidthText
-    {
-        get => _customWidthText;
-        set
-        {
-            if (!SetProperty(ref _customWidthText, value ?? string.Empty)) return;
-            if (TryParseInt(_customWidthText, out var w) && w > 0) _model.Display.CustomWidth = w;
-            RebuildTiles();
-            Invalidate();
-        }
-    }
-
-    private string _customHeightText;
-    public string CustomHeightText
-    {
-        get => _customHeightText;
-        set
-        {
-            if (!SetProperty(ref _customHeightText, value ?? string.Empty)) return;
-            if (TryParseInt(_customHeightText, out var h) && h > 0) _model.Display.CustomHeight = h;
-            RebuildTiles();
-            Invalidate();
-        }
-    }
-
-    public IReadOnlyList<ResolutionOption> ResolutionOptions { get; }
-
-    private ResolutionOption? _selectedResolution;
-    public ResolutionOption? SelectedResolution
-    {
-        get => _selectedResolution;
-        set
-        {
-            if (value is null)
-            {
-                OnPropertyChanged();
-                return;
-            }
-            if (!SetProperty(ref _selectedResolution, value)) return;
-            OnPropertyChanged(nameof(IsCustomResolution));
-
-            if (value.IsMatchMonitor)
-            {
-                RefreshResolutionFromMonitor();
-            }
-            else if (!value.IsCustom)
-            {
-                _model.Display.DesktopWidth = value.Width;
-                _model.Display.DesktopHeight = value.Height;
-                PushDesktopSizeText();
-            }
-
-            Invalidate();
-        }
-    }
-
-    public bool IsCustomResolution => _selectedResolution?.IsCustom == true;
-
-    private string _desktopWidthText;
-    public string DesktopWidthText
-    {
-        get => _desktopWidthText;
-        set
-        {
-            if (!SetProperty(ref _desktopWidthText, value ?? string.Empty)) return;
-            if (TryParseInt(_desktopWidthText, out var w) && w > 0) _model.Display.DesktopWidth = w;
-            Invalidate();
-        }
-    }
-
-    private string _desktopHeightText;
-    public string DesktopHeightText
-    {
-        get => _desktopHeightText;
-        set
-        {
-            if (!SetProperty(ref _desktopHeightText, value ?? string.Empty)) return;
-            if (TryParseInt(_desktopHeightText, out var h) && h > 0) _model.Display.DesktopHeight = h;
-            Invalidate();
-        }
-    }
-
-    public IReadOnlyList<Option> ColorDepthOptions { get; }
-
-    public int ColorDepth
-    {
-        get => _model.Display.ColorDepth;
-        set => SetModel(_model.Display.ColorDepth, value, v => _model.Display.ColorDepth = v);
-    }
-
-    public bool SmartSizing
-    {
-        get => _model.Display.SmartSizing;
-        set => SetModel(_model.Display.SmartSizing, value, v => _model.Display.SmartSizing = v);
-    }
-
-    public bool DynamicResolution
-    {
-        get => _model.Display.DynamicResolution;
-        set => SetModel(_model.Display.DynamicResolution, value, v => _model.Display.DynamicResolution = v);
-    }
-
-    public IReadOnlyList<Option> DesktopScaleOptions { get; }
-
-    public int DesktopScaleFactor
-    {
-        get => _model.Display.DesktopScaleFactor;
-        set => SetModel(_model.Display.DesktopScaleFactor, value, v => _model.Display.DesktopScaleFactor = v);
-    }
-
-    public IReadOnlyList<Option> DeviceScaleOptions { get; }
-
-    public int DeviceScaleFactor
-    {
-        get => _model.Display.DeviceScaleFactor;
-        set => SetModel(_model.Display.DeviceScaleFactor, value, v => _model.Display.DeviceScaleFactor = v);
-    }
-
-    public bool AlwaysOnTop
-    {
-        get => _model.Display.AlwaysOnTop;
-        set => SetModel(_model.Display.AlwaysOnTop, value, v => _model.Display.AlwaysOnTop = v);
-    }
-
-    private string _placementPreview = string.Empty;
-    public string PlacementPreview
-    {
-        get => _placementPreview;
-        private set => SetProperty(ref _placementPreview, value);
     }
 
     // ....................................................................
@@ -1038,24 +775,14 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
     public RelayCommand CancelCommand { get; }
     public AsyncRelayCommand TestCommand { get; }
     public RelayCommand ManageCredentialsCommand { get; }
-    public RelayCommand SelectMonitorCommand { get; }
     public RelayCommand AddCustomPropertyCommand { get; }
     public RelayCommand RemoveCustomPropertyCommand { get; }
     public RelayCommand LanPresetCommand { get; }
     public RelayCommand BalancedPresetCommand { get; }
     public RelayCommand LowBandwidthPresetCommand { get; }
 
-    /// <summary>The monitor map host reports its size here so the drawing can scale to fit.</summary>
-    public void SetMapViewport(double width, double height)
-    {
-        if (double.IsNaN(width) || double.IsNaN(height)) return;
-        if (width < 40 || height < 40) return;
-        if (Math.Abs(width - _mapViewportWidth) < 0.5 && Math.Abs(height - _mapViewportHeight) < 0.5) return;
-
-        _mapViewportWidth = width;
-        _mapViewportHeight = height;
-        RebuildTiles();
-    }
+    /// <summary>The Display tab: screen mode, monitors, the window rectangle, size and scaling.</summary>
+    public DisplayEditorViewModel Display { get; }
 
     public void Dispose()
     {
@@ -1065,18 +792,7 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         _previewDebounce.Stop();
         _previewDebounce.Tick -= OnPreviewTick;
 
-        if (_monitorsHooked)
-        {
-            try
-            {
-                _services.Monitors.MonitorsChanged -= OnMonitorsChanged;
-            }
-            catch (Exception ex)
-            {
-                AppLog.Debug_($"Detaching the monitor listener failed: {ex.Message}");
-            }
-            _monitorsHooked = false;
-        }
+        Display.Dispose();
 
         foreach (var row in CustomProperties) row.Detach();
     }
@@ -1114,7 +830,7 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         try
         {
             Groups.Clear();
-            Groups.Add(new GroupOption(null, "(no group)"));
+            Groups.Add(new GroupOption(null, Strings.Editor_Group_None));
             foreach (var option in FlattenGroups(groups)) Groups.Add(option);
         }
         finally
@@ -1200,12 +916,14 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
             Credentials.Clear();
             GatewayCredentialOptions.Clear();
 
-            Credentials.Add(new CredentialOption(null, "(prompt every time)"));
-            GatewayCredentialOptions.Add(new CredentialOption(null, "(use the session credential)"));
+            Credentials.Add(new CredentialOption(null, Strings.Editor_Credential_Prompt));
+            GatewayCredentialOptions.Add(new CredentialOption(null, Strings.Editor_Credential_UseSession));
 
             foreach (var c in _credentialSets)
             {
-                var label = string.IsNullOrWhiteSpace(c.Name) ? c.QualifiedUsername : $"{c.Name} - {c.QualifiedUsername}";
+                var label = string.IsNullOrWhiteSpace(c.Name)
+                    ? c.QualifiedUsername
+                    : UiLanguage.Format(Strings.Editor_Credential_Label, c.Name, c.QualifiedUsername);
                 Credentials.Add(new CredentialOption(c.Id, label));
                 GatewayCredentialOptions.Add(new CredentialOption(c.Id, label));
             }
@@ -1235,397 +953,49 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         return null;
     }
 
-    // ....................................................................
-    // Monitor map
-    // ....................................................................
-
-    private void EnsureMonitorMap()
-    {
-        if (_mapRequested) return;
-        _mapRequested = true;
-        _ = LoadMonitorsAsync();
-    }
-
-    private async Task LoadMonitorsAsync()
-    {
-        IReadOnlyList<MonitorInfo> monitors = Array.Empty<MonitorInfo>();
-        try
-        {
-            // Enumeration walks the device tree for friendly names, so it stays off the UI thread.
-            monitors = await Task.Run(() => _services.Monitors.GetMonitors()).ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn("The connection editor could not enumerate monitors.", ex);
-        }
-
-        if (_disposed) return;
-
-        _monitors = monitors;
-        _mapReady = true;
-
-        if (!_monitorsHooked)
-        {
-            try
-            {
-                _services.Monitors.MonitorsChanged += OnMonitorsChanged;
-                _monitorsHooked = true;
-            }
-            catch (Exception ex)
-            {
-                AppLog.Debug_($"Attaching the monitor listener failed: {ex.Message}");
-            }
-        }
-
-        RefreshResolutionFromMonitor();
-        RebuildTiles();
-        UpdatePlacementPreview();
-        Invalidate();
-    }
-
-    private void OnMonitorsChanged(object? sender, EventArgs e)
-    {
-        try
-        {
-            if (_disposed) return;
-
-            // MonitorService normally marshals this itself, but a refresh raised before its
-            // listener exists arrives on a worker thread, and MonitorTiles is bound to the UI.
-            if (!_dispatcher.CheckAccess())
-            {
-                if (!_dispatcher.HasShutdownStarted)
-                    _ = _dispatcher.InvokeAsync(() => OnMonitorsChanged(sender, e), DispatcherPriority.Background);
-                return;
-            }
-
-            _monitors = _services.Monitors.GetMonitors();
-            RefreshResolutionFromMonitor();
-            RebuildTiles();
-            UpdatePlacementPreview();
-            Invalidate();
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn("Refreshing the monitor map failed.", ex);
-        }
-    }
-
-    private void RebuildTiles()
-    {
-        if (!_mapReady) return;
-
-        var display = _model.Display;
-        MonitorTiles.Clear();
-
-        if (_monitors.Count == 0)
-        {
-            HasMonitors = false;
-            ShowCustomRect = false;
-            MonitorSummary = "No monitors were detected.";
-            return;
-        }
-
-        HasMonitors = true;
-        MonitorSummary = _monitors.Count == 1
-            ? "1 monitor detected."
-            : $"{_monitors.Count} monitors detected. Click one to target it.";
-
-        double minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
-        foreach (var m in _monitors)
-        {
-            if (m.Left < minX) minX = m.Left;
-            if (m.Top < minY) minY = m.Top;
-            if (m.Right > maxX) maxX = m.Right;
-            if (m.Bottom > maxY) maxY = m.Bottom;
-        }
-
-        var wantRect = display.Placement == WindowPlacementMode.CustomRectangle
-            && display.CustomWidth > 0 && display.CustomHeight > 0;
-
-        if (wantRect)
-        {
-            minX = Math.Min(minX, display.CustomLeft);
-            minY = Math.Min(minY, display.CustomTop);
-            maxX = Math.Max(maxX, display.CustomLeft + display.CustomWidth);
-            maxY = Math.Max(maxY, display.CustomTop + display.CustomHeight);
-        }
-
-        var boundsW = Math.Max(1d, maxX - minX);
-        var boundsH = Math.Max(1d, maxY - minY);
-
-        const double pad = 10d;
-        var availableW = Math.Max(40d, _mapViewportWidth - pad * 2);
-        var availableH = Math.Max(40d, _mapViewportHeight - pad * 2);
-        var scale = Math.Min(availableW / boundsW, availableH / boundsH);
-        if (double.IsNaN(scale) || double.IsInfinity(scale) || scale <= 0) scale = 0.05;
-
-        var offsetX = pad + (availableW - boundsW * scale) / 2;
-        var offsetY = pad + (availableH - boundsH * scale) / 2;
-
-        foreach (var m in _monitors)
-        {
-            var tile = new MonitorTile
-            {
-                Index = m.Index,
-                Title = (m.Index + 1).ToString(CultureInfo.InvariantCulture),
-                FriendlyName = m.FriendlyName,
-                ResolutionText = m.ResolutionText,
-                IsPrimary = m.IsPrimary,
-                Description = $"{m.Label}\nPosition {m.Left}, {m.Top}\nScale {Math.Round(m.ScaleFactor * 100)}%",
-                X = offsetX + (m.Left - minX) * scale,
-                Y = offsetY + (m.Top - minY) * scale,
-                W = Math.Max(30d, m.Width * scale - 3),
-                H = Math.Max(24d, m.Height * scale - 3),
-                IsHighlighted = IsTargeted(m.Index),
-            };
-            MonitorTiles.Add(tile);
-        }
-
-        if (wantRect)
-        {
-            CustomRectX = offsetX + (display.CustomLeft - minX) * scale;
-            CustomRectY = offsetY + (display.CustomTop - minY) * scale;
-            CustomRectW = Math.Max(4d, display.CustomWidth * scale);
-            CustomRectH = Math.Max(4d, display.CustomHeight * scale);
-            ShowCustomRect = true;
-        }
-        else
-        {
-            ShowCustomRect = false;
-        }
-    }
-
-    private bool IsTargeted(int index) => _model.Display.Placement switch
-    {
-        WindowPlacementMode.SpanAllMonitors => true,
-        WindowPlacementMode.SelectedMonitors => _model.Display.SelectedMonitors.Contains(index),
-        WindowPlacementMode.SpecificMonitorFullscreen => index == _model.Display.TargetMonitorIndex,
-        WindowPlacementMode.SpecificMonitorMaximized => index == _model.Display.TargetMonitorIndex,
-        _ => false,
-    };
-
-    private void SelectMonitor(MonitorTile? tile)
-    {
-        if (tile is null) return;
-
-        var display = _model.Display;
-        if (display.Placement == WindowPlacementMode.SelectedMonitors)
-        {
-            if (!display.SelectedMonitors.Remove(tile.Index)) display.SelectedMonitors.Add(tile.Index);
-            display.SelectedMonitors.Sort();
-        }
-        else
-        {
-            display.TargetMonitorIndex = tile.Index;
-        }
-
-        foreach (var t in MonitorTiles) t.IsHighlighted = IsTargeted(t.Index);
-
-        RefreshResolutionFromMonitor();
-        Invalidate();
-    }
-
-    /// <summary>Keeps the requested desktop size in step with the monitor the session targets.</summary>
-    private void RefreshResolutionFromMonitor()
-    {
-        if (_selectedResolution?.IsMatchMonitor != true) return;
-
-        var monitor = CurrentTargetMonitor();
-        if (monitor is null) return;
-
-        _model.Display.DesktopWidth = monitor.Width;
-        _model.Display.DesktopHeight = monitor.Height;
-        PushDesktopSizeText();
-    }
-
-    private MonitorInfo? CurrentTargetMonitor()
-    {
-        if (_monitors.Count == 0) return null;
-
-        var index = _model.Display.TargetMonitorIndex;
-        foreach (var m in _monitors)
-        {
-            if (m.Index == index) return m;
-        }
-
-        foreach (var m in _monitors)
-        {
-            if (m.IsPrimary) return m;
-        }
-
-        return _monitors[0];
-    }
-
-    private void PushDesktopSizeText()
-    {
-        _desktopWidthText = _model.Display.DesktopWidth.ToString(CultureInfo.InvariantCulture);
-        _desktopHeightText = _model.Display.DesktopHeight.ToString(CultureInfo.InvariantCulture);
-        Raise(nameof(DesktopWidthText), nameof(DesktopHeightText));
-    }
-
-    // ....................................................................
-    // Plain-language placement preview
-    // ....................................................................
-
-    private void UpdatePlacementPreview()
-    {
-        var display = _model.Display;
-        var sb = new StringBuilder(96);
-
-        switch (display.Placement)
-        {
-            case WindowPlacementMode.SpecificMonitorFullscreen:
-                sb.Append("Full screen on ").Append(DescribeTargetMonitor());
-                break;
-
-            case WindowPlacementMode.SpecificMonitorMaximized:
-                sb.Append("Maximized window on ").Append(DescribeTargetMonitor());
-                break;
-
-            case WindowPlacementMode.SpanAllMonitors:
-                sb.Append(_monitors.Count > 0
-                    ? $"Full screen spanning all {_monitors.Count} monitors ({DescribeVirtualDesktop()})"
-                    : "Full screen spanning every monitor");
-                break;
-
-            case WindowPlacementMode.SelectedMonitors:
-                sb.Append(DescribeSelectedMonitors());
-                break;
-
-            case WindowPlacementMode.CustomRectangle:
-                sb.Append("Window at ")
-                  .Append(display.CustomLeft.ToString(CultureInfo.InvariantCulture)).Append(", ")
-                  .Append(display.CustomTop.ToString(CultureInfo.InvariantCulture))
-                  .Append(" sized ")
-                  .Append(display.CustomWidth.ToString(CultureInfo.InvariantCulture)).Append('x')
-                  .Append(display.CustomHeight.ToString(CultureInfo.InvariantCulture));
-                break;
-
-            default:
-                sb.Append(display.ScreenMode == Models.ScreenMode.Fullscreen
-                    ? "Full screen wherever Windows opens it"
-                    : $"Window of {display.DesktopWidth}x{display.DesktopHeight} wherever Windows opens it");
-                break;
-        }
-
-        if (display.SmartSizing) sb.Append(", scaled to fit the window");
-        else if (display.DynamicResolution) sb.Append(", resizing the session with the window");
-
-        if (display.AlwaysOnTop) sb.Append(", kept above other windows");
-
-        sb.Append('.');
-
-        // The builder resolves the screen mode from the placement, so the radio buttons above
-        // can be overruled. Saying so here keeps this panel honest about the real outcome.
-        var resolved = ResolveScreenMode(display);
-        if (resolved != display.ScreenMode)
-        {
-            sb.Append(resolved == Models.ScreenMode.Fullscreen
-                ? " This placement needs a full-screen session, so the screen mode above is switched for you."
-                : " This placement needs a windowed session, so the screen mode above is switched for you.");
-        }
-
-        PlacementPreview = sb.ToString();
-    }
-
-    /// <summary>
-    /// Mirrors the rule in <see cref="RdpFileBuilder"/> so the preview never promises
-    /// something the generated .rdp file will not do.
-    /// </summary>
-    private static Models.ScreenMode ResolveScreenMode(DisplaySettings display) => display.Placement switch
-    {
-        WindowPlacementMode.SpecificMonitorFullscreen => Models.ScreenMode.Fullscreen,
-        WindowPlacementMode.SpanAllMonitors => Models.ScreenMode.Fullscreen,
-        WindowPlacementMode.SelectedMonitors => Models.ScreenMode.Fullscreen,
-        WindowPlacementMode.SpecificMonitorMaximized => Models.ScreenMode.Windowed,
-        WindowPlacementMode.CustomRectangle => Models.ScreenMode.Windowed,
-        _ => display.ScreenMode == Models.ScreenMode.Windowed && !display.UseAllMonitors
-            ? Models.ScreenMode.Windowed
-            : Models.ScreenMode.Fullscreen,
-    };
-
-    private string DescribeTargetMonitor()
-    {
-        var monitor = CurrentTargetMonitor();
-        var number = _model.Display.TargetMonitorIndex + 1;
-        return monitor is null
-            ? $"monitor {number.ToString(CultureInfo.InvariantCulture)}"
-            : $"monitor {(monitor.Index + 1).ToString(CultureInfo.InvariantCulture)} ({monitor.FriendlyName}, {monitor.ResolutionText})";
-    }
-
-    private string DescribeVirtualDesktop()
-    {
-        if (_monitors.Count == 0) return "size unknown";
-
-        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
-        foreach (var m in _monitors)
-        {
-            if (m.Left < minX) minX = m.Left;
-            if (m.Top < minY) minY = m.Top;
-            if (m.Right > maxX) maxX = m.Right;
-            if (m.Bottom > maxY) maxY = m.Bottom;
-        }
-
-        return $"{(maxX - minX).ToString(CultureInfo.InvariantCulture)}x{(maxY - minY).ToString(CultureInfo.InvariantCulture)} in total";
-    }
-
-    private string DescribeSelectedMonitors()
-    {
-        var selected = _model.Display.SelectedMonitors;
-        if (selected.Count == 0) return "No monitors picked yet - click the ones to use on the map above";
-
-        var names = new List<string>(selected.Count);
-        foreach (var index in selected)
-        {
-            var match = _monitors.FirstOrDefault(m => m.Index == index);
-            names.Add(match is null
-                ? $"monitor {(index + 1).ToString(CultureInfo.InvariantCulture)}"
-                : $"monitor {(match.Index + 1).ToString(CultureInfo.InvariantCulture)} ({match.FriendlyName})");
-        }
-
-        return selected.Count == 1
-            ? $"Full screen on {names[0]}"
-            : $"Full screen spanning {string.Join(", ", names)}";
-    }
-
     private void UpdateWatchdogSummary()
     {
         if (!_model.AutoReconnect)
         {
-            WatchdogSummary = "A dropped session stays closed until you launch it again.";
+            WatchdogSummary = Strings.Editor_Watchdog_Summary_Off;
             return;
         }
 
-        var attempts = _model.MaxReconnectAttempts <= 0
-            ? "indefinitely"
-            : $"up to {_model.MaxReconnectAttempts.ToString(CultureInfo.InvariantCulture)} times";
+        var attempts = _model.MaxReconnectAttempts;
+        var delay = _model.ReconnectDelaySeconds;
 
-        var delay = _model.ReconnectDelaySeconds <= 0
-            ? "immediately"
-            : $"every {_model.ReconnectDelaySeconds.ToString(CultureInfo.InvariantCulture)} seconds";
+        // Every combination of attempt limit and delay is its own sentence, singulars included.
+        var format = (attempts <= 0 ? 0 : attempts == 1 ? 1 : 2, delay <= 0 ? 0 : delay == 1 ? 1 : 2) switch
+        {
+            (0, 0) => Strings.Editor_Watchdog_Summary_Unlimited_NoDelay,
+            (0, 1) => Strings.Editor_Watchdog_Summary_Unlimited_Delay_One,
+            (0, _) => Strings.Editor_Watchdog_Summary_Unlimited_Delay_Many,
+            (1, 0) => Strings.Editor_Watchdog_Summary_Once_NoDelay,
+            (1, 1) => Strings.Editor_Watchdog_Summary_Once_Delay_One,
+            (1, _) => Strings.Editor_Watchdog_Summary_Once_Delay_Many,
+            (_, 0) => Strings.Editor_Watchdog_Summary_Limited_NoDelay,
+            (_, 1) => Strings.Editor_Watchdog_Summary_Limited_Delay_One,
+            _ => Strings.Editor_Watchdog_Summary_Limited_Delay_Many,
+        };
 
-        WatchdogSummary =
-            $"If this session drops, the manager relaunches it {attempts}, retrying {delay}. " +
-            "It stands down as soon as you close the session yourself.";
+        WatchdogSummary = UiLanguage.Format(
+            format,
+            attempts.ToString(CultureInfo.InvariantCulture),
+            delay.ToString(CultureInfo.InvariantCulture));
     }
 
     private void UpdateCredentialDeliveryHelp() => CredentialDeliveryHelp = _model.CredentialDelivery switch
     {
-        CredentialDelivery.WindowsVault =>
-            "The login is written to the Windows Credential Vault as TERMSRV/" + HostForHelp() +
-            " just before launch. Nothing sensitive reaches the .rdp file.",
-        CredentialDelivery.EmbeddedInRdpFile =>
-            "The password is encrypted with your Windows account key and embedded in the generated .rdp file. " +
-            "The file is deleted after launch when shredding is enabled.",
-        CredentialDelivery.Both =>
-            "Writes the vault entry and embeds the encrypted password. The most reliable option, and the default.",
-        _ => "Nothing is stored anywhere. Windows asks for the password each time the session starts.",
+        CredentialDelivery.WindowsVault => UiLanguage.Format(Strings.Editor_Delivery_Vault_Help, HostForHelp()),
+        CredentialDelivery.EmbeddedInRdpFile => Strings.Editor_Delivery_Embedded_Help,
+        CredentialDelivery.Both => Strings.Editor_Delivery_Both_Help,
+        _ => Strings.Editor_Delivery_Prompt_Help,
     };
 
     private string HostForHelp()
     {
         var host = _model.Host;
-        return string.IsNullOrWhiteSpace(host) ? "<host>" : host.Trim();
+        return string.IsNullOrWhiteSpace(host) ? Strings.Editor_Delivery_HostPlaceholder : host.Trim();
     }
 
     // ....................................................................
@@ -1672,7 +1042,6 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
 
-        UpdatePlacementPreview();
         Validate();
 
         if (!_previewRequested) return;
@@ -1706,14 +1075,15 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
                 Credential = credential,
                 // The real blob is produced at launch time; a preview never carries a secret.
                 EmbedPassword = false,
-                Monitors = _monitors.Count > 0 ? _monitors : null,
+                Monitors = Display.KnownMonitors(),
             };
 
             var body = _services.RdpBuilder.Build(_model, context);
             var sb = new StringBuilder(body.Length + 256);
 
-            sb.Append("; Preview of the .rdp file DYNATEC RDM will generate for this connection.").AppendLine();
-            sb.Append("; Lines starting with ';' are comments and are not written to the real file.").AppendLine();
+            // The ';' lines are the preview's own notes, never part of the file, so they follow the UI language.
+            sb.Append("; ").Append(Strings.Editor_RdpPreview_Intro).AppendLine();
+            sb.Append("; ").Append(Strings.Editor_RdpPreview_CommentsNote).AppendLine();
             sb.AppendLine();
             sb.Append(body);
             if (body.Length > 0 && !body.EndsWith('\n')) sb.AppendLine();
@@ -1723,13 +1093,13 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
             {
                 sb.AppendLine();
                 sb.Append("; password 51:b:<stored>").AppendLine();
-                sb.Append("; The encrypted password blob is generated at launch and never shown here.").AppendLine();
+                sb.Append("; ").Append(Strings.Editor_RdpPreview_PasswordNote).AppendLine();
             }
             else if (embeds)
             {
                 sb.AppendLine();
                 sb.Append("; password 51:b:<stored>").AppendLine();
-                sb.Append("; No password is stored for the selected credential, so no blob will be written.").AppendLine();
+                sb.Append("; ").Append(Strings.Editor_RdpPreview_NoPasswordNote).AppendLine();
             }
 
             RdpPreview = sb.ToString();
@@ -1737,7 +1107,7 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             AppLog.Warn("Building the .rdp preview failed.", ex);
-            RdpPreview = "; The preview could not be generated: " + ex.Message;
+            RdpPreview = "; " + UiLanguage.Format(Strings.Editor_RdpPreview_Failed, ex.Message);
         }
     }
 
@@ -1751,8 +1121,8 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
 
         if (string.IsNullOrWhiteSpace(_model.Name))
         {
-            NameError = "A name is required.";
-            problems.Add("the connection needs a name");
+            NameError = Strings.Editor_Error_NameRequired;
+            problems.Add(Strings.Editor_Problem_NoName);
         }
         else
         {
@@ -1761,8 +1131,8 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
 
         if (string.IsNullOrWhiteSpace(_model.Host))
         {
-            HostError = "A host name or IP address is required.";
-            problems.Add("the host is empty");
+            HostError = Strings.Editor_Error_HostRequired;
+            problems.Add(Strings.Editor_Problem_NoHost);
         }
         else
         {
@@ -1771,13 +1141,13 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
 
         if (!TryParseInt(_portText, out var port))
         {
-            PortError = "Enter a number.";
-            problems.Add("the port is not a number");
+            PortError = Strings.Editor_Error_PortNotNumber;
+            problems.Add(Strings.Editor_Problem_PortNotNumber);
         }
         else if (port is < 1 or > 65535)
         {
-            PortError = "Use 1 to 65535.";
-            problems.Add("the port must be between 1 and 65535");
+            PortError = Strings.Editor_Error_PortRange;
+            problems.Add(Strings.Editor_Problem_PortRange);
         }
         else
         {
@@ -1787,7 +1157,7 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         IsValid = problems.Count == 0;
         ValidationSummary = problems.Count == 0
             ? null
-            : "Cannot save yet: " + string.Join(", ", problems) + ".";
+            : UiLanguage.Format(Strings.Editor_Validation_Summary, DisplayEditorViewModel.JoinList(problems));
     }
 
     private async Task SaveAsync()
@@ -1821,7 +1191,7 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             AppLog.Error($"Saving the connection '{_model.Name}' failed.", ex);
-            ValidationSummary = "The connection could not be saved: " + ex.Message;
+            ValidationSummary = UiLanguage.Format(Strings.Editor_Error_SaveFailed, ex.Message);
             return;
         }
 
@@ -1840,7 +1210,7 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
 
         IsTesting = true;
         TestSucceeded = false;
-        TestResultText = "Testing...";
+        TestResultText = Strings.Editor_Test_Running;
 
         var started = DateTime.UtcNow;
         bool reachable;
@@ -1858,8 +1228,12 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         IsTesting = false;
         TestSucceeded = reachable;
         TestResultText = reachable
-            ? $"{host}:{port.ToString(CultureInfo.InvariantCulture)} answered in {elapsed.ToString(CultureInfo.InvariantCulture)} ms."
-            : $"{host}:{port.ToString(CultureInfo.InvariantCulture)} did not answer.";
+            ? UiLanguage.Format(
+                Strings.Editor_Test_Answered,
+                host,
+                port.ToString(CultureInfo.InvariantCulture),
+                elapsed.ToString(CultureInfo.InvariantCulture))
+            : UiLanguage.Format(Strings.Editor_Test_NoAnswer, host, port.ToString(CultureInfo.InvariantCulture));
     }
 
     private void ClearTestResult()
@@ -2048,15 +1422,6 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         return ColorOptions[0];
     }
 
-    private ResolutionOption MatchResolution(int width, int height)
-    {
-        foreach (var option in ResolutionOptions)
-        {
-            if (!option.IsCustom && !option.IsMatchMonitor && option.Width == width && option.Height == height)
-                return option;
-        }
-        return ResolutionOptions[^1];
-    }
 
     private static RdpConnection CreateDefault(AppServices services, Guid? defaultGroupId)
     {
@@ -2072,7 +1437,8 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
 
         connection.Display.ScreenMode = Models.ScreenMode.Fullscreen;
         connection.Display.Placement = WindowPlacementMode.SpecificMonitorFullscreen;
-        connection.Display.TargetMonitorIndex = 0;
+        // Out-of-range indexes resolve to the primary monitor by contract.
+        connection.Display.TargetMonitorIndex = services.Monitors.GetByIndex(-1).Index;
         connection.Display.DynamicResolution = true;
         connection.Redirection.Clipboard = true;
 
@@ -2124,149 +1490,93 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
 
     private static IReadOnlyList<Option> BuildCredentialDeliveryOptions() => new[]
     {
-        new Option(CredentialDelivery.Both, "Vault entry and embedded blob (recommended)"),
-        new Option(CredentialDelivery.WindowsVault, "Windows Credential Vault only"),
-        new Option(CredentialDelivery.EmbeddedInRdpFile, "Embedded in the .rdp file only"),
-        new Option(CredentialDelivery.Prompt, "Prompt every time"),
+        new Option(CredentialDelivery.Both, Strings.Editor_Delivery_Both),
+        new Option(CredentialDelivery.WindowsVault, Strings.Editor_Delivery_Vault),
+        new Option(CredentialDelivery.EmbeddedInRdpFile, Strings.Editor_Delivery_Embedded),
+        new Option(CredentialDelivery.Prompt, Strings.Editor_Delivery_Prompt),
     };
 
     private static IReadOnlyList<ColorOption> BuildColorOptions() => new[]
     {
-        new ColorOption(null, "No colour"),
-        new ColorOption("#E5484D", "Red"),
-        new ColorOption("#F76B15", "Orange"),
-        new ColorOption("#F5A524", "Amber"),
-        new ColorOption("#46A758", "Green"),
-        new ColorOption("#12A594", "Teal"),
-        new ColorOption("#2A94FF", "Blue"),
-        new ColorOption("#5B6CFF", "Indigo"),
-        new ColorOption("#8E4EC6", "Purple"),
-        new ColorOption("#D6409F", "Pink"),
-        new ColorOption("#7E8894", "Slate"),
+        new ColorOption(null, Strings.Editor_Colour_None),
+        new ColorOption("#E5484D", Strings.Editor_Colour_Red),
+        new ColorOption("#F76B15", Strings.Editor_Colour_Orange),
+        new ColorOption("#F5A524", Strings.Editor_Colour_Amber),
+        new ColorOption("#46A758", Strings.Editor_Colour_Green),
+        new ColorOption("#12A594", Strings.Editor_Colour_Teal),
+        new ColorOption("#2A94FF", Strings.Editor_Colour_Blue),
+        new ColorOption("#5B6CFF", Strings.Editor_Colour_Indigo),
+        new ColorOption("#8E4EC6", Strings.Editor_Colour_Purple),
+        new ColorOption("#D6409F", Strings.Editor_Colour_Pink),
+        new ColorOption("#7E8894", Strings.Editor_Colour_Slate),
     };
 
-    private static IReadOnlyList<ResolutionOption> BuildResolutionOptions() => new[]
-    {
-        ResolutionOption.MatchMonitor(),
-        new ResolutionOption("1280 x 720", 1280, 720),
-        new ResolutionOption("1366 x 768", 1366, 768),
-        new ResolutionOption("1600 x 900", 1600, 900),
-        new ResolutionOption("1920 x 1080", 1920, 1080),
-        new ResolutionOption("1920 x 1200", 1920, 1200),
-        new ResolutionOption("2560 x 1080", 2560, 1080),
-        new ResolutionOption("2560 x 1440", 2560, 1440),
-        new ResolutionOption("3440 x 1440", 3440, 1440),
-        new ResolutionOption("3840 x 2160", 3840, 2160),
-        ResolutionOption.Custom(),
-    };
-
-    private static IReadOnlyList<Option> BuildColorDepthOptions() => new[]
-    {
-        new Option(32, "32-bit (highest quality)"),
-        new Option(24, "24-bit"),
-        new Option(16, "16-bit (lighter on bandwidth)"),
-        new Option(15, "15-bit"),
-    };
-
-    private static IReadOnlyList<Option> BuildDesktopScaleOptions() => new[]
-    {
-        new Option(100, "100%"),
-        new Option(125, "125%"),
-        new Option(150, "150%"),
-        new Option(175, "175%"),
-        new Option(200, "200%"),
-        new Option(250, "250%"),
-        new Option(300, "300%"),
-        new Option(400, "400%"),
-        new Option(500, "500%"),
-    };
-
-    private static IReadOnlyList<Option> BuildDeviceScaleOptions() => new[]
-    {
-        new Option(100, "100%"),
-        new Option(140, "140%"),
-        new Option(180, "180%"),
-    };
 
     private static IReadOnlyList<Option> BuildQualityOptions() => new[]
     {
-        new Option(ConnectionQuality.AutoDetect, "Detect automatically (recommended)"),
-        new Option(ConnectionQuality.Lan, "LAN (10 Mbps or better)"),
-        new Option(ConnectionQuality.WanHighSpeed, "WAN (10 Mbps or better, high latency)"),
-        new Option(ConnectionQuality.HighSpeedBroadband, "High-speed broadband (2 to 10 Mbps)"),
-        new Option(ConnectionQuality.SatelliteHighLatency, "Satellite (2 to 16 Mbps, high latency)"),
-        new Option(ConnectionQuality.LowSpeedBroadband, "Low-speed broadband (256 Kbps to 2 Mbps)"),
-        new Option(ConnectionQuality.Modem, "Modem (56 Kbps to 256 Kbps)"),
+        new Option(ConnectionQuality.AutoDetect, Strings.Editor_Quality_AutoDetect),
+        new Option(ConnectionQuality.Lan, Strings.Editor_Quality_Lan),
+        new Option(ConnectionQuality.WanHighSpeed, Strings.Editor_Quality_Wan),
+        new Option(ConnectionQuality.HighSpeedBroadband, Strings.Editor_Quality_HighSpeedBroadband),
+        new Option(ConnectionQuality.SatelliteHighLatency, Strings.Editor_Quality_Satellite),
+        new Option(ConnectionQuality.LowSpeedBroadband, Strings.Editor_Quality_LowSpeedBroadband),
+        new Option(ConnectionQuality.Modem, Strings.Editor_Quality_Modem),
     };
 
     private static IReadOnlyList<Option> BuildAudioPlaybackOptions() => new[]
     {
-        new Option(AudioMode.PlayOnThisComputer, "Play on this computer"),
-        new Option(AudioMode.PlayOnRemoteComputer, "Play on the remote computer"),
-        new Option(AudioMode.DoNotPlay, "Do not play"),
+        new Option(AudioMode.PlayOnThisComputer, Strings.Editor_Audio_PlayHere),
+        new Option(AudioMode.PlayOnRemoteComputer, Strings.Editor_Audio_PlayRemote),
+        new Option(AudioMode.DoNotPlay, Strings.Editor_Audio_DoNotPlay),
     };
 
     private static IReadOnlyList<Option> BuildAudioCaptureOptions() => new[]
     {
-        new Option(AudioCaptureMode.DoNotCapture, "Do not record"),
-        new Option(AudioCaptureMode.CaptureFromThisComputer, "Record from this computer"),
+        new Option(AudioCaptureMode.DoNotCapture, Strings.Editor_Audio_DoNotRecord),
+        new Option(AudioCaptureMode.CaptureFromThisComputer, Strings.Editor_Audio_RecordHere),
     };
 
     private static IReadOnlyList<Option> BuildVideoPlaybackOptions() => new[]
     {
-        new Option(VideoPlaybackMode.MultimediaRedirection, "Multimedia redirection (smoother video)"),
-        new Option(VideoPlaybackMode.Legacy, "Legacy playback"),
+        new Option(VideoPlaybackMode.MultimediaRedirection, Strings.Editor_Video_Multimedia),
+        new Option(VideoPlaybackMode.Legacy, Strings.Editor_Video_Legacy),
     };
 
     private static IReadOnlyList<Option> BuildKeyboardHookOptions() => new[]
     {
-        new Option(0, "On this computer"),
-        new Option(1, "On the remote computer"),
-        new Option(2, "Only when using full screen"),
+        new Option(0, Strings.Editor_Keyboard_Local),
+        new Option(1, Strings.Editor_Keyboard_Remote),
+        new Option(2, Strings.Editor_Keyboard_FullscreenOnly),
     };
 
     private static IReadOnlyList<Option> BuildGatewayUsageOptions() => new[]
     {
-        new Option(GatewayUsageMethod.DoNotUse, "Do not use a gateway"),
-        new Option(GatewayUsageMethod.AlwaysUse, "Always use the gateway"),
-        new Option(GatewayUsageMethod.UseForNonLocal, "Use for addresses outside the local network"),
-        new Option(GatewayUsageMethod.UseDefault, "Use the default gateway settings"),
-        new Option(GatewayUsageMethod.NoneDetect, "Detect the gateway automatically"),
+        new Option(GatewayUsageMethod.DoNotUse, Strings.Editor_Gateway_DoNotUse),
+        new Option(GatewayUsageMethod.AlwaysUse, Strings.Editor_Gateway_Always),
+        new Option(GatewayUsageMethod.UseForNonLocal, Strings.Editor_Gateway_NonLocal),
+        new Option(GatewayUsageMethod.UseDefault, Strings.Editor_Gateway_Default),
+        new Option(GatewayUsageMethod.NoneDetect, Strings.Editor_Gateway_Detect),
     };
 
     private static IReadOnlyList<Option> BuildGatewayCredentialSourceOptions() => new[]
     {
-        new Option(GatewayCredentialSource.AskForPassword, "Ask for a password (NTLM)"),
-        new Option(GatewayCredentialSource.SmartCard, "Smart card"),
-        new Option(GatewayCredentialSource.UseConnectionCredentials, "Use the session credential"),
+        new Option(GatewayCredentialSource.AskForPassword, Strings.Editor_GatewaySource_Password),
+        new Option(GatewayCredentialSource.SmartCard, Strings.Editor_GatewaySource_SmartCard),
+        new Option(GatewayCredentialSource.UseConnectionCredentials, Strings.Editor_GatewaySource_Session),
     };
 
     private static IReadOnlyList<Option> BuildAuthLevelOptions() => new[]
     {
-        new Option(AuthenticationLevel.WarnOnFailure, "Warn me if authentication fails"),
-        new Option(AuthenticationLevel.RequireAuthentication, "Do not connect if authentication fails"),
-        new Option(AuthenticationLevel.NoAuthentication, "Connect without warning me"),
-        new Option(AuthenticationLevel.NotSpecified, "Not specified"),
+        new Option(AuthenticationLevel.WarnOnFailure, Strings.Editor_Auth_Warn),
+        new Option(AuthenticationLevel.RequireAuthentication, Strings.Editor_Auth_Require),
+        new Option(AuthenticationLevel.NoAuthentication, Strings.Editor_Auth_None),
+        new Option(AuthenticationLevel.NotSpecified, Strings.Editor_Auth_NotSpecified),
     };
 
     // ....................................................................
     // Bindable helper types. Nested so they cannot collide with other views.
     // ....................................................................
 
-    /// <summary>A labelled value for a combo box bound through SelectedValuePath.</summary>
-    public sealed class Option
-    {
-        public Option(object? value, string label)
-        {
-            Value = value;
-            Label = label;
-        }
-
-        public object? Value { get; }
-        public string Label { get; }
-
-        public override string ToString() => Label;
-    }
 
     /// <summary>A group in the flattened, indented group list. A null id means the root.</summary>
     public sealed class GroupOption
@@ -2298,37 +1608,6 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         public override string ToString() => Label;
     }
 
-    /// <summary>One entry of the session-resolution list.</summary>
-    public sealed class ResolutionOption
-    {
-        public ResolutionOption(string label, int width, int height)
-        {
-            Label = label;
-            Width = width;
-            Height = height;
-        }
-
-        private ResolutionOption(string label, bool isCustom, bool isMatchMonitor)
-        {
-            Label = label;
-            IsCustom = isCustom;
-            IsMatchMonitor = isMatchMonitor;
-        }
-
-        public static ResolutionOption MatchMonitor() =>
-            new("Match the target monitor", isCustom: false, isMatchMonitor: true);
-
-        public static ResolutionOption Custom() =>
-            new("Custom size", isCustom: true, isMatchMonitor: false);
-
-        public string Label { get; }
-        public int Width { get; }
-        public int Height { get; }
-        public bool IsCustom { get; }
-        public bool IsMatchMonitor { get; }
-
-        public override string ToString() => Label;
-    }
 
     /// <summary>One swatch of the fixed colour palette. A null hex means "no colour".</summary>
     public sealed class ColorOption
@@ -2346,51 +1625,6 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         public override string ToString() => Name;
     }
 
-    /// <summary>One monitor drawn on the live map, in scaled canvas coordinates.</summary>
-    public sealed class MonitorTile : ObservableObject
-    {
-        public int Index { get; init; }
-        public string Title { get; init; } = string.Empty;
-        public string FriendlyName { get; init; } = string.Empty;
-        public string ResolutionText { get; init; } = string.Empty;
-        public string Description { get; init; } = string.Empty;
-        public bool IsPrimary { get; init; }
-
-        private double _x;
-        public double X
-        {
-            get => _x;
-            set => SetProperty(ref _x, value);
-        }
-
-        private double _y;
-        public double Y
-        {
-            get => _y;
-            set => SetProperty(ref _y, value);
-        }
-
-        private double _w = 1;
-        public double W
-        {
-            get => _w;
-            set => SetProperty(ref _w, value);
-        }
-
-        private double _h = 1;
-        public double H
-        {
-            get => _h;
-            set => SetProperty(ref _h, value);
-        }
-
-        private bool _isHighlighted;
-        public bool IsHighlighted
-        {
-            get => _isHighlighted;
-            set => SetProperty(ref _isHighlighted, value);
-        }
-    }
 
     /// <summary>One raw key/value row of the advanced editor.</summary>
     public sealed class CustomProperty : ObservableObject

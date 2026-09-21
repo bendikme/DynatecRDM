@@ -56,6 +56,9 @@ public sealed class AppSettings
     /// <summary>Accent colour as #RRGGBB.</summary>
     public string AccentColor { get; set; } = "#0A84FF";
 
+    /// <summary>UI language: "en", "nb", or empty to follow the Windows display language.</summary>
+    public string? Language { get; set; }
+
     public double MainWindowWidth { get; set; } = 1280;
     public double MainWindowHeight { get; set; } = 800;
     public double MainWindowLeft { get; set; } = double.NaN;
@@ -90,8 +93,27 @@ public sealed class AppSettings
     /// </summary>
     public string? SigningCertificateThumbprint { get; set; }
 
+    /// <summary>
+    /// Host the Remote Desktop ActiveX control in-process (in a window the app owns) instead of
+    /// launching an external <c>mstsc</c> process. This is the only way, since the
+    /// April-2026 security update, to get both a silent connection and dynamic resolution: opening
+    /// an <c>.rdp</c> file now always warns, but a programmatic in-process connection does not, and
+    /// the hosted control renegotiates the remote resolution as the window resizes.
+    ///
+    /// Off while the in-process path is being brought up; will become the default and eventually the
+    /// only path, retiring the signing/trust machinery entirely.
+    /// </summary>
+    public bool UseEmbeddedClient { get; set; }
+
     /// <summary>Confirm before closing a running session from the UI.</summary>
     public bool ConfirmSessionClose { get; set; } = true;
+
+    /// <summary>
+    /// Show the session bar at the top edge of a full-screen session: one click switches to
+    /// another running connection. Sessions started while it is on leave out Remote Desktop's own
+    /// connection bar, which would otherwise compete for the same edge.
+    /// </summary>
+    public bool SessionBarEnabled { get; set; } = true;
 
     // ------------------------------------------------------------------ updates
 

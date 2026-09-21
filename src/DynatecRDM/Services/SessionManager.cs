@@ -475,6 +475,7 @@ public sealed class SessionManager : ISessionManager, IDisposable
             EmbedPassword = wantsEmbedded && hasPassword,
             ExtraProperties = extraProperties,
             Monitors = _monitors.GetMonitors(),
+            HideConnectionBar = Cfg.SessionBarEnabled,
         };
 
         var startInfo = new ProcessStartInfo(MstscPath)
@@ -490,7 +491,7 @@ public sealed class SessionManager : ISessionManager, IDisposable
         var rdpPath = string.Empty;
         if (Cfg.AvoidRdpFilePrompt)
         {
-            var args = MstscCommandLine.TryBuild(connection, display, delivery, out var requiredBy);
+            var args = MstscCommandLine.TryBuild(connection, display, delivery, context.HideConnectionBar, out var requiredBy);
             if (args is not null)
             {
                 foreach (var a in args) startInfo.ArgumentList.Add(a);
@@ -528,8 +529,11 @@ public sealed class SessionManager : ISessionManager, IDisposable
 
                 if (connection.Security.AdministrativeSession) startInfo.ArgumentList.Add("/admin");
                 if (connection.Security.PublicMode) startInfo.ArgumentList.Add("/public");
-                if (display.UseAllMonitors) startInfo.ArgumentList.Add("/multimon");
-                else if (display.ScreenMode == ScreenMode.Fullscreen) startInfo.ArgumentList.Add("/f");
+
+                // No /f or /multimon: the file already says full screen or not, multimon or not,
+                // which monitor and at what resolution. /multimon would take every monitor over a
+                // chosen few, and /f adds nothing the file does not say, so the file stays the
+                // single source of truth.
 
                 AppLog.Info($"'{connection.Name}' starts from Default.rdp with no file argument, keeping every setting and no warning.");
             }

@@ -86,6 +86,30 @@ public static class DefaultRdpLaunch
     }
 
     /// <summary>
+    /// True unless the user's own Default.rdp unpins the full-screen connection bar. Remote
+    /// Desktop pins it when nothing says otherwise, so a missing file or line counts as pinned.
+    /// </summary>
+    public static bool PinsConnectionBar()
+    {
+        try
+        {
+            var path = DefaultRdpPath;
+            if (!File.Exists(path)) return true;
+
+            foreach (var line in File.ReadLines(path))
+            {
+                if (line.Trim().Equals("pinconnectionbar:i:0", StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug_($"Reading Default.rdp for its connection bar failed: {ex.Message}");
+        }
+        return true;
+    }
+
+    /// <summary>
     /// True when this host has already been allowed to use local devices, so the consent dialog
     /// will not appear.
     /// </summary>

@@ -6,69 +6,23 @@
                     mc:Ignorable="po">
 
     <!-- ....................................................................
-         Palette
-         Dark by default. Four neutral surfaces, one accent, three text weights.
+         Colours live in Palette.Dark.xaml and Palette.Light.xaml, which
+         ThemeService swaps to follow Windows. Only what is the same in both
+         themes stays here: a backdrop dims either theme, and a shadow is black
+         on either.
          .................................................................... -->
-
-    <Color x:Key="BackgroundColor">#FF16181D</Color>
-    <Color x:Key="SurfaceColor">#FF1D2026</Color>
-    <Color x:Key="SurfaceAltColor">#FF22262E</Color>
-    <Color x:Key="SurfaceHoverColor">#FF2A2F38</Color>
-    <Color x:Key="SurfaceSelectedColor">#FF2E3947</Color>
-
-    <Color x:Key="BorderSoftColor">#FF2C313A</Color>
-    <Color x:Key="BorderStrongColor">#FF3A414D</Color>
-
-    <Color x:Key="TextPrimaryColor">#FFE9ECF1</Color>
-    <Color x:Key="TextSecondaryColor">#FFA5AEBC</Color>
-    <Color x:Key="TextMutedColor">#FF6F7A8A</Color>
-
-    <Color x:Key="AccentColor">#FF2A94FF</Color>
-    <Color x:Key="AccentHoverColor">#FF4AA6FF</Color>
-    <Color x:Key="AccentPressedColor">#FF1B7BE0</Color>
-    <Color x:Key="AccentSubtleColor">#FF17324F</Color>
-
-    <Color x:Key="SuccessColor">#FF3DD68C</Color>
-    <Color x:Key="WarningColor">#FFF5A524</Color>
-    <Color x:Key="DangerColor">#FFF45B5B</Color>
-    <Color x:Key="DangerHoverColor">#FFFF7070</Color>
 
     <Color x:Key="OverlayColor">#99000000</Color>
     <Color x:Key="ShadowColor">#FF000000</Color>
-
-    <!-- Structural brushes are frozen: they never change once the app is running. -->
-    <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" po:Freeze="True" />
-    <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" po:Freeze="True" />
-    <SolidColorBrush x:Key="SurfaceAltBrush" Color="{StaticResource SurfaceAltColor}" po:Freeze="True" />
-    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}" po:Freeze="True" />
-    <SolidColorBrush x:Key="SurfaceSelectedBrush" Color="{StaticResource SurfaceSelectedColor}" po:Freeze="True" />
-
-    <SolidColorBrush x:Key="BorderBrushSoft" Color="{StaticResource BorderSoftColor}" po:Freeze="True" />
-    <SolidColorBrush x:Key="BorderBrushStrong" Color="{StaticResource BorderStrongColor}" po:Freeze="True" />
-
-    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" po:Freeze="True" />
-    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" po:Freeze="True" />
-    <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" po:Freeze="True" />
-
     <SolidColorBrush x:Key="OverlayBrush" Color="{StaticResource OverlayColor}" po:Freeze="True" />
-
-    <!-- Accent and status brushes stay thawed so the accent can be re-tinted in place
-         (Color = x) without rebuilding every style that consumes them. -->
-    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
-    <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}" />
-    <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressedColor}" />
-    <SolidColorBrush x:Key="AccentSubtleBrush" Color="{StaticResource AccentSubtleColor}" />
-
-    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
-    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
-    <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}" />
-    <SolidColorBrush x:Key="DangerHoverBrush" Color="{StaticResource DangerHoverColor}" />
 
     <!-- ....................................................................
          Typography
          .................................................................... -->
 
-    <FontFamily x:Key="AppFontFamily">Segoe UI Variable Text, Segoe UI, Segoe UI Variable, sans-serif</FontFamily>
+    <!-- Roboto, embedded from Assets/Fonts (Regular, SemiBold and Bold - the only weights the UI
+         uses). Segoe UI stays behind it for any character Roboto has no glyph for. -->
+    <FontFamily x:Key="AppFontFamily">pack://application:,,,/DynatecRDM;component/Assets/Fonts/#Roboto, Segoe UI</FontFamily>
 
     <sys:Double x:Key="FontSizeSmall">11</sys:Double>
     <sys:Double x:Key="FontSizeNormal">13</sys:Double>

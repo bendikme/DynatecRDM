@@ -27,9 +27,10 @@ public static class MstscCommandLine
         RdpConnection connection,
         DisplaySettings display,
         CredentialDelivery delivery,
+        bool hideConnectionBar,
         out string? requiredBy)
     {
-        requiredBy = Blocker(connection, display, delivery);
+        requiredBy = Blocker(connection, display, delivery, hideConnectionBar);
         if (requiredBy is not null) return null;
 
         var args = new List<string>(6);
@@ -42,9 +43,8 @@ public static class MstscCommandLine
         if (connection.Security.AdministrativeSession) args.Add("/admin");
         if (connection.Security.PublicMode) args.Add("/public");
 
+        // Blocker lets only these two through: a window Windows places, or every monitor.
         if (display.UseAllMonitors) args.Add("/multimon");
-        else if (display.Placement == WindowPlacementMode.SpanAllMonitors) args.Add("/span");
-        else if (display.ScreenMode == ScreenMode.Fullscreen) args.Add("/f");
         else
         {
             args.Add("/w:" + display.DesktopWidth.ToString(CultureInfo.InvariantCulture));
@@ -55,7 +55,7 @@ public static class MstscCommandLine
     }
 
     /// <summary>The first configured setting that only an .rdp file can carry, or null.</summary>
-    private static string? Blocker(RdpConnection c, DisplaySettings d, CredentialDelivery delivery)
+    private static string? Blocker(RdpConnection c, DisplaySettings d, CredentialDelivery delivery, bool hideConnectionBar)
     {
         if (string.IsNullOrWhiteSpace(c.Host)) return "an empty host";
 
@@ -119,6 +119,14 @@ public static class MstscCommandLine
             return "custom experience settings";
         }
 
+        // The command line cannot say which monitor, nor the window to come back to, and "/f" leaves
+        // the resolution to whatever the user's own Default.rdp holds - while Remote Desktop only
+        // follows the switch between full screen and a window when the session starts at the
+        // monitor's own resolution. All of that needs winposstr and desktopwidth in the file.
+        if (d.Placement != WindowPlacementMode.Default) return "a monitor placement";
+        if (!d.UseAllMonitors && d.ScreenMode == ScreenMode.Fullscreen)
+            return "full screen, which has to start at the monitor's own resolution";
+
         var displayDefaults = new DisplaySettings();
         if (d.ColorDepth != displayDefaults.ColorDepth) return "a custom colour depth";
         if (d.SmartSizing != displayDefaults.SmartSizing) return "smart sizing";
@@ -127,15 +135,18 @@ public static class MstscCommandLine
         if (d.DynamicResolution != displayDefaults.DynamicResolution) return "dynamic resolution turned off";
         if (DefaultRdpLaunch.DisablesDynamicResolution())
             return "Default.rdp turning dynamic resolution off";
+
+        // The bar only shows in full screen, and there is no switch to hide or unpin it either.
+        if (d.UseAllMonitors)
+        {
+            if (hideConnectionBar) return "the session bar replacing the connection bar";
+            if (DefaultRdpLaunch.PinsConnectionBar()) return "Default.rdp pinning the connection bar";
+        }
         if (d.DesktopScaleFactor != displayDefaults.DesktopScaleFactor
             || d.DeviceScaleFactor != displayDefaults.DeviceScaleFactor)
         {
             return "a custom scale factor";
         }
-
-        // selectedmonitors has no command-line equivalent; /multimon takes them all.
-        if (d.SelectedMonitors.Count > 0 && d.Placement == WindowPlacementMode.SelectedMonitors)
-            return "a specific set of monitors";
 
         return null;
     }

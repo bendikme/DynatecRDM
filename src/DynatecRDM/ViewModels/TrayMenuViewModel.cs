@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows.Input;
 using System.Windows.Threading;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 
 namespace DynatecRDM.ViewModels;
@@ -69,10 +70,25 @@ public enum TrayRowKind
 /// <summary>One line in the quick-launch list.</summary>
 public abstract class TrayRow : ObservableObject
 {
+    private bool _isDisconnecting;
+
     public abstract TrayRowKind Kind { get; }
 
     /// <summary>False for headers and messages: they are skipped by the keyboard and the mouse.</summary>
     public virtual bool IsSelectable => true;
+
+    /// <summary>True when the row stands for at least one live session that a disconnect would end.</summary>
+    public virtual bool CanDisconnect => false;
+
+    /// <summary>
+    /// Every session behind the row is being closed. Remote Desktop takes a few seconds to go,
+    /// and without this the row would look untouched until it did.
+    /// </summary>
+    public bool IsDisconnecting
+    {
+        get => _isDisconnecting;
+        internal set => SetProperty(ref _isDisconnecting, value);
+    }
 }
 
 /// <summary>A section title such as RUNNING or CONNECTIONS.</summary>
@@ -105,6 +121,8 @@ public sealed class TraySessionRow : TrayRow, IDisposable
     public RdpSession Session { get; }
 
     public override TrayRowKind Kind => TrayRowKind.Session;
+
+    public override bool CanDisconnect => Session.IsActive;
 
     public string Title => Session.DisplayName;
 
@@ -140,10 +158,10 @@ public sealed class TraySessionRow : TrayRow, IDisposable
         if (span.Ticks < 0) span = TimeSpan.Zero;
 
         var text =
-            span.TotalSeconds < 60 ? $"{(int)span.TotalSeconds}s" :
-            span.TotalMinutes < 60 ? $"{(int)span.TotalMinutes}m" :
-            span.TotalHours < 24 ? $"{(int)span.TotalHours}h {span.Minutes}m" :
-            $"{(int)span.TotalDays}d {span.Hours}h";
+            span.TotalSeconds < 60 ? UiLanguage.Format(Strings.Tray_Uptime_Seconds, (int)span.TotalSeconds) :
+            span.TotalMinutes < 60 ? UiLanguage.Format(Strings.Tray_Uptime_Minutes, (int)span.TotalMinutes) :
+            span.TotalHours < 24 ? UiLanguage.Format(Strings.Tray_Uptime_Hours, (int)span.TotalHours, span.Minutes) :
+            UiLanguage.Format(Strings.Tray_Uptime_Days, (int)span.TotalDays, span.Hours);
 
         SetProperty(ref _uptimeText, text, nameof(UptimeText));
     }
@@ -178,7 +196,9 @@ public sealed class TrayMultiRow : TrayRow
 
     public string Title => Config.Name;
 
-    public string CountText => Config.Items.Count == 1 ? "1 connection" : $"{Config.Items.Count} connections";
+    public string CountText => UiLanguage.Plural(Config.Items.Count, Strings.Tray_Multi_Count_One, Strings.Tray_Multi_Count_Many);
+
+    public override bool CanDisconnect => IsRunning;
 
     public bool IsRunning
     {
@@ -198,8 +218,68 @@ public sealed class TrayMultiRow : TrayRow
 public sealed class TrayConnectionRow : TrayRow
 {
     private bool _isConnected;
+    private bool _showSnapshot;
+    private string? _snapshotPath;
+    private DateTime _snapshotStamp;
 
     public TrayConnectionRow(RdpConnection connection) => Connection = connection;
+
+    /// <summary>The thumbnail column is on: the row shows a picture or, without one, the host.</summary>
+    public bool ShowSnapshot => _showSnapshot;
+
+    /// <summary>The connection's last capture, which outlives its sessions.</summary>
+    public string? SnapshotPath => _snapshotPath;
+
+    /// <summary>When that capture was written. The file keeps its name, so this is what makes a newer one load.</summary>
+    public DateTime SnapshotStamp => _snapshotStamp;
+
+    public bool HasSnapshot => _showSnapshot && _snapshotPath is not null;
+
+    public bool ShowPlaceholder => _showSnapshot && _snapshotPath is null;
+
+    /// <summary>Whether the host answered when last asked; Unknown while connected or never checked.</summary>
+    public Reachability Reach { get; private set; }
+
+    /// <summary>"Responds" or "No answer", beside a connection that is not running.</summary>
+    public string ReachLabel { get; private set; } = string.Empty;
+
+    /// <summary>What was checked and when.</summary>
+    public string? ReachTooltip { get; private set; }
+
+    internal void SetReach(ReachabilityResult? result)
+    {
+        var state = IsConnected || result is null ? Reachability.Unknown : result.State;
+        var label = state switch
+        {
+            Reachability.Responds => Strings.Reach_Responds,
+            Reachability.NoAnswer => Strings.Reach_NoAnswer,
+            _ => string.Empty,
+        };
+        string? tooltip = null;
+        if (state != Reachability.Unknown)
+        {
+            var when = DynatecRDM.Converters.RelativeTimeConverter.Describe(result!.CheckedUtc);
+            tooltip = state == Reachability.Responds
+                ? UiLanguage.Format(Strings.Reach_Responds_Detail, result.Port, when)
+                : UiLanguage.Format(Strings.Reach_NoAnswer_Detail, result.Port, when) + Environment.NewLine + Strings.Reach_NoAnswer_Hint;
+        }
+
+        if (Reach == state && ReachLabel == label && ReachTooltip == tooltip) return;
+        Reach = state;
+        ReachLabel = label;
+        ReachTooltip = tooltip;
+        Raise(nameof(Reach), nameof(ReachLabel), nameof(ReachTooltip));
+    }
+
+    internal void SetSnapshot(bool show, string? path, DateTime stamp)
+    {
+        if (_showSnapshot == show && _snapshotPath == path && _snapshotStamp == stamp) return;
+
+        _showSnapshot = show;
+        _snapshotPath = path;
+        _snapshotStamp = stamp;
+        Raise(nameof(ShowSnapshot), nameof(SnapshotPath), nameof(SnapshotStamp), nameof(HasSnapshot), nameof(ShowPlaceholder));
+    }
 
     public RdpConnection Connection { get; private set; }
 
@@ -210,6 +290,8 @@ public sealed class TrayConnectionRow : TrayRow
     public string Host => Connection.FullAddress;
 
     public string? Color => Connection.Color;
+
+    public override bool CanDisconnect => IsConnected;
 
     /// <summary>True when a session for this connection is live, so a click focuses instead of launching.</summary>
     public bool IsConnected
@@ -229,7 +311,7 @@ public sealed class TrayConnectionRow : TrayRow
 /// <summary>The row that opens the main window when the list was capped.</summary>
 public sealed class TrayMoreRow : TrayRow
 {
-    private string _text = "More...";
+    private string _text = Strings.Tray_More;
 
     public override TrayRowKind Kind => TrayRowKind.More;
 
@@ -278,15 +360,25 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
     private readonly Dictionary<Guid, string> _groupNames = new();
     private readonly List<TraySessionRow> _ticking = new();
 
+    /// <summary>Sessions a disconnect has been asked for and not yet finished. UI thread only.</summary>
+    private readonly HashSet<Guid> _closing = new();
+
     private readonly TrayMoreRow _moreRow = new();
     private readonly TrayMessageRow _messageRow = new();
 
     private IReadOnlyList<RdpConnection> _connections = Array.Empty<RdpConnection>();
     private IReadOnlyList<ConnectionGroup> _groups = Array.Empty<ConnectionGroup>();
+
+    /// <summary>Held while the list is open, so hosts are checked only then.</summary>
+    private IDisposable? _reachDemand;
+
+    /// <summary>For the rebuild in progress: whether rows show pictures, and which connections have one.</summary>
+    private bool _rowSnapshots;
+    private Dictionary<Guid, DateTime>? _lastKnownSnapshots;
     private IReadOnlyList<MultiConfig> _multiConfigs = Array.Empty<MultiConfig>();
 
     private string _searchText = string.Empty;
-    private string _runningSummary = "No sessions";
+    private string _runningSummary = Strings.Tray_RunningSummary_None;
     private TrayRow? _selectedRow;
     private int _loading;
     private bool _disposed;
@@ -297,7 +389,7 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
         _shell = shell ?? throw new ArgumentNullException(nameof(shell));
         _dispatcher = System.Windows.Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
 
-        CloseSessionCommand = new RelayCommand(p => CloseSession(p as TraySessionRow));
+        DisconnectCommand = new RelayCommand(p => Disconnect(p as TrayRow));
         OpenManagerCommand = new RelayCommand(OpenManager);
         OpenSettingsCommand = new RelayCommand(OpenSettings);
         ExitCommand = new RelayCommand(Exit);
@@ -312,6 +404,7 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
         _services.Sessions.SessionStateChanged += OnSessionChanged;
         _services.Sessions.SessionEnded += OnSessionEnded;
         _services.SettingsChanged += OnSettingsChanged;
+        _services.Reachability.Changed += OnReachabilityChanged;
 
         Rebuild();
     }
@@ -319,7 +412,8 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
     /// <summary>Every visible line, headers included, in display order.</summary>
     public ObservableCollection<TrayRow> Rows { get; } = new();
 
-    public ICommand CloseSessionCommand { get; }
+    /// <summary>Ends the sessions behind a session, connection or multi-config row.</summary>
+    public ICommand DisconnectCommand { get; }
 
     public ICommand OpenManagerCommand { get; }
 
@@ -412,6 +506,9 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
 
         if (!_clock.IsEnabled) _clock.Start();
 
+        // Hosts are checked while the list is open, and not otherwise.
+        _reachDemand ??= _services.Reachability.Demand();
+
         Detached(() => _services.Sessions.RefreshSnapshotsAsync(), "Refreshing the tray snapshots failed.");
         Detached(() => LoadAsync(), "Refreshing the tray menu failed.");
     }
@@ -419,6 +516,9 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
     /// <summary>Called after the popup is hidden, so the uptime clock stops costing anything.</summary>
     public void OnHidden()
     {
+        _reachDemand?.Dispose();
+        _reachDemand = null;
+
         try
         {
             _clock.Stop();
@@ -467,6 +567,9 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
 
     public void ActivateSelected() => Activate(SelectedRow);
 
+    /// <summary>Disconnects the highlighted row. False when it has nothing running to end.</summary>
+    public bool DisconnectSelected() => Disconnect(SelectedRow);
+
     /// <summary>Moves the highlight across every section, skipping headers and wrapping round.</summary>
     public void MoveSelection(int delta)
     {
@@ -512,6 +615,9 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
             _services.Sessions.SessionStateChanged -= OnSessionChanged;
             _services.Sessions.SessionEnded -= OnSessionEnded;
             _services.SettingsChanged -= OnSettingsChanged;
+            _services.Reachability.Changed -= OnReachabilityChanged;
+            _reachDemand?.Dispose();
+            _reachDemand = null;
         }
         catch (Exception ex)
         {
@@ -534,10 +640,18 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
         _multiRows.Clear();
         _headers.Clear();
         _ticking.Clear();
+        _closing.Clear();
         Rows.Clear();
     }
 
     // ------------------------------------------------------------------ build
+
+    /// <summary>New reachability results; the rows pick them up while the list is open.</summary>
+    private void OnReachabilityChanged(object? sender, EventArgs e) =>
+        _ = _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (!_disposed && _reachDemand is not null) Rebuild();
+        }));
 
     private void Rebuild()
     {
@@ -569,37 +683,46 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
         _ticking.Clear();
 
         // RUNNING ------------------------------------------------------------
+        // "Active" has a live session; "staying" has one that is not being disconnected. A row
+        // shows as disconnecting once it is active but nothing of it is staying.
         var running = 0;
-        var activeConnections = new HashSet<Guid>();
+        var active = new LiveSet();
+        var staying = new LiveSet();
         List<RdpSession>? visibleSessions = null;
 
         foreach (var session in sessions)
         {
             if (!session.IsActive) continue;
             running++;
-            activeConnections.Add(session.ConnectionId);
+            active.Add(session);
+            if (!_closing.Contains(session.Id)) staying.Add(session);
             if (MatchesSession(session, query)) (visibleSessions ??= new List<RdpSession>()).Add(session);
         }
 
-        RunningSummary = running switch
-        {
-            0 => "No sessions",
-            1 => "1 running",
-            _ => $"{running} running",
-        };
+        RunningSummary = running == 0
+            ? Strings.Tray_RunningSummary_None
+            : UiLanguage.Plural(running, Strings.Tray_RunningSummary_One, Strings.Tray_RunningSummary_Many);
 
         if (visibleSessions is { Count: > 0 })
         {
-            rows.Add(Header("RUNNING"));
+            rows.Add(Header(Strings.Tray_Header_Running));
             foreach (var session in visibleSessions)
             {
                 var row = SessionRow(session);
                 row.ShowSnapshot = showSnapshots;
+                row.IsDisconnecting = _closing.Contains(session.Id);
                 row.UpdateUptime();
                 _ticking.Add(row);
                 rows.Add(row);
             }
         }
+
+        // Everything below is listed in the manager's order, which dragging there sets.
+        var order = LibraryOrder.Positions(_groups, _connections, _multiConfigs);
+
+        // Connections show their last capture, so the list looks the same whether or not they run.
+        _rowSnapshots = showSnapshots;
+        _lastKnownSnapshots = showSnapshots ? SnapshotService.LastKnownSnapshots() : null;
 
         // MULTI-CONFIGS -------------------------------------------------------
         List<MultiConfig>? visibleMultis = null;
@@ -610,15 +733,16 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
 
         if (visibleMultis is { Count: > 0 })
         {
-            visibleMultis.Sort(CompareMultis);
-            rows.Add(Header("MULTI-CONFIGS"));
+            visibleMultis.Sort((a, b) => ByPosition(order, a.Id, b.Id));
+            rows.Add(Header(Strings.Tray_Header_MultiConfigs));
 
             var shown = 0;
             foreach (var config in visibleMultis)
             {
                 if (shown++ >= maxItems) break;
                 var row = MultiRow(config);
-                row.IsRunning = _services.Sessions.IsMultiConfigRunning(config.Id);
+                row.IsRunning = active.Multis.Contains(config.Id);
+                row.IsDisconnecting = row.IsRunning && !staying.Multis.Contains(config.Id);
                 rows.Add(row);
             }
         }
@@ -633,7 +757,7 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
         var truncated = 0;
         if (visible is { Count: > 0 })
         {
-            visible.Sort(CompareConnections);
+            visible.Sort((a, b) => ByPosition(order, a.Id, b.Id));
 
             if (visible.Count > maxItems)
             {
@@ -641,23 +765,21 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
                 visible.RemoveRange(maxItems, truncated);
             }
 
-            if (settings.ShowGroupsInTray) AppendGrouped(rows, visible, activeConnections);
-            else AppendSection(rows, "CONNECTIONS", visible, activeConnections);
+            if (settings.ShowGroupsInTray) AppendGrouped(rows, visible, order, active, staying);
+            else AppendSection(rows, Strings.Tray_Header_Connections, visible, active, staying);
         }
 
         if (truncated > 0)
         {
-            _moreRow.Text = truncated == 1
-                ? "More... (1 more connection)"
-                : $"More... ({truncated} more connections)";
+            _moreRow.Text = UiLanguage.Plural(truncated, Strings.Tray_More_Count_One, Strings.Tray_More_Count_Many);
             rows.Add(_moreRow);
         }
 
         if (rows.Count == 0)
         {
             _messageRow.Text = query.Length > 0
-                ? $"Nothing matches \"{query}\"."
-                : "No connections yet. Open the manager to add one.";
+                ? UiLanguage.Format(Strings.Tray_Empty_NoMatch, query)
+                : Strings.Tray_Empty_NoConnections;
             rows.Add(_messageRow);
         }
 
@@ -665,14 +787,23 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
         EnsureSelection();
     }
 
-    private void AppendGrouped(List<TrayRow> rows, List<RdpConnection> connections, HashSet<Guid> active)
+    /// <summary>
+    /// One section per group, in the manager's order - groups depth first - and then the
+    /// connections at the top level, which the manager also lists after its groups. A connection
+    /// whose group no longer exists is at the top level there, so it is here too.
+    /// </summary>
+    private void AppendGrouped(
+        List<TrayRow> rows, List<RdpConnection> connections, Dictionary<Guid, int> order, LiveSet active, LiveSet staying)
     {
+        var known = new HashSet<Guid>();
+        foreach (var group in _groups) known.Add(group.Id);
+
         List<RdpConnection>? loose = null;
         Dictionary<Guid, List<RdpConnection>>? byGroup = null;
 
         foreach (var connection in connections)
         {
-            if (connection.GroupId is { } id && id != Guid.Empty)
+            if (connection.GroupId is { } id && known.Contains(id))
             {
                 byGroup ??= new Dictionary<Guid, List<RdpConnection>>();
                 if (!byGroup.TryGetValue(id, out var bucket)) byGroup[id] = bucket = new List<RdpConnection>();
@@ -684,44 +815,29 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
             }
         }
 
-        if (loose is { Count: > 0 }) AppendSection(rows, "CONNECTIONS", loose, active);
-        if (byGroup is null) return;
-
-        var ordered = new List<ConnectionGroup>(byGroup.Count);
-        foreach (var group in _groups)
+        if (byGroup is not null)
         {
-            if (byGroup.ContainsKey(group.Id)) ordered.Add(group);
+            var ordered = new List<ConnectionGroup>(byGroup.Count);
+            foreach (var group in _groups)
+            {
+                if (byGroup.ContainsKey(group.Id)) ordered.Add(group);
+            }
+
+            ordered.Sort((a, b) => ByPosition(order, a.Id, b.Id));
+            foreach (var group in ordered)
+                AppendSection(rows, SectionTitle(group.Name), byGroup[group.Id], active, staying);
         }
 
-        ordered.Sort(static (a, b) =>
-        {
-            var bySort = a.SortOrder.CompareTo(b.SortOrder);
-            return bySort != 0 ? bySort : string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase);
-        });
-
-        var placed = new HashSet<Guid>();
-        foreach (var group in ordered)
-        {
-            placed.Add(group.Id);
-            AppendSection(rows, SectionTitle(group.Name), byGroup[group.Id], active);
-        }
-
-        // A group the store no longer knows about still has to show its connections.
-        List<RdpConnection>? orphans = null;
-        foreach (var pair in byGroup)
-        {
-            if (placed.Contains(pair.Key)) continue;
-            (orphans ??= new List<RdpConnection>()).AddRange(pair.Value);
-        }
-
-        if (orphans is { Count: > 0 })
-        {
-            orphans.Sort(CompareConnections);
-            AppendSection(rows, "OTHER", orphans, active);
-        }
+        if (loose is { Count: > 0 }) AppendSection(rows, Strings.Tray_Header_Connections, loose, active, staying);
     }
 
-    private void AppendSection(List<TrayRow> rows, string header, List<RdpConnection> items, HashSet<Guid> active)
+    /// <summary>Compares two items by their place in the manager's tree.</summary>
+    private static int ByPosition(Dictionary<Guid, int> order, Guid a, Guid b) =>
+        (order.TryGetValue(a, out var left) ? left : int.MaxValue)
+            .CompareTo(order.TryGetValue(b, out var right) ? right : int.MaxValue);
+
+    private void AppendSection(
+        List<TrayRow> rows, string header, List<RdpConnection> items, LiveSet active, LiveSet staying)
     {
         if (items.Count == 0) return;
 
@@ -729,8 +845,29 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
         foreach (var connection in items)
         {
             var row = ConnectionRow(connection);
-            row.IsConnected = active.Contains(connection.Id);
+            row.IsConnected = active.Connections.Contains(connection.Id);
+            row.IsDisconnecting = row.IsConnected && !staying.Connections.Contains(connection.Id);
+            row.SetReach(_services.Reachability.Get(connection.Id));
+
+            if (_lastKnownSnapshots is not null && _lastKnownSnapshots.TryGetValue(connection.Id, out var taken))
+                row.SetSnapshot(_rowSnapshots, SnapshotService.LastKnownPath(connection.Id), taken);
+            else
+                row.SetSnapshot(_rowSnapshots, null, default);
+
             rows.Add(row);
+        }
+    }
+
+    /// <summary>The connections and multi-configs a set of sessions belongs to.</summary>
+    private sealed class LiveSet
+    {
+        public readonly HashSet<Guid> Connections = new();
+        public readonly HashSet<Guid> Multis = new();
+
+        public void Add(RdpSession session)
+        {
+            Connections.Add(session.ConnectionId);
+            if (session.MultiConfigId is { } multi) Multis.Add(multi);
         }
     }
 
@@ -853,7 +990,7 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
     private static string SectionTitle(string? name)
     {
         var trimmed = name?.Trim();
-        return string.IsNullOrEmpty(trimmed) ? "GROUP" : trimmed.ToUpperInvariant();
+        return string.IsNullOrEmpty(trimmed) ? Strings.Tray_Header_Group : trimmed.ToUpperInvariant();
     }
 
     private static bool Has(string? value, string query) =>
@@ -880,31 +1017,6 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
             && Has(group, query);
     }
 
-    /// <summary>Favourites first, then most recently used - the order a launcher wants.</summary>
-    private static int CompareConnections(RdpConnection a, RdpConnection b)
-    {
-        if (a.Favorite != b.Favorite) return a.Favorite ? -1 : 1;
-
-        var left = a.LastConnectedUtc ?? DateTime.MinValue;
-        var right = b.LastConnectedUtc ?? DateTime.MinValue;
-        if (left != right) return right.CompareTo(left);
-
-        if (a.LaunchCount != b.LaunchCount) return b.LaunchCount.CompareTo(a.LaunchCount);
-        return string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase);
-    }
-
-    private static int CompareMultis(MultiConfig a, MultiConfig b)
-    {
-        if (a.Favorite != b.Favorite) return a.Favorite ? -1 : 1;
-
-        var left = a.LastLaunchedUtc ?? DateTime.MinValue;
-        var right = b.LastLaunchedUtc ?? DateTime.MinValue;
-        if (left != right) return right.CompareTo(left);
-
-        if (a.SortOrder != b.SortOrder) return a.SortOrder.CompareTo(b.SortOrder);
-        return string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase);
-    }
-
     // -------------------------------------------------------------- commands
 
     private void LaunchOrFocus(RdpConnection connection)
@@ -922,8 +1034,8 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
             if (session is null)
             {
                 Post(() => _shell.Notify(
-                    "Could not connect",
-                    $"Remote Desktop did not start for {connection.Name}.",
+                    Strings.Tray_LaunchFailed_Title,
+                    UiLanguage.Format(Strings.Tray_LaunchFailed_Message, connection.Name),
                     true));
             }
         }, $"Launching '{connection.Name}' failed.");
@@ -949,20 +1061,78 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
             if (started.Count == 0)
             {
                 Post(() => _shell.Notify(
-                    "Nothing started",
-                    $"'{config.Name}' has no connection that could be launched.",
+                    Strings.Tray_MultiNothingStarted_Title,
+                    UiLanguage.Format(Strings.Tray_MultiNothingStarted_Message, config.Name),
                     true));
             }
         }, $"Launching '{config.Name}' failed.");
     }
 
-    private void CloseSession(TraySessionRow? row)
+    /// <summary>
+    /// Ends every live session behind the row. The popup stays open so several can be ended in a
+    /// row, and the rows say "Disconnecting" until Remote Desktop has actually gone.
+    /// </summary>
+    private bool Disconnect(TrayRow? row)
     {
-        if (row is null) return;
+        if (row is null || !row.CanDisconnect || row.IsDisconnecting) return false;
 
-        var id = row.Session.Id;
-        var name = row.Session.DisplayName;
-        Detached(() => _services.Sessions.CloseAsync(id), $"Closing '{name}' failed.");
+        Func<RdpSession, bool> belongs;
+        string name;
+        switch (row)
+        {
+            case TraySessionRow s:
+                var sessionId = s.Session.Id;
+                belongs = session => session.Id == sessionId;
+                name = s.Session.DisplayName;
+                break;
+
+            case TrayConnectionRow c:
+                var connectionId = c.Connection.Id;
+                belongs = session => session.ConnectionId == connectionId;
+                name = c.Connection.Name;
+                break;
+
+            case TrayMultiRow m:
+                var multiId = m.Config.Id;
+                belongs = session => session.MultiConfigId == multiId;
+                name = m.Config.Name;
+                break;
+
+            default:
+                return false;
+        }
+
+        var targets = new List<Guid>();
+        foreach (var session in _services.Sessions.Sessions)
+        {
+            if (session.IsActive && !_closing.Contains(session.Id) && belongs(session)) targets.Add(session.Id);
+        }
+
+        if (targets.Count == 0) return false;
+
+        foreach (var id in targets) _closing.Add(id);
+        Rebuild();
+
+        Detached(async () =>
+        {
+            try
+            {
+                var closes = new Task[targets.Count];
+                for (var i = 0; i < targets.Count; i++) closes[i] = _services.Sessions.CloseAsync(targets[i]);
+                await Task.WhenAll(closes).ConfigureAwait(false);
+            }
+            finally
+            {
+                // A close that failed leaves its session running, and the row has to say so again.
+                OnUi(() =>
+                {
+                    foreach (var id in targets) _closing.Remove(id);
+                    Rebuild();
+                });
+            }
+        }, $"Disconnecting '{name}' failed.");
+
+        return true;
     }
 
     private void OpenManager()

@@ -1,12 +1,9 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Globalization;
-using System.Text;
 using System.Windows.Threading;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
-using PlacementKind = DynatecRDM.Models.WindowPlacementMode;
-using ScreenModeKind = DynatecRDM.Models.ScreenMode;
 
 namespace DynatecRDM.ViewModels;
 
@@ -79,93 +76,18 @@ public sealed class MultiConfigEditorPickerEntry
     public string Host { get; }
     public string? ColorHex { get; }
     public string GroupName { get; }
-}
 
-/// <summary>A small labelled tag drawn inside a monitor rectangle on the layout map.</summary>
-public sealed class MultiConfigEditorMapChip
-{
-    public MultiConfigEditorMapChip(string name, string? colorHex, bool isItemEnabled, bool isSelected)
-    {
-        Name = name;
-        ColorHex = colorHex;
-        IsItemEnabled = isItemEnabled;
-        IsSelected = isSelected;
-    }
-
-    public string Name { get; }
-    public string? ColorHex { get; }
-
-    /// <summary>Named so it cannot be confused with UIElement.IsEnabled in a data trigger.</summary>
-    public bool IsItemEnabled { get; }
-
-    public bool IsSelected { get; }
-}
-
-/// <summary>One physical display drawn on the layout map, with the items that land on it.</summary>
-public sealed class MultiConfigEditorMonitorCell : ObservableObject
-{
-    public MultiConfigEditorMonitorCell(
-        int index, string title, string detail, bool isPrimary,
-        double x, double y, double width, double height)
-    {
-        Index = index;
-        Title = title;
-        Detail = detail;
-        IsPrimary = isPrimary;
-        X = x;
-        Y = y;
-        Width = width;
-        Height = height;
-        Chips = new ObservableCollection<MultiConfigEditorMapChip>();
-    }
-
-    public int Index { get; }
-    public string Title { get; }
-    public string Detail { get; }
-    public bool IsPrimary { get; }
-
-    public double X { get; }
-    public double Y { get; }
-    public double Width { get; }
-    public double Height { get; }
-
-    public ObservableCollection<MultiConfigEditorMapChip> Chips { get; }
-
-    public bool IsEmpty => Chips.Count == 0;
-
-    /// <summary>Raised by the editor once every chip has been added.</summary>
-    public void ChipsFilled() => OnPropertyChanged(nameof(IsEmpty));
-}
-
-/// <summary>An entry of the screen-mode combo.</summary>
-public sealed class MultiConfigEditorScreenModeOption
-{
-    public MultiConfigEditorScreenModeOption(ScreenModeKind value, string name)
-    {
-        Value = value;
-        Name = name;
-    }
-
-    public ScreenModeKind Value { get; }
-    public string Name { get; }
-}
-
-/// <summary>An entry of the placement combo.</summary>
-public sealed class MultiConfigEditorPlacementOption
-{
-    public MultiConfigEditorPlacementOption(PlacementKind value, string name)
-    {
-        Value = value;
-        Name = name;
-    }
-
-    public PlacementKind Value { get; }
-    public string Name { get; }
+    /// <summary>The picker's second line: the address and the group.</summary>
+    public string HostAndGroup => UiLanguage.Format(Strings.Multi_Picker_HostAndGroup, Host, GroupName);
 }
 
 /// <summary>
 /// Edits a <see cref="MultiConfig"/>: a named set of connections launched together, each with
 /// its own screen placement layered on top of the connection's own display settings.
+///
+/// One map shows every item where it will open. The selected item's display editor draws the
+/// monitors and, for a window at a chosen position, the rectangle that is dragged; every item is
+/// drawn over them as a <see cref="MapShape"/> whose name selects it.
 ///
 /// The work is done on a clone, so nothing reaches the store until Save or Launch now.
 /// </summary>
@@ -173,36 +95,11 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
 {
     private const int MaxDelayMs = 600000;
 
-    private static readonly MultiConfigEditorScreenModeOption[] ScreenModes =
-    {
-        new(ScreenModeKind.Fullscreen, "Full screen"),
-        new(ScreenModeKind.Windowed, "Windowed"),
-    };
-
-    private static readonly MultiConfigEditorPlacementOption[] Placements =
-    {
-        new(PlacementKind.Default, "Leave it to Remote Desktop"),
-        new(PlacementKind.SpecificMonitorFullscreen, "Full screen on one monitor"),
-        new(PlacementKind.SpecificMonitorMaximized, "Maximized on one monitor"),
-        new(PlacementKind.SpanAllMonitors, "Span every monitor"),
-        new(PlacementKind.SelectedMonitors, "Use the selected monitors"),
-        new(PlacementKind.CustomRectangle, "Exact rectangle"),
-    };
-
-    private static readonly int[] ColorDepths = { 8, 15, 16, 24, 32 };
-    private static readonly int[] ScaleFactors = { 100, 125, 150, 175, 200, 250, 300, 400, 500 };
-
     private readonly AppServices _services;
     private readonly Dictionary<Guid, RdpConnection> _connectionsById = new();
     private readonly List<RdpConnection> _connections = new();
     private readonly Dictionary<Guid, string> _groupNames = new();
-    private readonly Dictionary<int, MultiConfigEditorMonitorCell> _cellsByIndex = new();
-
-    /// <summary>Layout the monitor rectangles were last built for; empty means "none yet".</summary>
-    private string _mapSignature = string.Empty;
-
-    private IReadOnlyList<MonitorInfo> _monitorSnapshot = Array.Empty<MonitorInfo>();
-    private IReadOnlyList<int> _mstscIds = Array.Empty<int>();
+    private readonly Dictionary<MultiConfigItemViewModel, MapShape> _shapes = new();
 
     private string _name;
     private string _description;
@@ -219,7 +116,6 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
     private string? _errorText;
     private string? _warningText;
     private string? _infoText;
-    private string? _mapEmptyText;
 
     public MultiConfigEditorViewModel(AppServices services, MultiConfig? existing, Guid? defaultGroupId)
     {
@@ -235,22 +131,20 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         Items = new ObservableCollection<MultiConfigItemViewModel>();
         Groups = new ObservableCollection<MultiConfigEditorGroupOption>();
         CredentialOptions = new ObservableCollection<MultiConfigEditorCredentialOption>();
-        Monitors = new ObservableCollection<MonitorInfo>();
-        MonitorCells = new ObservableCollection<MultiConfigEditorMonitorCell>();
-        UnplacedItems = new ObservableCollection<MultiConfigItemViewModel>();
+        MapShapes = new ObservableCollection<MapShape>();
         PickerResults = new ObservableCollection<MultiConfigEditorPickerEntry>();
 
         ColorSwatches = new[]
         {
-            new MultiConfigEditorColorSwatch(null, "No colour"),
-            new MultiConfigEditorColorSwatch("#2A94FF", "Blue"),
-            new MultiConfigEditorColorSwatch("#3DD68C", "Green"),
-            new MultiConfigEditorColorSwatch("#F5A524", "Amber"),
-            new MultiConfigEditorColorSwatch("#F45B5B", "Red"),
-            new MultiConfigEditorColorSwatch("#A97BFF", "Purple"),
-            new MultiConfigEditorColorSwatch("#29C7C7", "Teal"),
-            new MultiConfigEditorColorSwatch("#FF7FB0", "Pink"),
-            new MultiConfigEditorColorSwatch("#8A94A6", "Grey"),
+            new MultiConfigEditorColorSwatch(null, Strings.Multi_Colour_None),
+            new MultiConfigEditorColorSwatch("#2A94FF", Strings.Multi_Colour_Blue),
+            new MultiConfigEditorColorSwatch("#3DD68C", Strings.Multi_Colour_Green),
+            new MultiConfigEditorColorSwatch("#F5A524", Strings.Multi_Colour_Amber),
+            new MultiConfigEditorColorSwatch("#F45B5B", Strings.Multi_Colour_Red),
+            new MultiConfigEditorColorSwatch("#A97BFF", Strings.Multi_Colour_Purple),
+            new MultiConfigEditorColorSwatch("#29C7C7", Strings.Multi_Colour_Teal),
+            new MultiConfigEditorColorSwatch("#FF7FB0", Strings.Multi_Colour_Pink),
+            new MultiConfigEditorColorSwatch("#8A94A6", Strings.Multi_Colour_Grey),
         };
         SyncSwatches();
 
@@ -267,14 +161,15 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         DuplicateCommand = new RelayCommand(DuplicateSelected, () => SelectedItem is not null);
         MoveUpCommand = new RelayCommand(p => Move(p, -1), p => CanMove(p, -1));
         MoveDownCommand = new RelayCommand(p => Move(p, 1), p => CanMove(p, 1));
-        AssignMonitorCommand = new RelayCommand(AssignMonitor, _ => SelectedItem is not null);
+        SelectItemCommand = new RelayCommand(p =>
+        {
+            if (p is MultiConfigItemViewModel item) SelectedItem = item;
+        });
         ClearOverridesCommand = new RelayCommand(
-            () => { SelectedItem?.ClearOverrides(); ScheduleRefresh(); },
+            () => SelectedItem?.ClearOverrides(),
             () => SelectedItem is not null);
         SetColorCommand = new RelayCommand(p => SetColor(p as MultiConfigEditorColorSwatch));
 
-        _services.Monitors.MonitorsChanged += OnMonitorsChanged;
-        RefreshMonitors();
         Validate();
     }
 
@@ -288,23 +183,18 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
 
     public bool IsSaved { get; private set; }
 
-    public string HeaderText => IsNew ? "New multi-config" : "Edit multi-config";
+    public string HeaderText => IsNew ? Strings.Multi_Header_New : Strings.Multi_Header_Edit;
 
     // ------------------------------------------------------------------ collections
 
     public ObservableCollection<MultiConfigItemViewModel> Items { get; }
     public ObservableCollection<MultiConfigEditorGroupOption> Groups { get; }
     public ObservableCollection<MultiConfigEditorCredentialOption> CredentialOptions { get; }
-    public ObservableCollection<MonitorInfo> Monitors { get; }
-    public ObservableCollection<MultiConfigEditorMonitorCell> MonitorCells { get; }
-    public ObservableCollection<MultiConfigItemViewModel> UnplacedItems { get; }
     public ObservableCollection<MultiConfigEditorPickerEntry> PickerResults { get; }
     public IReadOnlyList<MultiConfigEditorColorSwatch> ColorSwatches { get; }
 
-    public IReadOnlyList<MultiConfigEditorScreenModeOption> ScreenModeOptions => ScreenModes;
-    public IReadOnlyList<MultiConfigEditorPlacementOption> PlacementOptions => Placements;
-    public IReadOnlyList<int> ColorDepthOptions => ColorDepths;
-    public IReadOnlyList<int> ScaleFactorOptions => ScaleFactors;
+    /// <summary>Every item of the set, drawn where it will open, over the selected item's map.</summary>
+    public ObservableCollection<MapShape> MapShapes { get; }
 
     // ------------------------------------------------------------------ commands
 
@@ -319,7 +209,7 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
     public RelayCommand DuplicateCommand { get; }
     public RelayCommand MoveUpCommand { get; }
     public RelayCommand MoveDownCommand { get; }
-    public RelayCommand AssignMonitorCommand { get; }
+    public RelayCommand SelectItemCommand { get; }
     public RelayCommand ClearOverridesCommand { get; }
     public RelayCommand SetColorCommand { get; }
 
@@ -422,14 +312,31 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         get => _selectedItem;
         set
         {
+            var previous = _selectedItem;
             if (!SetProperty(ref _selectedItem, value)) return;
-            OnPropertyChanged(nameof(HasSelection));
+
+            if (previous is not null)
+            {
+                previous.Display.MapChanged -= OnMapChanged;
+                previous.IsSelected = false;
+            }
+            if (value is not null)
+            {
+                value.IsSelected = true;
+                value.Display.MapChanged += OnMapChanged;
+                value.Display.EnsureMonitorMap();
+            }
+
+            Raise(nameof(HasSelection), nameof(SelectedDisplay));
             RaiseCommandStates();
-            RecomputeMap();
+            RebuildShapes();
         }
     }
 
     public bool HasSelection => _selectedItem is not null;
+
+    /// <summary>The selected item's display settings: the map and the form both edit these.</summary>
+    public DisplayEditorViewModel? SelectedDisplay => _selectedItem?.Display;
 
     public bool IsBusy
     {
@@ -470,17 +377,6 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
     public bool HasError => !string.IsNullOrEmpty(_errorText);
 
     public bool HasWarning => !string.IsNullOrEmpty(_warningText);
-
-    public string? MapEmptyText
-    {
-        get => _mapEmptyText;
-        private set => SetProperty(ref _mapEmptyText, value);
-    }
-
-    /// <summary>Logical size of the layout map, in device-independent pixels.</summary>
-    public double MapCanvasWidth => 560;
-
-    public double MapCanvasHeight => 196;
 
     // ------------------------------------------------------------------ picker
 
@@ -542,7 +438,7 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
 
             _groupNames.Clear();
             Groups.Clear();
-            Groups.Add(new MultiConfigEditorGroupOption(null, "No group"));
+            Groups.Add(new MultiConfigEditorGroupOption(null, Strings.Multi_NoGroup));
             foreach (var group in groups.OrderBy(g => g.Name, StringComparer.CurrentCultureIgnoreCase))
             {
                 _groupNames[group.Id] = group.Name;
@@ -551,7 +447,7 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
 
             CredentialOptions.Clear();
             CredentialOptions.Add(
-                new MultiConfigEditorCredentialOption(Guid.Empty, "Use the connection's own credential"));
+                new MultiConfigEditorCredentialOption(Guid.Empty, Strings.Multi_Credential_UseConnections));
 
             var knownCredentials = new HashSet<Guid> { Guid.Empty };
             foreach (var credential in credentials.OrderBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
@@ -571,7 +467,7 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
                 var id = model.CredentialSetIdOverride;
                 if (id is null || !knownCredentials.Add(id.Value)) continue;
                 CredentialOptions.Add(
-                    new MultiConfigEditorCredentialOption(id.Value, "Credential set that no longer exists"));
+                    new MultiConfigEditorCredentialOption(id.Value, Strings.Multi_Credential_Deleted));
             }
 
             BuildItems();
@@ -595,13 +491,13 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
             }
 
             RefreshPicker();
-            RecomputeMap();
+            RebuildShapes();
             Validate();
         }
         catch (Exception ex)
         {
             AppLog.Error("The multi-config editor could not load its data.", ex);
-            ErrorText = "The saved connections could not be read: " + ex.Message;
+            ErrorText = UiLanguage.Format(Strings.Multi_Error_Load, ex.Message);
         }
         finally
         {
@@ -611,16 +507,13 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
 
     private void BuildItems()
     {
-        foreach (var existing in Items) existing.PropertyChanged -= OnItemPropertyChanged;
+        foreach (var existing in Items) existing.Dispose();
         Items.Clear();
 
         foreach (var model in Result.Items.OrderBy(static i => i.Order))
         {
             _connectionsById.TryGetValue(model.ConnectionId, out var connection);
-            var item = new MultiConfigItemViewModel(model, connection);
-            item.SetMonitors(_monitorSnapshot, _mstscIds);
-            item.PropertyChanged += OnItemPropertyChanged;
-            Items.Add(item);
+            Items.Add(CreateItem(model, connection));
         }
 
         Renumber();
@@ -628,14 +521,22 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         RaiseCommandStates();
     }
 
-    /// <summary>Drops the monitor subscription; called when the window closes.</summary>
+    /// <summary>Every item loads its map up front, so selecting one never shows an empty map first.</summary>
+    private MultiConfigItemViewModel CreateItem(MultiConfigItem model, RdpConnection? connection)
+    {
+        var item = new MultiConfigItemViewModel(_services, model, connection, ScheduleRefresh);
+        item.Display.EnsureMonitorMap();
+        return item;
+    }
+
+    /// <summary>Drops the monitor subscriptions; called when the window closes.</summary>
     public void Detach()
     {
         if (_detached) return;
         _detached = true;
 
-        _services.Monitors.MonitorsChanged -= OnMonitorsChanged;
-        foreach (var item in Items) item.PropertyChanged -= OnItemPropertyChanged;
+        if (_selectedItem is not null) _selectedItem.Display.MapChanged -= OnMapChanged;
+        foreach (var item in Items) item.Dispose();
     }
 
     // ------------------------------------------------------------------ items
@@ -672,13 +573,13 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         PickerEmptyText = PickerResults.Count > 0
             ? null
             : _connections.Count == 0
-                ? "There are no saved connections yet."
-                : "No connection matches that search.";
+                ? Strings.Multi_Picker_NoConnections
+                : Strings.Multi_Picker_NoMatch;
         OnPropertyChanged(nameof(PickerEmptyText));
     }
 
     private string GroupNameFor(Guid? groupId) =>
-        groupId.HasValue && _groupNames.TryGetValue(groupId.Value, out var name) ? name : "No group";
+        groupId.HasValue && _groupNames.TryGetValue(groupId.Value, out var name) ? name : Strings.Multi_NoGroup;
 
     private void AddConnection(MultiConfigEditorPickerEntry? entry)
     {
@@ -692,9 +593,7 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
             Order = Items.Count,
         };
 
-        var item = new MultiConfigItemViewModel(model, connection);
-        item.SetMonitors(_monitorSnapshot, _mstscIds);
-        item.PropertyChanged += OnItemPropertyChanged;
+        var item = CreateItem(model, connection);
         Items.Add(item);
 
         Renumber();
@@ -704,7 +603,7 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         PickerSearch = string.Empty;
 
         RaiseCommandStates();
-        RecomputeMap();
+        RebuildShapes();
         Validate();
     }
 
@@ -716,14 +615,14 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         var index = Items.IndexOf(item);
         if (index < 0) return;
 
-        item.PropertyChanged -= OnItemPropertyChanged;
         Items.RemoveAt(index);
         Renumber();
 
         SelectedItem = Items.Count == 0 ? null : Items[Math.Min(index, Items.Count - 1)];
+        item.Dispose();
 
         RaiseCommandStates();
-        RecomputeMap();
+        RebuildShapes();
         Validate();
     }
 
@@ -736,9 +635,7 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         clone.Id = Guid.NewGuid();
         clone.Order = Items.Count;
 
-        var copy = new MultiConfigItemViewModel(clone, item.Connection);
-        copy.SetMonitors(_monitorSnapshot, _mstscIds);
-        copy.PropertyChanged += OnItemPropertyChanged;
+        var copy = CreateItem(clone, item.Connection);
 
         var index = Items.IndexOf(item);
         if (index < 0 || index + 1 >= Items.Count) Items.Add(copy);
@@ -748,7 +645,7 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         SelectedItem = copy;
 
         RaiseCommandStates();
-        RecomputeMap();
+        RebuildShapes();
         Validate();
     }
 
@@ -780,40 +677,13 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         SelectedItem = item;
 
         RaiseCommandStates();
-        RecomputeMap();
+        RebuildShapes();
     }
 
     /// <summary>Items keep a stable order; every change rewrites it as 0..n-1.</summary>
     private void Renumber()
     {
         for (var i = 0; i < Items.Count; i++) Items[i].SetOrder(i);
-    }
-
-    private void AssignMonitor(object? parameter)
-    {
-        var item = SelectedItem;
-        if (item is null) return;
-
-        int index;
-        switch (parameter)
-        {
-            case int direct:
-                index = direct;
-                break;
-            case MultiConfigEditorMonitorCell cell:
-                index = cell.Index;
-                break;
-            case string text when int.TryParse(
-                text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed):
-                index = parsed;
-                break;
-            default:
-                return;
-        }
-
-        item.AssignToMonitor(index);
-        RecomputeMap();
-        Validate();
     }
 
     private void SetColor(MultiConfigEditorColorSwatch? swatch)
@@ -833,11 +703,9 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
 
     // ------------------------------------------------------------------ live refresh
 
-    private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e) => ScheduleRefresh();
-
     /// <summary>
     /// Coalesces the bursts of change notifications a single edit produces into one map and
-    /// validation pass, at background priority so typing never waits for it.
+    /// validation pass, at background priority so typing and dragging never wait for it.
     /// </summary>
     private void ScheduleRefresh()
     {
@@ -847,15 +715,7 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         if (dispatcher is null || dispatcher.HasShutdownStarted)
         {
             // No dispatcher to queue on (design time, or shutting down): do it here.
-            try
-            {
-                RecomputeMap();
-                Validate();
-            }
-            catch (Exception ex)
-            {
-                AppLog.Error("Refreshing the multi-config editor failed.", ex);
-            }
+            Refresh();
             return;
         }
 
@@ -864,216 +724,102 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
             new Action(() =>
             {
                 _refreshPending = false;
-                if (_detached) return;
-                try
-                {
-                    RecomputeMap();
-                    Validate();
-                }
-                catch (Exception ex)
-                {
-                    AppLog.Error("Refreshing the multi-config editor failed.", ex);
-                }
+                if (!_detached) Refresh();
             }),
             DispatcherPriority.Background);
     }
 
-    private void OnMonitorsChanged(object? sender, EventArgs e)
+    private void Refresh()
     {
         try
         {
-            // The monitor service normally marshals this already, but it falls back to the
-            // raising thread when it has no dispatcher of its own - and everything below
-            // touches collections that are bound to the UI.
-            var dispatcher = System.Windows.Application.Current?.Dispatcher;
-            if (dispatcher is not null && !dispatcher.CheckAccess())
-            {
-                if (dispatcher.HasShutdownStarted) return;
-                dispatcher.BeginInvoke(new Action(RefreshMonitorsSafely), DispatcherPriority.Background);
-                return;
-            }
-
-            RefreshMonitors();
+            RebuildShapes();
+            Validate();
         }
         catch (Exception ex)
         {
-            AppLog.Error("The multi-config editor could not read the new display layout.", ex);
+            AppLog.Error("Refreshing the multi-config editor failed.", ex);
         }
     }
 
-    private void RefreshMonitorsSafely()
+    /// <summary>The selected item's map was laid out again - new size, new monitors - so the shapes move with it.</summary>
+    private void OnMapChanged(object? sender, EventArgs e)
     {
-        if (_detached) return;
         try
         {
-            RefreshMonitors();
+            RebuildShapes();
         }
         catch (Exception ex)
         {
-            AppLog.Error("The multi-config editor could not read the new display layout.", ex);
+            AppLog.Warn("Redrawing the multi-config map failed.", ex);
         }
     }
 
-    private void RefreshMonitors()
-    {
-        IReadOnlyList<MonitorInfo> monitors;
-        try
-        {
-            monitors = _services.Monitors.GetMonitors();
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn("The display layout could not be read.", ex);
-            monitors = Array.Empty<MonitorInfo>();
-        }
-
-        _monitorSnapshot = monitors;
-        _mstscIds = ResolveMstscIds(monitors);
-
-        Monitors.Clear();
-        foreach (var monitor in monitors) Monitors.Add(monitor);
-
-        foreach (var item in Items) item.SetMonitors(_monitorSnapshot, _mstscIds);
-
-        RecomputeMap();
-    }
-
-    private IReadOnlyList<int> ResolveMstscIds(IReadOnlyList<MonitorInfo> monitors)
-    {
-        var indexes = new int[monitors.Count];
-        for (var i = 0; i < indexes.Length; i++) indexes[i] = monitors[i].Index;
-
-        try
-        {
-            var ids = _services.Monitors.ToMstscIds(indexes);
-            if (ids.Count >= monitors.Count) return ids;
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn("The mstsc monitor ids could not be resolved.", ex);
-        }
-
-        var fallback = new int[monitors.Count];
-        for (var i = 0; i < fallback.Length; i++) fallback[i] = i + 1;
-        return fallback;
-    }
-
-    // ------------------------------------------------------------------ layout map
+    // ------------------------------------------------------------------ map
 
     /// <summary>
-    /// Rebuilds the chips on the layout map. The monitor rectangles themselves are only
-    /// rebuilt when the display layout actually changed: they are buttons the user clicks,
-    /// and recreating them under the mouse on every keystroke would both flicker and lose
-    /// the hover and focus state.
+    /// Draws every item where it will open, in the selected item's map coordinates. Shapes are kept
+    /// and moved rather than rebuilt, so a chip under the pointer does not flicker while another
+    /// item is dragged. The selected item's own window is the editable rectangle, so it is not
+    /// drawn twice.
     /// </summary>
-    private void RecomputeMap()
+    private void RebuildShapes()
     {
-        UnplacedItems.Clear();
-
-        var monitors = _monitorSnapshot;
-        if (monitors.Count == 0)
+        var map = _selectedItem?.Display;
+        if (map is null || !map.HasMonitors)
         {
-            MonitorCells.Clear();
-            _cellsByIndex.Clear();
-            _mapSignature = string.Empty;
-            MapEmptyText = "No displays were detected.";
-            foreach (var item in Items) UnplacedItems.Add(item);
+            MapShapes.Clear();
+            _shapes.Clear();
             return;
         }
 
-        MapEmptyText = null;
-
-        var signature = MapSignature(monitors);
-        if (string.Equals(_mapSignature, signature, StringComparison.Ordinal))
-        {
-            foreach (var cell in MonitorCells) cell.Chips.Clear();
-        }
-        else
-        {
-            _mapSignature = signature;
-            BuildMonitorCells(monitors);
-        }
+        var wanted = new List<MapShape>(Items.Count);
+        var corners = new List<System.Windows.Point>(Items.Count);
 
         foreach (var item in Items)
         {
-            var targets = item.MapMonitors;
-            var placed = false;
+            var selected = ReferenceEquals(item, _selectedItem);
+            if (selected && map.ShowCustomRect) continue;
+            if (item.Footprint is not { } footprint) continue;
 
-            foreach (var index in targets)
+            if (!_shapes.TryGetValue(item, out var shape))
             {
-                if (!_cellsByIndex.TryGetValue(index, out var cell)) continue;
-                cell.Chips.Add(new MultiConfigEditorMapChip(
-                    item.DisplayName, item.ColorHex, item.Enabled, ReferenceEquals(item, _selectedItem)));
-                placed = true;
+                shape = new MapShape(item, item.ColorHex);
+                _shapes[item] = shape;
             }
 
-            if (!placed) UnplacedItems.Add(item);
+            var area = map.ToMap(footprint);
+            shape.X = area.X;
+            shape.Y = area.Y;
+            shape.W = area.Width;
+            shape.H = area.Height;
+            shape.Number = item.Position.ToString(CultureInfo.InvariantCulture);
+            shape.Label = item.DisplayName;
+            shape.IsSelected = selected;
+            shape.IsDimmed = !item.Enabled;
+
+            // Shapes that start at the same corner - two sessions on one monitor - stack their chips.
+            var corner = new System.Windows.Point(area.X, area.Y);
+            var below = 0;
+            foreach (var other in corners)
+                if (Math.Abs(other.X - corner.X) < 14 && Math.Abs(other.Y - corner.Y) < 14) below++;
+            corners.Add(corner);
+            shape.ChipOffset = below * 24;
+
+            wanted.Add(shape);
         }
 
-        foreach (var cell in MonitorCells) cell.ChipsFilled();
-    }
+        foreach (var gone in _shapes.Keys.Where(k => !wanted.Any(w => ReferenceEquals(w.Item, k))).ToList())
+            _shapes.Remove(gone);
 
-    /// <summary>Identifies a display layout, so an unchanged one can be left alone.</summary>
-    private string MapSignature(IReadOnlyList<MonitorInfo> monitors)
-    {
-        var builder = new StringBuilder(monitors.Count * 24);
-        builder.Append(MapCanvasWidth.ToString(CultureInfo.InvariantCulture)).Append('x')
-               .Append(MapCanvasHeight.ToString(CultureInfo.InvariantCulture));
+        for (var i = MapShapes.Count - 1; i >= 0; i--)
+            if (!wanted.Contains(MapShapes[i])) MapShapes.RemoveAt(i);
 
-        foreach (var monitor in monitors)
+        for (var i = 0; i < wanted.Count; i++)
         {
-            builder.Append('|').Append(monitor.Index)
-                   .Append(':').Append(monitor.Left)
-                   .Append(',').Append(monitor.Top)
-                   .Append(',').Append(monitor.Width)
-                   .Append(',').Append(monitor.Height)
-                   .Append(',').Append(monitor.IsPrimary ? '1' : '0')
-                   .Append(',').Append(monitor.ResolutionText);
-        }
-
-        return builder.ToString();
-    }
-
-    private void BuildMonitorCells(IReadOnlyList<MonitorInfo> monitors)
-    {
-        MonitorCells.Clear();
-        _cellsByIndex.Clear();
-
-        int minLeft = int.MaxValue, minTop = int.MaxValue, maxRight = int.MinValue, maxBottom = int.MinValue;
-        foreach (var monitor in monitors)
-        {
-            if (monitor.Left < minLeft) minLeft = monitor.Left;
-            if (monitor.Top < minTop) minTop = monitor.Top;
-            if (monitor.Right > maxRight) maxRight = monitor.Right;
-            if (monitor.Bottom > maxBottom) maxBottom = monitor.Bottom;
-        }
-
-        double virtualWidth = Math.Max(1, maxRight - minLeft);
-        double virtualHeight = Math.Max(1, maxBottom - minTop);
-
-        const double gutter = 6;
-        var scale = Math.Min(
-            (MapCanvasWidth - (gutter * 2)) / virtualWidth,
-            (MapCanvasHeight - (gutter * 2)) / virtualHeight);
-        if (scale <= 0 || double.IsNaN(scale) || double.IsInfinity(scale)) scale = 0.05;
-
-        var offsetX = (MapCanvasWidth - (virtualWidth * scale)) / 2;
-        var offsetY = (MapCanvasHeight - (virtualHeight * scale)) / 2;
-
-        foreach (var monitor in monitors)
-        {
-            var cell = new MultiConfigEditorMonitorCell(
-                monitor.Index,
-                (monitor.Index + 1).ToString(CultureInfo.InvariantCulture),
-                monitor.IsPrimary ? monitor.ResolutionText + "  primary" : monitor.ResolutionText,
-                monitor.IsPrimary,
-                offsetX + ((monitor.Left - minLeft) * scale),
-                offsetY + ((monitor.Top - minTop) * scale),
-                Math.Max(56, (monitor.Width * scale) - 3),
-                Math.Max(44, (monitor.Height * scale) - 3));
-
-            _cellsByIndex[monitor.Index] = cell;
-            MonitorCells.Add(cell);
+            var at = MapShapes.IndexOf(wanted[i]);
+            if (at < 0) MapShapes.Insert(i, wanted[i]);
+            else if (at != i) MapShapes.Move(at, i);
         }
     }
 
@@ -1094,21 +840,19 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(_name))
         {
-            error = "Give this multi-config a name.";
+            error = Strings.Multi_Error_NoName;
         }
         else if (Items.Count == 0)
         {
-            error = "Add at least one connection.";
+            error = Strings.Multi_Error_NoItems;
         }
         else if (missing > 0)
         {
-            error = missing == 1
-                ? "One item points at a connection that no longer exists. Remove it or pick another connection."
-                : $"{missing} items point at connections that no longer exist.";
+            error = UiLanguage.Plural(missing, Strings.Multi_Error_Missing_One, Strings.Multi_Error_Missing_Many);
         }
         else if (enabled == 0)
         {
-            error = "At least one item has to be enabled.";
+            error = Strings.Multi_Error_NoneEnabled;
         }
 
         string? warning = null;
@@ -1125,24 +869,26 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
                 if (monitor is null) continue;
 
                 if (owners.TryGetValue(monitor.Value, out var first))
-                    clashes.Add($"monitor {monitor.Value + 1} ({first} and {item.DisplayName})");
+                    clashes.Add(UiLanguage.Format(
+                        Strings.Multi_Warning_SameScreen_Clash, monitor.Value + 1, first, item.DisplayName));
                 else
                     owners[monitor.Value] = item.DisplayName;
             }
 
             if (clashes.Count > 0)
             {
-                warning = "Two sessions will take over the same screen - "
-                          + string.Join("; ", clashes)
-                          + ". That is usually a mistake, but it is allowed.";
+                warning = UiLanguage.Format(Strings.Multi_Warning_SameScreen, string.Join("; ", clashes));
             }
         }
 
         ErrorText = error;
         WarningText = warning;
         InfoText = error is null
-            ? $"{enabled} of {Items.Count} {(Items.Count == 1 ? "item" : "items")} will start"
-              + (Result.Sequential ? ", one after another." : ", all at once.")
+            ? UiLanguage.Format(
+                Items.Count == 1
+                    ? (Result.Sequential ? Strings.Multi_Info_Sequential_One : Strings.Multi_Info_Together_One)
+                    : (Result.Sequential ? Strings.Multi_Info_Sequential_Many : Strings.Multi_Info_Together_Many),
+                enabled, Items.Count)
             : null;
 
         RaiseCommandStates();
@@ -1156,7 +902,6 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         DuplicateCommand.RaiseCanExecuteChanged();
         MoveUpCommand.RaiseCanExecuteChanged();
         MoveDownCommand.RaiseCanExecuteChanged();
-        AssignMonitorCommand.RaiseCanExecuteChanged();
         ClearOverridesCommand.RaiseCanExecuteChanged();
     }
 
@@ -1189,7 +934,7 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error($"Saving the multi-config '{Result.Name}' failed.", ex);
-            ErrorText = "The multi-config could not be saved: " + ex.Message;
+            ErrorText = UiLanguage.Format(Strings.Multi_Error_Save, ex.Message);
             return false;
         }
         finally

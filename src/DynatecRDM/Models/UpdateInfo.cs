@@ -1,3 +1,6 @@
+using DynatecRDM.Resources;
+using DynatecRDM.Services;
+
 namespace DynatecRDM.Models;
 
 /// <summary>A single downloadable file attached to a release.</summary>
@@ -27,7 +30,8 @@ public sealed record UpdateInfo(
     public bool HasInstaller => InstallerAsset is not null;
 
     /// <summary>"1.4.2" or "1.4.2 (pre-release)" - ready for a window title or a notification.</summary>
-    public string DisplayVersion => IsPrerelease ? $"{Version} (pre-release)" : Version;
+    public string DisplayVersion =>
+        IsPrerelease ? UiLanguage.Format(Strings.Update_DisplayVersion_Prerelease, Version) : Version;
 
     private static UpdateAsset? PickInstaller(IReadOnlyList<UpdateAsset>? assets)
     {
@@ -87,10 +91,10 @@ public sealed record UpdateCheckResult(UpdateCheckStatus Status, UpdateInfo? Upd
         new(UpdateCheckStatus.UpdateAvailable, update, message);
 
     public static UpdateCheckResult Disabled(string? message = null) =>
-        new(UpdateCheckStatus.Disabled, null, message ?? "Update checking is turned off.");
+        new(UpdateCheckStatus.Disabled, null, message ?? Strings.Update_Status_Disabled);
 
     public static UpdateCheckResult NotConfigured(string? message = null) =>
-        new(UpdateCheckStatus.NotConfigured, null, message ?? "No update repository is configured.");
+        new(UpdateCheckStatus.NotConfigured, null, message ?? Strings.Update_Status_NoRepository);
 
     public static UpdateCheckResult Failed(string message) =>
         new(UpdateCheckStatus.Failed, null, message);

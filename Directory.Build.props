@@ -6,7 +6,8 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS8600;CS8602;CS8604</WarningsNotAsErrors>
     <Company>DYNATEC</Company>
-    <Product>DYNATEC Remote Desktop Manager</Product>
+    <Product>Remote Desktop Manager</Product>
+    <AssemblyTitle>Remote Desktop Manager</AssemblyTitle>
     <Copyright>Copyright © DYNATEC</Copyright>
     <Version>1.0.0</Version>
     <NeutralLanguage>en</NeutralLanguage>

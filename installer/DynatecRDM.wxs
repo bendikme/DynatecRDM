@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!--
-  DYNATEC Remote Desktop Manager - Windows Installer authoring (WiX v5 or later, v4 schema).
+  Remote Desktop Manager (published by DYNATEC) - Windows Installer authoring (WiX v5 or later, v4 schema).
 
   This is a PER-USER package. It installs into %LOCALAPPDATA%\Programs\DynatecRDM and writes
   only to HKCU, so installing, upgrading and uninstalling never require administrator rights.
@@ -41,7 +41,7 @@
     NEVER CHANGE THIS GUID. If it changes, new builds install alongside the old ones instead
     of upgrading them, and users end up with two copies of the app.
   -->
-  <Package Name="DYNATEC Remote Desktop Manager"
+  <Package Name="Remote Desktop Manager"
            Manufacturer="DYNATEC"
            Version="$(var.Version)"
            UpgradeCode="66411EDE-318D-41D8-998D-D1EC67F67086"
@@ -53,7 +53,7 @@
     <!-- An update is a major upgrade: the previous build is removed, then this one installs.
          AllowSameVersionUpgrades lets a rebuilt 1.2.3 replace an installed 1.2.3. -->
     <MajorUpgrade AllowSameVersionUpgrades="yes"
-                  DowngradeErrorMessage="A newer version of DYNATEC Remote Desktop Manager is already installed." />
+                  DowngradeErrorMessage="A newer version of Remote Desktop Manager is already installed." />
 
     <MediaTemplate EmbedCab="yes" />
 
@@ -73,10 +73,11 @@
       <Directory Id="AppProgramMenuFolder" Name="DYNATEC" />
     </StandardDirectory>
 
-    <Feature Id="Main" Title="DYNATEC Remote Desktop Manager" Level="1" AllowAbsent="no" AllowAdvertise="no">
+    <Feature Id="Main" Title="Remote Desktop Manager" Level="1" AllowAbsent="no" AllowAdvertise="no">
       <ComponentGroupRef Id="ApplicationFiles" />
       <ComponentRef Id="StartMenuShortcut" />
       <ComponentRef Id="LaunchAtLogon" />
+      <ComponentRef Id="TrustScript" />
     </Feature>
 
     <!-- Start menu entry. A per-user shortcut needs an HKCU key path, and the folder it lives
@@ -86,7 +87,7 @@
          writes it straight back from the component below, so the setting survives. -->
     <Component Id="StartMenuShortcut" Directory="AppProgramMenuFolder" Guid="7810BEC3-E73B-4187-843F-7BE976EC7134">
       <Shortcut Id="AppShortcut"
-                Name="DYNATEC Remote Desktop Manager"
+                Name="Remote Desktop Manager"
                 Description="Fast RDP session manager"
                 Target="[INSTALLFOLDER]DynatecRDM.exe"
                 WorkingDirectory="INSTALLFOLDER"
@@ -129,6 +130,13 @@
                      KeyPath="yes" />
     </Component>
 
+    <!-- The publisher-trust script, shipped beside the app so a fresh install can run it. Removing
+         the machine trust on uninstall would need another elevation prompt, so it is left in place;
+         setup-trust.ps1 -Remove undoes it by hand. This component writes only to the install folder. -->
+    <Component Id="TrustScript" Directory="INSTALLFOLDER" Guid="6B672482-B42C-4747-9FA3-A35BC50FED7B">
+      <File Id="SetupTrustScript" Source="$(sys.SOURCEFILEDIR)setup-trust.ps1" KeyPath="yes" />
+    </Component>
+
     <!-- Apps and Features presentation. ARPNOREPAIR and ARPNOMODIFY count as set whenever they
          carry any value at all, "0" included, so only the one that has to be on is declared:
          there is a single feature and nothing to modify, but repair must stay available. -->
@@ -149,8 +157,20 @@
                   ExeCommand="&quot;[INSTALLFOLDER]DynatecRDM.exe&quot;"
                   Return="asyncNoWait" />
 
+    <!-- Set up publisher trust so Remote Desktop stops warning about the signed connection files.
+         It runs powershell, which re-launches itself through UAC (setup-trust.ps1 self-elevates);
+         Return="ignore" so declining that prompt, or having no rights, never fails the install. It
+         only runs for an interactive install (UILevel > 3), so the silent in-app updater never
+         raises a UAC prompt, and the script itself does nothing when trust is already set up. -->
+    <CustomAction Id="SetupPublisherTrust"
+                  Directory="INSTALLFOLDER"
+                  ExeCommand="powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File &quot;[INSTALLFOLDER]setup-trust.ps1&quot;"
+                  Return="ignore" />
+
     <InstallExecuteSequence>
-      <Custom Action="LaunchApplication" After="InstallFinalize"
+      <Custom Action="SetupPublisherTrust" After="InstallFinalize"
+              Condition="NOT Installed AND UILevel &gt; 3" />
+      <Custom Action="LaunchApplication" After="SetupPublisherTrust"
               Condition="NOT Installed AND UILevel &gt; 3 AND LAUNCHAPP = &quot;1&quot;" />
     </InstallExecuteSequence>
 

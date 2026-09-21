@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Text;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 using DynatecRDM.Views;
 
@@ -106,7 +107,7 @@ public sealed class CredentialsViewModel : ObservableObject
 
     public bool HasSelection => _selected is not null;
 
-    public string SelectedSummary => _selected is null ? "Nothing selected" : _selected.Name;
+    public string SelectedSummary => _selected is null ? Strings.Creds_NothingSelected : _selected.Name;
 
     // ------------------------------------------------------------------ editor
 
@@ -225,9 +226,8 @@ public sealed class CredentialsViewModel : ObservableObject
 
     public string VaultSummary => VaultEntries.Count switch
     {
-        0 => "No cached remote-desktop logins found.",
-        1 => "1 cached host.",
-        _ => $"{VaultEntries.Count} cached hosts.",
+        0 => Strings.Vault_Summary_None,
+        _ => UiLanguage.Plural(VaultEntries.Count, Strings.Vault_Summary_One, Strings.Vault_Summary_Many),
     };
 
     /// <summary>True when the vault write goes through cmdkey.exe instead of the credential API.</summary>
@@ -246,8 +246,8 @@ public sealed class CredentialsViewModel : ObservableObject
         _useCmdKey ? VaultWriteMethod.CmdKey : VaultWriteMethod.NativeCredentialApi;
 
     public string WriteMethodExplanation => _useCmdKey
-        ? "cmdkey.exe is the documented manual route, but the password is visible on its command line while it runs."
-        : "The Windows credential API writes in-process, so the password never reaches a command line.";
+        ? Strings.Vault_WriteMethod_CmdKey_Hint
+        : Strings.Vault_WriteMethod_Api_Hint;
 
     // -------------------------------------------------------- command previews
 
@@ -256,16 +256,16 @@ public sealed class CredentialsViewModel : ObservableObject
     public string DeleteCommandText => $"cmdkey /delete:TERMSRV/{HostToken}";
 
     public string GenericCommandText =>
-        $"cmdkey /generic:TERMSRV/{HostToken} /user:{UserToken} /pass:<password>";
+        $"cmdkey /generic:TERMSRV/{HostToken} /user:{UserToken} /pass:{Strings.Vault_Command_PasswordPlaceholder}";
 
-    private string HostToken => string.IsNullOrWhiteSpace(_vaultHost) ? "<host>" : _vaultHost.Trim();
+    private string HostToken => string.IsNullOrWhiteSpace(_vaultHost) ? Strings.Vault_Command_HostPlaceholder : _vaultHost.Trim();
 
     private string UserToken
     {
         get
         {
             var set = _selected;
-            return set is null || string.IsNullOrWhiteSpace(set.Username) ? "<username>" : set.GetLogonName(_vaultHost);
+            return set is null || string.IsNullOrWhiteSpace(set.Username) ? Strings.Vault_Command_UserPlaceholder : set.GetLogonName(_vaultHost);
         }
     }
 
@@ -293,16 +293,16 @@ public sealed class CredentialsViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var set = new CredentialSet { Name = UniqueName("New credential") };
+            var set = new CredentialSet { Name = UniqueName(Strings.Creds_NewSetName) };
             await _services.Store.UpsertCredentialSetAsync(set).ConfigureAwait(true);
             await ReloadSetsAsync(set.Id).ConfigureAwait(true);
-            SetStatus("New credential set created. Fill in the details and save.", false);
+            SetStatus(Strings.Creds_Status_Created, false);
             EditRequested?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
         {
             AppLog.Error("Creating a credential set failed.", ex);
-            SetStatus("The credential set could not be created. See the log for details.", true);
+            SetStatus(Strings.Creds_Error_Create, true);
         }
         finally
         {
@@ -320,19 +320,19 @@ public sealed class CredentialsViewModel : ObservableObject
         {
             var copy = source.Clone();
             copy.Id = Guid.NewGuid();
-            copy.Name = UniqueName(source.Name + " copy");
+            copy.Name = UniqueName(UiLanguage.Format(Strings.Creds_CopyName, source.Name));
             copy.IsDefault = false;
             copy.CreatedUtc = DateTime.UtcNow;
             copy.ModifiedUtc = DateTime.UtcNow;
 
             await _services.Store.UpsertCredentialSetAsync(copy).ConfigureAwait(true);
             await ReloadSetsAsync(copy.Id).ConfigureAwait(true);
-            SetStatus($"Duplicated as '{copy.Name}'.", false);
+            SetStatus(UiLanguage.Format(Strings.Creds_Status_Duplicated, copy.Name), false);
         }
         catch (Exception ex)
         {
             AppLog.Error("Duplicating the credential set failed.", ex);
-            SetStatus("The credential set could not be duplicated. See the log for details.", true);
+            SetStatus(Strings.Creds_Error_Duplicate, true);
         }
         finally
         {
@@ -346,9 +346,9 @@ public sealed class CredentialsViewModel : ObservableObject
         if (set is null) return;
 
         var confirmed = Confirm(
-            "Delete credential set",
-            $"Delete '{set.Name}'? Connections that use it will fall back to prompting for a password.",
-            "Delete");
+            Strings.Creds_ConfirmDelete_Title,
+            UiLanguage.Format(Strings.Creds_ConfirmDelete_Message, set.Name),
+            Strings.Common_Delete);
         if (!confirmed) return;
 
         IsBusy = true;
@@ -356,12 +356,12 @@ public sealed class CredentialsViewModel : ObservableObject
         {
             await _services.Store.DeleteCredentialSetAsync(set.Id).ConfigureAwait(true);
             await ReloadSetsAsync(null).ConfigureAwait(true);
-            SetStatus($"Deleted '{set.Name}'.", false);
+            SetStatus(UiLanguage.Format(Strings.Creds_Status_Deleted, set.Name), false);
         }
         catch (Exception ex)
         {
             AppLog.Error("Deleting the credential set failed.", ex);
-            SetStatus("The credential set could not be deleted. See the log for details.", true);
+            SetStatus(Strings.Creds_Error_Delete, true);
         }
         finally
         {
@@ -380,7 +380,7 @@ public sealed class CredentialsViewModel : ObservableObject
         var name = EditName.Trim();
         if (name.Length == 0)
         {
-            SetStatus("Give the credential set a name.", true);
+            SetStatus(Strings.Creds_Error_NameRequired, true);
             return;
         }
 
@@ -412,12 +412,12 @@ public sealed class CredentialsViewModel : ObservableObject
             _passwordEdited = false;
 
             await ReloadSetsAsync(set.Id).ConfigureAwait(true);
-            SetStatus($"Saved '{set.Name}'.", false);
+            SetStatus(UiLanguage.Format(Strings.Creds_Status_Saved, set.Name), false);
         }
         catch (Exception ex)
         {
             AppLog.Error("Saving the credential set failed.", ex);
-            SetStatus("The credential set could not be saved. See the log for details.", true);
+            SetStatus(Strings.Creds_Error_Save, true);
         }
         finally
         {
@@ -440,7 +440,7 @@ public sealed class CredentialsViewModel : ObservableObject
     private void Revert()
     {
         LoadEditor(Selected);
-        SetStatus("Changes discarded.", false);
+        SetStatus(Strings.Creds_Status_Reverted, false);
     }
 
     private void BeginPasswordChange()
@@ -498,7 +498,7 @@ public sealed class CredentialsViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error("Reading the Windows credential vault failed.", ex);
-            SetStatus("The Windows credential vault could not be read. See the log for details.", true);
+            SetStatus(Strings.Vault_Error_Read, true);
         }
     }
 
@@ -507,9 +507,9 @@ public sealed class CredentialsViewModel : ObservableObject
         if (parameter is not StoredCredentialInfo entry) return;
 
         var confirmed = Confirm(
-            "Delete cached login",
-            $"Remove the cached Windows login for {entry.TargetName}? The next connection to {entry.Host} will ask for a password.",
-            "Delete");
+            Strings.Vault_ConfirmRemove_Title,
+            UiLanguage.Format(Strings.Vault_ConfirmRemove_Message, entry.TargetName, entry.Host),
+            Strings.Common_Delete);
         if (!confirmed) return;
 
         IsBusy = true;
@@ -522,7 +522,9 @@ public sealed class CredentialsViewModel : ObservableObject
             var removed = await Task.Run(() => vault.DeleteCredential(host, method)).ConfigureAwait(true);
 
             SetStatus(
-                removed ? $"Removed {entry.TargetName}." : $"Nothing was stored for {entry.TargetName}.",
+                removed
+                    ? UiLanguage.Format(Strings.Vault_Status_Removed, entry.TargetName)
+                    : UiLanguage.Format(Strings.Vault_Status_NothingStored, entry.TargetName),
                 !removed);
 
             await ReloadVaultAsync().ConfigureAwait(true);
@@ -530,7 +532,7 @@ public sealed class CredentialsViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error($"Deleting the vault entry for {entry.TargetName} failed.", ex);
-            SetStatus("The cached login could not be removed. See the log for details.", true);
+            SetStatus(Strings.Vault_Error_Remove, true);
         }
         finally
         {
@@ -543,13 +545,13 @@ public sealed class CredentialsViewModel : ObservableObject
         var set = Selected;
         if (set is null)
         {
-            SetStatus("Select a credential set first.", true);
+            SetStatus(Strings.Vault_Error_NoSelection, true);
             return;
         }
 
         if (IsDirty)
         {
-            SetStatus("Save the credential set before applying it to a host.", true);
+            SetStatus(Strings.Vault_Error_SaveFirst, true);
             return;
         }
 
@@ -557,8 +559,8 @@ public sealed class CredentialsViewModel : ObservableObject
         if (host.Length == 0)
         {
             var typed = Prompt(
-                "Apply to host",
-                "Which host should this login be cached for? Enter the name exactly as the connection uses it.");
+                Strings.Vault_ApplyPrompt_Title,
+                Strings.Vault_ApplyPrompt_Message);
             host = typed?.Trim() ?? string.Empty;
             if (host.Length == 0) return;
             VaultHost = host;
@@ -566,13 +568,13 @@ public sealed class CredentialsViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(set.Username))
         {
-            SetStatus("The selected set has no user name.", true);
+            SetStatus(Strings.Vault_Error_NoUsername, true);
             return;
         }
 
         if (!set.HasPassword)
         {
-            SetStatus("The selected set has no stored password. Add one and save first.", true);
+            SetStatus(Strings.Vault_Error_NoPassword, true);
             return;
         }
 
@@ -593,8 +595,8 @@ public sealed class CredentialsViewModel : ObservableObject
 
             SetStatus(
                 written
-                    ? $"Stored TERMSRV/{host} for {user}."
-                    : $"Writing TERMSRV/{host} failed. See the log for details.",
+                    ? UiLanguage.Format(Strings.Vault_Status_Stored, host, user)
+                    : UiLanguage.Format(Strings.Vault_Error_WriteFailed, host),
                 !written);
 
             await ReloadVaultAsync().ConfigureAwait(true);
@@ -602,7 +604,7 @@ public sealed class CredentialsViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error($"Applying the credential to {host} failed.", ex);
-            SetStatus("The cached login could not be written. See the log for details.", true);
+            SetStatus(Strings.Vault_Error_Write, true);
         }
         finally
         {
@@ -621,8 +623,8 @@ public sealed class CredentialsViewModel : ObservableObject
         var copied = TryCopy(text);
         SetStatus(
             copied
-                ? "Commands copied. The password stays a placeholder - no secret was copied."
-                : "The clipboard is not available right now.",
+                ? Strings.Vault_Status_Copied
+                : Strings.Vault_Error_Clipboard,
             !copied);
     }
 
@@ -662,7 +664,7 @@ public sealed class CredentialsViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error("Reading the credential sets failed.", ex);
-            SetStatus("The credential sets could not be read. See the log for details.", true);
+            SetStatus(Strings.Creds_Error_Read, true);
         }
     }
 
@@ -707,7 +709,7 @@ public sealed class CredentialsViewModel : ObservableObject
 
     private string UniqueName(string preferred)
     {
-        var baseName = string.IsNullOrWhiteSpace(preferred) ? "New credential" : preferred.Trim();
+        var baseName = string.IsNullOrWhiteSpace(preferred) ? Strings.Creds_NewSetName : preferred.Trim();
         if (!Items.Any(i => string.Equals(i.Name, baseName, StringComparison.CurrentCultureIgnoreCase)))
             return baseName;
 

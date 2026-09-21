@@ -3,8 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:DynatecRDM.Converters"
         xmlns:views="clr-namespace:DynatecRDM.Views"
+        xmlns:res="clr-namespace:DynatecRDM.Resources"
         Style="{StaticResource AppWindowStyle}"
-        Title="Software update"
+        Title="{x:Static res:Strings.Update_Title}"
         Width="560"
         Height="480"
         MinWidth="520"
@@ -28,21 +29,21 @@
         <Style x:Key="UpdHeadingStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeMedium}" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
         </Style>
 
         <Style x:Key="UpdBodyStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeNormal}" />
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="LineHeight" Value="19" />
         </Style>
 
         <Style x:Key="UpdHintStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
-            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
 
@@ -51,10 +52,10 @@
             <Setter Property="Height" Value="6" />
             <Setter Property="Minimum" Value="0" />
             <Setter Property="Maximum" Value="100" />
-            <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushSoft}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushSoft}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
         </Style>
 
@@ -87,10 +88,10 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Software update"
+                <TextBlock Text="{x:Static res:Strings.Update_Title}"
                            FontSize="{StaticResource FontSizeLarge}"
                            FontWeight="SemiBold"
-                           Foreground="{StaticResource TextPrimaryBrush}" />
+                           Foreground="{DynamicResource TextPrimaryBrush}" />
                 <TextBlock Margin="0,4,0,0"
                            Style="{StaticResource UpdBodyStyle}"
                            Text="{Binding CurrentVersionText}" />
@@ -101,9 +102,9 @@
                     VerticalAlignment="Top"
                     Margin="12,2,0,0"
                     Visibility="{Binding IsPrerelease, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                <TextBlock Text="Pre-release"
+                <TextBlock Text="{x:Static res:Strings.Update_Prerelease_Pill}"
                            FontSize="{StaticResource FontSizeSmall}"
-                           Foreground="{StaticResource WarningBrush}" />
+                           Foreground="{DynamicResource WarningBrush}" />
             </Border>
         </Grid>
 
@@ -116,7 +117,7 @@
                         Visibility="{Binding IsChecking, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
                 <TextBlock Style="{StaticResource UpdHeadingStyle}"
                            HorizontalAlignment="Center"
-                           Text="Checking for updates..." />
+                           Text="{x:Static res:Strings.Update_Checking}" />
                 <TextBlock Margin="0,6,0,0"
                            Style="{StaticResource UpdBodyStyle}"
                            HorizontalAlignment="Center"
@@ -133,7 +134,7 @@
                         Visibility="{Binding IsUpToDate, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
                 <Path Style="{StaticResource UpdStateIconStyle}"
                       Data="{StaticResource UpdIconCheck}"
-                      Stroke="{StaticResource SuccessBrush}" />
+                      Stroke="{DynamicResource SuccessBrush}" />
                 <TextBlock Margin="0,14,0,0"
                            Style="{StaticResource UpdHeadingStyle}"
                            TextAlignment="Center"
@@ -159,11 +160,11 @@
                         Visibility="{Binding NotConfigured, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
                 <Path Style="{StaticResource UpdStateIconStyle}"
                       Data="{StaticResource UpdIconInfo}"
-                      Stroke="{StaticResource AccentBrush}" />
+                      Stroke="{DynamicResource AccentBrush}" />
                 <TextBlock Margin="0,14,0,0"
                            Style="{StaticResource UpdHeadingStyle}"
                            TextAlignment="Center"
-                           Text="Updates are not set up" />
+                           Text="{x:Static res:Strings.Update_NotConfigured_Header}" />
                 <TextBlock Margin="0,8,0,0"
                            Style="{StaticResource UpdBodyStyle}"
                            TextAlignment="Center"
@@ -191,13 +192,13 @@
                 <Border Grid.Row="2"
                         Margin="0,12,0,0"
                         Style="{StaticResource CardBorderStyle}"
-                        Background="{StaticResource SurfaceAltBrush}"
+                        Background="{DynamicResource SurfaceAltBrush}"
                         Padding="2">
                     <ScrollViewer Style="{StaticResource AppScrollViewerStyle}" Padding="10,8,12,8">
                         <TextBlock Text="{Binding ReleaseNotes}"
                                    FontFamily="Consolas, Courier New"
                                    FontSize="{StaticResource FontSizeSmall}"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    LineHeight="17"
                                    TextWrapping="Wrap" />
                     </ScrollViewer>
@@ -206,7 +207,7 @@
                 <StackPanel Grid.Row="3"
                             Margin="0,12,0,0"
                             Visibility="{Binding Update.Assets, Converter={x:Static conv:CountToVisibilityConverter.Instance}}">
-                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="DOWNLOAD" />
+                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Update_Download_Header}" />
                     <ItemsControl ItemsSource="{Binding Update.Assets}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -222,13 +223,13 @@
                                           VerticalAlignment="Center"
                                           Stretch="Uniform"
                                           Data="{StaticResource UpdIconPackage}"
-                                          Stroke="{StaticResource TextMutedBrush}"
+                                          Stroke="{DynamicResource TextMutedBrush}"
                                           StrokeThickness="1.5"
                                           StrokeLineJoin="Round" />
                                     <TextBlock Grid.Column="1"
                                                VerticalAlignment="Center"
                                                FontSize="{StaticResource FontSizeSmall}"
-                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
                                                TextTrimming="CharacterEllipsis"
                                                ToolTip="{Binding Name}"
                                                Text="{Binding Name}" />
@@ -236,7 +237,7 @@
                                                Margin="12,0,0,0"
                                                VerticalAlignment="Center"
                                                FontSize="{StaticResource FontSizeSmall}"
-                                               Foreground="{StaticResource TextMutedBrush}"
+                                               Foreground="{DynamicResource TextMutedBrush}"
                                                Text="{Binding Size, Converter={x:Static views:ByteSizeConverter.Instance}}" />
                                 </Grid>
                             </DataTemplate>
@@ -250,7 +251,7 @@
                         Visibility="{Binding IsDownloading, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
                 <Path Style="{StaticResource UpdStateIconStyle}"
                       Data="{StaticResource UpdIconDownload}"
-                      Stroke="{StaticResource AccentBrush}" />
+                      Stroke="{DynamicResource AccentBrush}" />
                 <TextBlock Margin="0,14,0,0"
                            Style="{StaticResource UpdHeadingStyle}"
                            TextAlignment="Center"
@@ -271,7 +272,7 @@
                         Visibility="{Binding IsReadyToInstall, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
                 <Path Style="{StaticResource UpdStateIconStyle}"
                       Data="{StaticResource UpdIconCheck}"
-                      Stroke="{StaticResource SuccessBrush}" />
+                      Stroke="{DynamicResource SuccessBrush}" />
                 <TextBlock Margin="0,14,0,0"
                            Style="{StaticResource UpdHeadingStyle}"
                            TextAlignment="Center"
@@ -279,11 +280,11 @@
                 <TextBlock Margin="0,8,0,0"
                            Style="{StaticResource UpdBodyStyle}"
                            TextAlignment="Center"
-                           Text="DYNATEC RDM closes while the installer runs, and starts again when it is done." />
+                           Text="{x:Static res:Strings.Update_Ready_Restart}" />
                 <TextBlock Margin="0,8,0,0"
                            Style="{StaticResource UpdHintStyle}"
                            TextAlignment="Center"
-                           Text="Your connections, credentials and settings live outside the installation folder and are left untouched." />
+                           Text="{x:Static res:Strings.Update_Ready_DataSafe}" />
             </StackPanel>
 
             <!-- Failed -->
@@ -292,11 +293,11 @@
                         Visibility="{Binding HasFailed, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
                 <Path Style="{StaticResource UpdStateIconStyle}"
                       Data="{StaticResource UpdIconAlert}"
-                      Stroke="{StaticResource DangerBrush}" />
+                      Stroke="{DynamicResource DangerBrush}" />
                 <TextBlock Margin="0,14,0,0"
                            Style="{StaticResource UpdHeadingStyle}"
                            TextAlignment="Center"
-                           Text="That did not work" />
+                           Text="{x:Static res:Strings.Update_Failed_Header}" />
                 <TextBlock Margin="0,8,0,0"
                            Style="{StaticResource UpdBodyStyle}"
                            TextAlignment="Center"
@@ -316,8 +317,8 @@
                 <Button Style="{StaticResource SubtleButtonStyle}"
                         Padding="0,6"
                         MinWidth="0"
-                        Foreground="{StaticResource AccentBrush}"
-                        Content="View on GitHub"
+                        Foreground="{DynamicResource AccentBrush}"
+                        Content="{x:Static res:Strings.Update_ViewOnGitHub}"
                         Command="{Binding OpenReleasePageCommand}"
                         Visibility="{Binding ShowReleaseLink, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
                 <TextBlock Margin="10,0,0,0"
@@ -333,18 +334,18 @@
 
                 <StackPanel Orientation="Horizontal"
                             Visibility="{Binding IsChecking, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                    <Button Content="Close"
+                    <Button Content="{x:Static res:Strings.Common_Close}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Command="{Binding CloseCommand}" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal"
                             Visibility="{Binding IsUpToDate, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                    <Button Content="Close"
+                    <Button Content="{x:Static res:Strings.Common_Close}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Command="{Binding CloseCommand}" />
                     <Button Margin="8,0,0,0"
-                            Content="Check again"
+                            Content="{x:Static res:Strings.Update_CheckAgain}"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Command="{Binding CheckCommand}"
                             IsDefault="True" />
@@ -352,27 +353,27 @@
 
                 <StackPanel Orientation="Horizontal"
                             Visibility="{Binding NotConfigured, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                    <Button Content="Close"
+                    <Button Content="{x:Static res:Strings.Common_Close}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Command="{Binding CloseCommand}" />
                     <Button Margin="8,0,0,0"
-                            Content="Open settings"
+                            Content="{x:Static res:Strings.Update_OpenSettings}"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Command="{Binding OpenSettingsCommand}" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal"
                             Visibility="{Binding HasUpdate, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                    <Button Content="Skip this version"
+                    <Button Content="{x:Static res:Strings.Update_Skip}"
                             Style="{StaticResource SubtleButtonStyle}"
                             Command="{Binding SkipCommand}"
-                            ToolTip="This version is never offered again" />
+                            ToolTip="{x:Static res:Strings.Update_Skip_Tooltip}" />
                     <Button Margin="8,0,0,0"
-                            Content="Later"
+                            Content="{x:Static res:Strings.Update_Later}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Command="{Binding CloseCommand}" />
                     <Button Margin="8,0,0,0"
-                            Content="Download and install"
+                            Content="{x:Static res:Strings.Update_DownloadAndInstall}"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Command="{Binding DownloadCommand}"
                             IsDefault="True" />
@@ -380,18 +381,18 @@
 
                 <StackPanel Orientation="Horizontal"
                             Visibility="{Binding IsDownloading, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                    <Button Content="Cancel"
+                    <Button Content="{x:Static res:Strings.Common_Cancel}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Command="{Binding CancelDownloadCommand}" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal"
                             Visibility="{Binding IsReadyToInstall, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                    <Button Content="Later"
+                    <Button Content="{x:Static res:Strings.Update_Later}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Command="{Binding CloseCommand}" />
                     <Button Margin="8,0,0,0"
-                            Content="Install now"
+                            Content="{x:Static res:Strings.Update_InstallNow}"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Command="{Binding InstallCommand}"
                             IsDefault="True" />
@@ -399,11 +400,11 @@
 
                 <StackPanel Orientation="Horizontal"
                             Visibility="{Binding HasFailed, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                    <Button Content="Close"
+                    <Button Content="{x:Static res:Strings.Common_Close}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Command="{Binding CloseCommand}" />
                     <Button Margin="8,0,0,0"
-                            Content="Try again"
+                            Content="{x:Static res:Strings.Update_TryAgain}"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Command="{Binding CheckCommand}"
                             IsDefault="True" />

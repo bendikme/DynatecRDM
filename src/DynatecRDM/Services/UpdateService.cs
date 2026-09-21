@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 
 namespace DynatecRDM.Services;
 
@@ -129,8 +130,8 @@ public sealed class UpdateService : IDisposable
             if (!acquired)
             {
                 return force
-                    ? UpdateCheckResult.Failed("Another update check is still running. Try again in a moment.")
-                    : UpdateCheckResult.UpToDate("An update check is already running.");
+                    ? UpdateCheckResult.Failed(Strings.Update_Status_CheckRunning)
+                    : UpdateCheckResult.UpToDate(Strings.Update_Status_AlreadyRunning);
             }
 
             // Settings may have been replaced while this call waited for its turn.
@@ -146,50 +147,50 @@ public sealed class UpdateService : IDisposable
             await SaveSettingsSafeAsync().ConfigureAwait(false);
 
             if (release is null)
-                return UpdateCheckResult.UpToDate($"No published release was found for {owner}/{repo}.");
+                return UpdateCheckResult.UpToDate(UiLanguage.Format(Strings.Update_Status_NoRelease, $"{owner}/{repo}"));
 
             var update = ToUpdateInfo(release, owner, repo);
             if (update is null)
-                return UpdateCheckResult.UpToDate($"The newest release of {owner}/{repo} has no usable version number.");
+                return UpdateCheckResult.UpToDate(UiLanguage.Format(Strings.Update_Status_NoVersionNumber, $"{owner}/{repo}"));
 
             if (CompareVersions(update.Version, CurrentVersion) <= 0)
-                return UpdateCheckResult.UpToDate($"{CurrentVersion} is the newest version.");
+                return UpdateCheckResult.UpToDate(UiLanguage.Format(Strings.Update_Status_Newest, CurrentVersion));
 
             var skipped = settings.SkippedUpdateVersion;
             if (!string.IsNullOrWhiteSpace(skipped) && CompareVersions(update.Version, skipped) == 0)
-                return UpdateCheckResult.UpToDate($"Version {update.Version} was skipped.");
+                return UpdateCheckResult.UpToDate(UiLanguage.Format(Strings.Update_Status_Skipped, update.Version));
 
             AppLog.Info($"Update available: {update.Version} (running {CurrentVersion}).");
             return UpdateCheckResult.Available(update);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            return UpdateCheckResult.Failed("The update check was cancelled.");
+            return UpdateCheckResult.Failed(Strings.Update_Status_Cancelled);
         }
         catch (OperationCanceledException)
         {
             AppLog.Warn($"The update check against {owner}/{repo} timed out.");
-            return UpdateCheckResult.Failed("GitHub did not answer in time.");
+            return UpdateCheckResult.Failed(Strings.Update_Status_Timeout);
         }
         catch (UpdateApiException ex)
         {
             AppLog.Warn($"Update check against {owner}/{repo} failed: {ex.Message}");
-            return UpdateCheckResult.Failed(ex.Message);
+            return UpdateCheckResult.Failed(ex.UserMessage);
         }
         catch (HttpRequestException ex)
         {
             AppLog.Warn($"Update check against {owner}/{repo} could not reach GitHub.", ex);
-            return UpdateCheckResult.Failed("Could not reach GitHub. Check the network connection.");
+            return UpdateCheckResult.Failed(Strings.Update_Status_Unreachable);
         }
         catch (JsonException ex)
         {
             AppLog.Warn($"Update check against {owner}/{repo} returned unreadable JSON.", ex);
-            return UpdateCheckResult.Failed("GitHub returned an unexpected response.");
+            return UpdateCheckResult.Failed(Strings.Update_Status_BadResponse);
         }
         catch (Exception ex)
         {
             AppLog.Error($"Update check against {owner}/{repo} failed.", ex);
-            return UpdateCheckResult.Failed("The update check failed. See the log for details.");
+            return UpdateCheckResult.Failed(Strings.Update_Status_Failed);
         }
         finally
         {
@@ -698,10 +699,11 @@ public sealed class UpdateService : IDisposable
                 await RepositoryExistsAsync(owner, repo, settings, linked.Token).ConfigureAwait(false))
             {
                 throw new UpdateApiException(
-                    $"{owner}/{repo} has no published releases yet, so there is nothing to update to.");
+                    $"{owner}/{repo} has no published releases yet, so there is nothing to update to.",
+                    UiLanguage.Format(Strings.Update_Status_NoReleasesYet, $"{owner}/{repo}"));
             }
 
-            throw new UpdateApiException(DescribeFailure(response, owner, repo));
+            throw DescribeFailure(response, owner, repo);
         }
 
         await using var stream = await response.Content.ReadAsStreamAsync(linked.Token).ConfigureAwait(false);
@@ -821,26 +823,39 @@ public sealed class UpdateService : IDisposable
         }
     }
 
-    private static string DescribeFailure(HttpResponseMessage response, string owner, string repo)
+    /// <summary>The failure in English for the log, and in the UI language for the dialog.</summary>
+    private static UpdateApiException DescribeFailure(HttpResponseMessage response, string owner, string repo)
     {
         switch (response.StatusCode)
         {
             case HttpStatusCode.TooManyRequests:
-                return "GitHub rate limit reached. The next check will run later.";
+                return new UpdateApiException(
+                    "GitHub rate limit reached. The next check will run later.",
+                    Strings.Update_Status_RateLimited);
 
             case HttpStatusCode.Forbidden:
                 return IsRateLimited(response)
-                    ? "GitHub rate limit reached. The next check will run later."
-                    : "GitHub refused the update check (403). Check the update access token.";
+                    ? new UpdateApiException(
+                        "GitHub rate limit reached. The next check will run later.",
+                        Strings.Update_Status_RateLimited)
+                    : new UpdateApiException(
+                        "GitHub refused the update check (403). Check the update access token.",
+                        Strings.Update_Status_Forbidden);
 
             case HttpStatusCode.Unauthorized:
-                return "GitHub rejected the update access token.";
+                return new UpdateApiException(
+                    "GitHub rejected the update access token.",
+                    Strings.Update_Status_Unauthorized);
 
             case HttpStatusCode.NotFound:
-                return $"No release was found for {owner}/{repo}. Check the repository name.";
+                return new UpdateApiException(
+                    $"No release was found for {owner}/{repo}. Check the repository name.",
+                    UiLanguage.Format(Strings.Update_Status_NotFound, $"{owner}/{repo}"));
 
             default:
-                return $"GitHub returned HTTP {(int)response.StatusCode}.";
+                return new UpdateApiException(
+                    $"GitHub returned HTTP {(int)response.StatusCode}.",
+                    UiLanguage.Format(Strings.Update_Status_HttpError, (int)response.StatusCode));
         }
     }
 
@@ -931,7 +946,7 @@ public sealed class UpdateService : IDisposable
 
         if (string.IsNullOrWhiteSpace(value))
         {
-            problem = "No update repository is configured.";
+            problem = Strings.Update_Status_NoRepository;
             return false;
         }
 
@@ -948,7 +963,7 @@ public sealed class UpdateService : IDisposable
         var parts = text.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 2 || !IsValidSegment(parts[0]) || !IsValidSegment(parts[1]))
         {
-            problem = "The update repository must be written as \"owner/repo\".";
+            problem = Strings.Update_Status_BadRepository;
             return false;
         }
 
@@ -1337,9 +1352,14 @@ public sealed class UpdateService : IDisposable
     /// <summary>A GitHub response that the user needs to hear about in plain words.</summary>
     private sealed class UpdateApiException : Exception
     {
-        public UpdateApiException(string message) : base(message)
+        /// <param name="message">English, for the log.</param>
+        /// <param name="userMessage">The same sentence in the UI language, for the dialog.</param>
+        public UpdateApiException(string message, string userMessage) : base(message)
         {
+            UserMessage = userMessage;
         }
+
+        public string UserMessage { get; }
     }
 }
 

@@ -2,8 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:DynatecRDM.Converters"
+        xmlns:res="clr-namespace:DynatecRDM.Resources"
         Style="{StaticResource AppWindowStyle}"
-        Title="Export and import"
+        Title="{x:Static res:Strings.Transfer_Title}"
         Width="720"
         Height="640"
         MinWidth="640"
@@ -29,20 +30,20 @@
 
         <Style x:Key="TrLabelStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeNormal}" />
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
 
         <Style x:Key="TrBodyStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeNormal}" />
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="LineHeight" Value="19" />
         </Style>
 
         <Style x:Key="TrHintStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
-            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="LineHeight" Value="17" />
         </Style>
@@ -53,13 +54,13 @@
 
         <Style x:Key="TrFieldLabelStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
             <Setter Property="Margin" Value="0,0,0,4" />
         </Style>
 
         <Style x:Key="TrErrorStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
-            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Margin" Value="0,6,0,0" />
         </Style>
@@ -67,34 +68,34 @@
         <Style x:Key="TrCountValueStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeLarge}" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         </Style>
 
         <Style x:Key="TrCountLabelStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
-            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
             <Setter Property="Margin" Value="0,2,0,0" />
         </Style>
 
         <!-- The stock progress bar template is used as-is; only its colours are themed. -->
         <Style x:Key="TrProgressStyle" TargetType="ProgressBar">
             <Setter Property="Height" Value="6" />
-            <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushSoft}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushSoft}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
         </Style>
 
         <Style x:Key="TrMessageStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
-            <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
             <Setter Property="TextWrapping" Value="NoWrap" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding MessageIsError}" Value="True">
-                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -105,7 +106,7 @@
              ============================================================ -->
 
         <Style x:Key="TrRadioStyle" TargetType="RadioButton">
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="FontSize" Value="{StaticResource FontSizeNormal}" />
             <Setter Property="Padding" Value="8,0,0,0" />
             <Setter Property="MinHeight" Value="24" />
@@ -125,15 +126,15 @@
                                     Height="16"
                                     CornerRadius="8"
                                     VerticalAlignment="Center"
-                                    Background="{StaticResource SurfaceAltBrush}"
-                                    BorderBrush="{StaticResource BorderBrushStrong}"
+                                    Background="{DynamicResource SurfaceAltBrush}"
+                                    BorderBrush="{DynamicResource BorderBrushStrong}"
                                     BorderThickness="1"
                                     SnapsToDevicePixels="True">
                                 <Ellipse x:Name="Dot"
                                          Width="7"
                                          Height="7"
                                          Visibility="Collapsed"
-                                         Fill="{StaticResource TextPrimaryBrush}" />
+                                         Fill="{DynamicResource OnAccentBrush}" />
                             </Border>
                             <ContentPresenter x:Name="Cp"
                                               Grid.Column="1"
@@ -145,21 +146,21 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Ring" Property="Background" Value="{StaticResource AccentBrush}" />
-                                <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="Ring" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                 <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource AccentHoverBrush}" />
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Ring" Property="Background" Value="{StaticResource SurfaceBrush}" />
-                                <Setter TargetName="Ring" Property="BorderBrush" Value="{StaticResource BorderBrushSoft}" />
-                                <Setter TargetName="Dot" Property="Fill" Value="{StaticResource TextMutedBrush}" />
-                                <Setter TargetName="Cp" Property="TextElement.Foreground" Value="{StaticResource TextMutedBrush}" />
+                                <Setter TargetName="Ring" Property="Background" Value="{DynamicResource SurfaceBrush}" />
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource BorderBrushSoft}" />
+                                <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource TextMutedBrush}" />
+                                <Setter TargetName="Cp" Property="TextElement.Foreground" Value="{DynamicResource TextMutedBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -179,13 +180,13 @@
         <!-- ================================================================ header -->
 
         <StackPanel Grid.Row="0" Margin="20,18,20,0">
-            <TextBlock Text="Export and import"
+            <TextBlock Text="{x:Static res:Strings.Transfer_Title}"
                        FontSize="{StaticResource FontSizeLarge}"
                        FontWeight="SemiBold"
-                       Foreground="{StaticResource TextPrimaryBrush}" />
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
             <TextBlock Margin="0,4,0,0"
                        Style="{StaticResource TrBodyStyle}"
-                       Text="Move configurations between machines, or keep a copy of the whole library." />
+                       Text="{x:Static res:Strings.Transfer_Subtitle}" />
         </StackPanel>
 
         <!-- ================================================================ tabs -->
@@ -197,7 +198,7 @@
 
             <!-- ============================================================ export -->
 
-            <TabItem Header="Export">
+            <TabItem Header="{x:Static res:Strings.Transfer_Tab_Export}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -210,17 +211,17 @@
                             <!-- what to export -->
                             <Border Style="{StaticResource TrCardStyle}">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="WHAT TO EXPORT" />
+                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Transfer_Export_Scope_Header}" />
                                     <RadioButton GroupName="ExportScope"
                                                  Style="{StaticResource TrRadioStyle}"
-                                                 Content="Everything in the library"
+                                                 Content="{x:Static res:Strings.Transfer_Export_Scope_Everything}"
                                                  IsChecked="{Binding ExportEverything}" />
                                     <TextBlock Style="{StaticResource TrRadioHintStyle}"
-                                               Text="Every group, connection and multi-config you have." />
+                                               Text="{x:Static res:Strings.Transfer_Export_Scope_Everything_Hint}" />
                                     <RadioButton Margin="0,10,0,0"
                                                  GroupName="ExportScope"
                                                  Style="{StaticResource TrRadioStyle}"
-                                                 Content="Only what I choose"
+                                                 Content="{x:Static res:Strings.Transfer_Export_Scope_Chosen}"
                                                  IsChecked="{Binding ExportChosenOnly}" />
                                 </StackPanel>
                             </Border>
@@ -245,26 +246,26 @@
                                             <TextBlock Margin="11,0,0,0"
                                                        VerticalAlignment="Center"
                                                        IsHitTestVisible="False"
-                                                       Foreground="{StaticResource TextMutedBrush}"
-                                                       Text="Search connections and multi-configs"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       Text="{x:Static res:Strings.Transfer_Export_Search_Placeholder}"
                                                        Visibility="{Binding Search, Converter={x:Static conv:StringToVisibilityConverter.Instance}, ConverterParameter=invert}" />
                                         </Grid>
 
                                         <Button Grid.Column="1"
                                                 Margin="8,0,0,0"
-                                                Content="Select all"
+                                                Content="{x:Static res:Strings.Transfer_Export_SelectAll}"
                                                 Style="{StaticResource SubtleButtonStyle}"
                                                 Command="{Binding SelectAllCommand}" />
                                         <Button Grid.Column="2"
                                                 Margin="2,0,0,0"
-                                                Content="Select none"
+                                                Content="{x:Static res:Strings.Transfer_Export_SelectNone}"
                                                 Style="{StaticResource SubtleButtonStyle}"
                                                 Command="{Binding SelectNoneCommand}" />
                                         <TextBlock Grid.Column="3"
                                                    Margin="10,0,2,0"
                                                    VerticalAlignment="Center"
                                                    FontSize="{StaticResource FontSizeSmall}"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                    Text="{Binding SelectionText}" />
                                     </Grid>
 
@@ -291,11 +292,11 @@
 
                                                         <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                                             <TextBlock Text="{Binding Name}"
-                                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                                                        TextTrimming="CharacterEllipsis" />
                                                             <TextBlock Text="{Binding Detail}"
                                                                        FontSize="{StaticResource FontSizeSmall}"
-                                                                       Foreground="{StaticResource TextMutedBrush}"
+                                                                       Foreground="{DynamicResource TextMutedBrush}"
                                                                        TextTrimming="CharacterEllipsis" />
                                                         </StackPanel>
 
@@ -304,7 +305,7 @@
                                                                 Style="{StaticResource StatusPillStyle}">
                                                             <TextBlock Text="{Binding Kind}"
                                                                        FontSize="{StaticResource FontSizeSmall}"
-                                                                       Foreground="{StaticResource TextMutedBrush}" />
+                                                                       Foreground="{DynamicResource TextMutedBrush}" />
                                                         </Border>
                                                     </Grid>
                                                 </DataTemplate>
@@ -319,7 +320,7 @@
                                                                            Text="{Binding Name}" />
                                                                 <TextBlock Margin="8,0,0,0"
                                                                            FontSize="{StaticResource FontSizeSmall}"
-                                                                           Foreground="{StaticResource TextMutedBrush}"
+                                                                           Foreground="{DynamicResource TextMutedBrush}"
                                                                            Text="{Binding ItemCount}" />
                                                             </StackPanel>
                                                         </DataTemplate>
@@ -331,7 +332,7 @@
                                         <TextBlock VerticalAlignment="Center"
                                                    HorizontalAlignment="Center"
                                                    Style="{StaticResource TrHintStyle}"
-                                                   Text="Reading the library..."
+                                                   Text="{x:Static res:Strings.Transfer_Export_Loading}"
                                                    Visibility="{Binding IsLoadingItems, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
                                     </Grid>
                                 </StackPanel>
@@ -340,16 +341,16 @@
                             <!-- options -->
                             <Border Margin="0,10,0,0" Style="{StaticResource TrCardStyle}">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="OPTIONS" />
+                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Transfer_Export_Options_Header}" />
 
                                     <CheckBox Style="{StaticResource AppCheckBoxStyle}"
-                                              Content="Include saved passwords"
+                                              Content="{x:Static res:Strings.Transfer_Export_IncludePasswords}"
                                               IsChecked="{Binding IncludeCredentials}" />
 
                                     <StackPanel Margin="0,10,0,0"
                                                 Visibility="{Binding IncludeCredentials, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
                                         <TextBlock Style="{StaticResource TrBodyStyle}"
-                                                   Text="Windows ties your stored passwords to this user account and this PC, so they are re-encrypted with a passphrase you choose here. Whoever imports the file has to type the same passphrase - it is not stored anywhere and cannot be recovered." />
+                                                   Text="{x:Static res:Strings.Transfer_Export_IncludePasswords_Hint}" />
 
                                         <Grid Margin="0,10,0,0">
                                             <Grid.ColumnDefinitions>
@@ -358,7 +359,7 @@
                                             </Grid.ColumnDefinitions>
 
                                             <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                                <TextBlock Style="{StaticResource TrFieldLabelStyle}" Text="Passphrase" />
+                                                <TextBlock Style="{StaticResource TrFieldLabelStyle}" Text="{x:Static res:Strings.Transfer_Passphrase_Label}" />
                                                 <PasswordBox x:Name="ExportPassphraseBox"
                                                              Style="{StaticResource AppPasswordBoxStyle}"
                                                              MaxLength="256"
@@ -366,7 +367,7 @@
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                                                <TextBlock Style="{StaticResource TrFieldLabelStyle}" Text="Repeat the passphrase" />
+                                                <TextBlock Style="{StaticResource TrFieldLabelStyle}" Text="{x:Static res:Strings.Transfer_Export_PassphraseRepeat_Label}" />
                                                 <PasswordBox x:Name="ExportPassphraseConfirmBox"
                                                              Style="{StaticResource AppPasswordBoxStyle}"
                                                              MaxLength="256"
@@ -381,18 +382,18 @@
 
                                     <CheckBox Margin="0,12,0,0"
                                               Style="{StaticResource AppCheckBoxStyle}"
-                                              Content="Include application settings"
+                                              Content="{x:Static res:Strings.Transfer_Export_IncludeSettings}"
                                               IsChecked="{Binding IncludeSettings}"
                                               IsEnabled="{Binding CanIncludeSettings}" />
                                     <TextBlock Style="{StaticResource TrRadioHintStyle}"
-                                               Text="Only travels with a full-library export. Settings are written into the file for reference; importing one never changes the settings on this PC." />
+                                               Text="{x:Static res:Strings.Transfer_Export_IncludeSettings_Hint}" />
                                 </StackPanel>
                             </Border>
 
                             <!-- result -->
                             <Border Margin="0,10,0,0"
                                     Style="{StaticResource TrCardStyle}"
-                                    Background="{StaticResource SurfaceAltBrush}"
+                                    Background="{DynamicResource SurfaceAltBrush}"
                                     Padding="12"
                                     Visibility="{Binding HasExportResult, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
                                 <StackPanel>
@@ -419,14 +420,14 @@
                                 HorizontalAlignment="Left"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Command="{Binding BackupCommand}"
-                                ToolTip="Copies the whole database file, exactly as it is on disk">
+                                ToolTip="{x:Static res:Strings.Transfer_Export_Backup_Tooltip}">
                             <StackPanel Orientation="Horizontal">
                                 <Path Data="{StaticResource TrIconDatabase}"
                                       Width="13" Height="13" Stretch="Uniform"
-                                      Stroke="{StaticResource TextPrimaryBrush}" StrokeThickness="1.4"
+                                      Stroke="{DynamicResource TextPrimaryBrush}" StrokeThickness="1.4"
                                       StrokeLineJoin="Round"
                                       VerticalAlignment="Center" />
-                                <TextBlock Text="Back up database..." Margin="6,0,0,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{x:Static res:Strings.Transfer_Export_Backup}" Margin="6,0,0,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
 
@@ -438,10 +439,10 @@
                             <StackPanel Orientation="Horizontal">
                                 <Path Data="{StaticResource TrIconUpload}"
                                       Width="13" Height="13" Stretch="Uniform"
-                                      Stroke="{StaticResource TextPrimaryBrush}" StrokeThickness="1.5"
+                                      Stroke="{DynamicResource TextPrimaryBrush}" StrokeThickness="1.5"
                                       StrokeLineJoin="Round"
                                       VerticalAlignment="Center" />
-                                <TextBlock Text="Export..." Margin="6,0,0,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{x:Static res:Strings.Transfer_Export_Button}" Margin="6,0,0,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -450,7 +451,7 @@
 
             <!-- ============================================================ import -->
 
-            <TabItem Header="Import">
+            <TabItem Header="{x:Static res:Strings.Transfer_Tab_Import}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -475,7 +476,7 @@
                                           VerticalAlignment="Center"
                                           Stretch="Uniform"
                                           Data="{StaticResource TrIconFile}"
-                                          Stroke="{StaticResource TextSecondaryBrush}"
+                                          Stroke="{DynamicResource TextSecondaryBrush}"
                                           StrokeThickness="1.4"
                                           StrokeLineJoin="Round" />
 
@@ -486,17 +487,17 @@
                                                    Text="{Binding ImportFileName}"
                                                    Visibility="{Binding HasFile, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
                                         <TextBlock Style="{StaticResource TrLabelStyle}"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   Text="No file chosen yet"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   Text="{x:Static res:Strings.Transfer_Import_NoFile}"
                                                    Visibility="{Binding HasFile, Converter={x:Static conv:BoolToVisibilityConverter.Instance}, ConverterParameter=invert}" />
                                         <TextBlock Margin="0,2,0,0"
                                                    Style="{StaticResource TrHintStyle}"
-                                                   Text="Nothing is written to your library until you press Import." />
+                                                   Text="{x:Static res:Strings.Transfer_Import_NothingWritten_Hint}" />
                                     </StackPanel>
 
                                     <Button Grid.Column="2"
                                             Margin="12,0,0,0"
-                                            Content="Choose file..."
+                                            Content="{x:Static res:Strings.Transfer_Import_ChooseFile}"
                                             Style="{StaticResource SecondaryButtonStyle}"
                                             Command="{Binding ChooseFileCommand}" />
                                 </Grid>
@@ -507,24 +508,24 @@
                                     Style="{StaticResource TrCardStyle}"
                                     Visibility="{Binding HasPreview, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="WHAT THIS FILE HOLDS" />
+                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Transfer_Preview_Header}" />
 
                                     <UniformGrid Columns="4" Margin="0,2,0,0">
                                         <StackPanel>
                                             <TextBlock Style="{StaticResource TrCountValueStyle}" Text="{Binding Preview.Groups}" />
-                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="Groups" />
+                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="{x:Static res:Strings.Transfer_Preview_Groups}" />
                                         </StackPanel>
                                         <StackPanel>
                                             <TextBlock Style="{StaticResource TrCountValueStyle}" Text="{Binding Preview.Connections}" />
-                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="Connections" />
+                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="{x:Static res:Strings.Transfer_Preview_Connections}" />
                                         </StackPanel>
                                         <StackPanel>
                                             <TextBlock Style="{StaticResource TrCountValueStyle}" Text="{Binding Preview.MultiConfigs}" />
-                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="Multi-configs" />
+                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="{x:Static res:Strings.Transfer_Preview_MultiConfigs}" />
                                         </StackPanel>
                                         <StackPanel>
                                             <TextBlock Style="{StaticResource TrCountValueStyle}" Text="{Binding Preview.Credentials}" />
-                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="Credentials" />
+                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="{x:Static res:Strings.Transfer_Preview_Credentials}" />
                                         </StackPanel>
                                     </UniformGrid>
 
@@ -533,8 +534,8 @@
                                                Text="{Binding PreviewOriginText}" />
 
                                     <Border Margin="0,12,0,0"
-                                            Background="{StaticResource SurfaceAltBrush}"
-                                            BorderBrush="{StaticResource WarningBrush}"
+                                            Background="{DynamicResource SurfaceAltBrush}"
+                                            BorderBrush="{DynamicResource WarningBrush}"
                                             BorderThickness="1"
                                             CornerRadius="{StaticResource RadiusMedium}"
                                             Padding="10,8"
@@ -550,7 +551,7 @@
                                                   VerticalAlignment="Center"
                                                   Stretch="Uniform"
                                                   Data="{StaticResource TrIconAlert}"
-                                                  Stroke="{StaticResource WarningBrush}"
+                                                  Stroke="{DynamicResource WarningBrush}"
                                                   StrokeThickness="1.6"
                                                   StrokeStartLineCap="Round"
                                                   StrokeEndLineCap="Round"
@@ -558,11 +559,9 @@
                                             <TextBlock Grid.Column="1"
                                                        VerticalAlignment="Center"
                                                        FontSize="{StaticResource FontSizeNormal}"
-                                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                                       TextWrapping="Wrap">
-                                                <Run Text="{Binding Preview.Conflicts, Mode=OneWay}" />
-                                                <Run Text="of these already exist in your library. What happens to them is up to you, below." />
-                                            </TextBlock>
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       TextWrapping="Wrap"
+                                                       Text="{Binding Preview.Conflicts, StringFormat={x:Static res:Strings.Transfer_Preview_Conflicts}}" />
                                         </Grid>
                                     </Border>
                                 </StackPanel>
@@ -573,67 +572,67 @@
                                     Style="{StaticResource TrCardStyle}"
                                     Visibility="{Binding NeedsPassphrase, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource TrFieldLabelStyle}" Text="Passphrase" />
+                                    <TextBlock Style="{StaticResource TrFieldLabelStyle}" Text="{x:Static res:Strings.Transfer_Passphrase_Label}" />
                                     <PasswordBox x:Name="ImportPassphraseBox"
                                                  Style="{StaticResource AppPasswordBoxStyle}"
                                                  MaxLength="256"
                                                  PasswordChanged="OnImportPassphraseChanged" />
                                     <TextBlock Margin="0,6,0,0"
                                                Style="{StaticResource TrHintStyle}"
-                                               Text="This file carries saved passwords. They were locked with a passphrase when the file was written, and only that passphrase can open them again." />
+                                               Text="{x:Static res:Strings.Transfer_Import_Passphrase_Hint}" />
                                 </StackPanel>
                             </Border>
 
                             <!-- mode -->
                             <Border Margin="0,10,0,0" Style="{StaticResource TrCardStyle}">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="WHEN SOMETHING ALREADY EXISTS" />
+                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Transfer_Import_Mode_Header}" />
 
                                     <RadioButton GroupName="ImportMode"
                                                  Style="{StaticResource TrRadioStyle}"
-                                                 Content="Keep what I have"
+                                                 Content="{x:Static res:Strings.Transfer_Import_Mode_Skip}"
                                                  IsChecked="{Binding Mode, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Skip}" />
                                     <TextBlock Style="{StaticResource TrRadioHintStyle}"
-                                               Text="Anything already in your library is left exactly as it is." />
+                                               Text="{x:Static res:Strings.Transfer_Import_Mode_Skip_Hint}" />
 
                                     <RadioButton Margin="0,10,0,0"
                                                  GroupName="ImportMode"
                                                  Style="{StaticResource TrRadioStyle}"
-                                                 Content="Replace with the version in the file"
+                                                 Content="{x:Static res:Strings.Transfer_Import_Mode_Replace}"
                                                  IsChecked="{Binding Mode, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=Replace}" />
                                     <TextBlock Style="{StaticResource TrRadioHintStyle}"
-                                               Text="Existing items are overwritten, so local changes to them are lost." />
+                                               Text="{x:Static res:Strings.Transfer_Import_Mode_Replace_Hint}" />
 
                                     <RadioButton Margin="0,10,0,0"
                                                  GroupName="ImportMode"
                                                  Style="{StaticResource TrRadioStyle}"
-                                                 Content="Import as copies"
+                                                 Content="{x:Static res:Strings.Transfer_Import_Mode_Copies}"
                                                  IsChecked="{Binding Mode, Converter={x:Static conv:EnumToBoolConverter.Instance}, ConverterParameter=DuplicateWithNewId}" />
                                     <TextBlock Style="{StaticResource TrRadioHintStyle}"
-                                               Text="Nothing is touched; everything in the file is added alongside what you have." />
+                                               Text="{x:Static res:Strings.Transfer_Import_Mode_Copies_Hint}" />
                                 </StackPanel>
                             </Border>
 
                             <!-- result -->
                             <Border Margin="0,10,0,0"
                                     Style="{StaticResource TrCardStyle}"
-                                    Background="{StaticResource SurfaceAltBrush}"
+                                    Background="{DynamicResource SurfaceAltBrush}"
                                     Visibility="{Binding HasResult, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="RESULT" />
+                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{x:Static res:Strings.Transfer_Result_Header}" />
 
                                     <UniformGrid Columns="3">
                                         <StackPanel>
                                             <TextBlock Style="{StaticResource TrCountValueStyle}" Text="{Binding AddedCount}" />
-                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="Added" />
+                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="{x:Static res:Strings.Transfer_Result_Added}" />
                                         </StackPanel>
                                         <StackPanel>
                                             <TextBlock Style="{StaticResource TrCountValueStyle}" Text="{Binding Result.Replaced}" />
-                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="Replaced" />
+                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="{x:Static res:Strings.Transfer_Result_Replaced}" />
                                         </StackPanel>
                                         <StackPanel>
                                             <TextBlock Style="{StaticResource TrCountValueStyle}" Text="{Binding Result.Skipped}" />
-                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="Skipped" />
+                                            <TextBlock Style="{StaticResource TrCountLabelStyle}" Text="{x:Static res:Strings.Transfer_Result_Skipped}" />
                                         </StackPanel>
                                     </UniformGrid>
 
@@ -658,10 +657,10 @@
                                                                 Margin="2,7,8,0"
                                                                 CornerRadius="2"
                                                                 VerticalAlignment="Top"
-                                                                Background="{StaticResource WarningBrush}" />
+                                                                Background="{DynamicResource WarningBrush}" />
                                                         <TextBlock Grid.Column="1"
                                                                    FontSize="{StaticResource FontSizeSmall}"
-                                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                                    LineHeight="17"
                                                                    TextWrapping="Wrap"
                                                                    Text="{Binding}" />
@@ -678,7 +677,7 @@
                     <!-- action -->
                     <Grid Grid.Row="1" Margin="0,12,0,0">
                         <Button HorizontalAlignment="Right"
-                                Content="Import"
+                                Content="{x:Static res:Strings.Transfer_Import_Button}"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Command="{Binding ImportCommand}" />
                     </Grid>
@@ -695,8 +694,8 @@
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
-                    Background="{StaticResource SurfaceBrush}"
-                    BorderBrush="{StaticResource BorderBrushSoft}"
+                    Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderBrushSoft}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource RadiusMedium}"
                     Padding="10,6"
@@ -709,7 +708,7 @@
 
             <Button Grid.Column="1"
                     Margin="12,0,0,0"
-                    Content="Close"
+                    Content="{x:Static res:Strings.Common_Close}"
                     Style="{StaticResource SecondaryButtonStyle}"
                     Command="{Binding CloseCommand}" />
         </Grid>
@@ -728,7 +727,7 @@
                 <StackPanel>
                     <TextBlock HorizontalAlignment="Center"
                                FontSize="{StaticResource FontSizeNormal}"
-                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                Text="{Binding BusyText}" />
                     <ProgressBar Style="{StaticResource TrProgressStyle}"
                                  Margin="0,14,0,0"

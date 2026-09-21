@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DynatecRDM.Data;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 using Microsoft.Data.Sqlite;
 
 namespace DynatecRDM.Services;
@@ -17,7 +18,7 @@ namespace DynatecRDM.Services;
 /// </summary>
 public sealed class ConfigTransfer
 {
-    /// <summary>"DYNATEC RDM" bundle. JSON inside.</summary>
+    /// <summary>Remote Desktop Manager bundle. JSON inside.</summary>
     public const string FileExtension = ".drdm";
 
     private const int CurrentFormatVersion = 1;
@@ -30,8 +31,9 @@ public sealed class ConfigTransfer
     private const int KeyBytes = 32;
     private const int Pbkdf2Iterations = 600_000;
 
-    private const string ImportedSuffix = " (imported)";
-    private const string UnnamedLabel = "(unnamed)";
+    // Names this service gives imported items. They are stored with the item, in the UI language.
+    private static string ImportedSuffix => Strings.Transfer_ImportedSuffix;
+    private static string UnnamedLabel => Strings.Transfer_Unnamed;
 
     private const int MaxPixels = 32768;
 
@@ -80,8 +82,7 @@ public sealed class ConfigTransfer
         wantedMultis.Remove(Guid.Empty);
 
         if (wantedConnections.Count == 0 && wantedMultis.Count == 0)
-            throw new ArgumentException(
-                "Select at least one connection or multi-configuration to export.", nameof(connectionIds));
+            throw new ArgumentException(Strings.Transfer_Error_NothingSelected, nameof(connectionIds));
 
         var library = await LoadLibraryAsync(ct).ConfigureAwait(false);
 
@@ -246,7 +247,7 @@ public sealed class ConfigTransfer
     {
         ArgumentNullException.ThrowIfNull(bundle);
         if (string.IsNullOrWhiteSpace(path))
-            throw new ArgumentException("An export file path is required.", nameof(path));
+            throw new ArgumentException(Strings.Transfer_Error_ExportPathRequired, nameof(path));
 
         if (bundle.FormatVersion <= 0) bundle.FormatVersion = CurrentFormatVersion;
         if (bundle.ExportedUtc == default) bundle.ExportedUtc = DateTime.UtcNow;
@@ -289,20 +290,19 @@ public sealed class ConfigTransfer
     public async Task<TransferBundle> ReadAsync(string path, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(path))
-            throw new ArgumentException("A file path is required.", nameof(path));
+            throw new ArgumentException(Strings.Transfer_Error_FilePathRequired, nameof(path));
 
         var full = ToFullPath(path, nameof(path));
         var info = new FileInfo(full);
 
         if (!info.Exists)
-            throw new FileNotFoundException($"The configuration file '{full}' does not exist.", full);
+            throw new FileNotFoundException(UiLanguage.Format(Strings.Transfer_Error_FileNotFound, full), full);
         if (info.Length == 0)
-            throw new InvalidDataException($"'{info.Name}' is empty, so there is nothing to import.");
+            throw new InvalidDataException(UiLanguage.Format(Strings.Transfer_Error_FileEmpty, info.Name));
         if (info.Length > MaxBundleBytes)
         {
             throw new InvalidDataException(
-                $"'{info.Name}' is {info.Length / (1024 * 1024)} MB. A configuration file is never anywhere " +
-                "near that large, so this does not look like a DYNATEC export.");
+                UiLanguage.Format(Strings.Transfer_Error_FileTooLarge, info.Name, info.Length / (1024 * 1024)));
         }
 
         TransferBundle? bundle;
@@ -325,23 +325,21 @@ public sealed class ConfigTransfer
         catch (JsonException ex)
         {
             throw new InvalidDataException(
-                $"'{info.Name}' is not a readable DYNATEC configuration file: {ex.Message}", ex);
+                UiLanguage.Format(Strings.Transfer_Error_NotReadable, info.Name, ex.Message), ex);
         }
         catch (NotSupportedException ex)
         {
             throw new InvalidDataException(
-                $"'{info.Name}' holds a value this build cannot read: {ex.Message}", ex);
+                UiLanguage.Format(Strings.Transfer_Error_UnsupportedValue, info.Name, ex.Message), ex);
         }
 
         if (bundle is null)
-            throw new InvalidDataException($"'{info.Name}' holds no configuration data.");
+            throw new InvalidDataException(UiLanguage.Format(Strings.Transfer_Error_NoData, info.Name));
 
         if (bundle.FormatVersion > CurrentFormatVersion)
         {
-            throw new InvalidDataException(
-                $"'{info.Name}' was written in configuration format version {bundle.FormatVersion}, and this " +
-                $"build understands version {CurrentFormatVersion}. Update DYNATEC Remote Desktop Manager and " +
-                "try again.");
+            throw new InvalidDataException(UiLanguage.Format(
+                Strings.Transfer_Error_NewerFormat, info.Name, bundle.FormatVersion, CurrentFormatVersion));
         }
 
         Normalize(bundle);
@@ -351,8 +349,7 @@ public sealed class ConfigTransfer
         if (bundle.Groups.Count == 0 && bundle.Connections.Count == 0 &&
             bundle.MultiConfigs.Count == 0 && bundle.Credentials.Count == 0 && bundle.Settings is null)
         {
-            throw new InvalidDataException(
-                $"'{info.Name}' holds no connections, folders, multi-configurations or credentials.");
+            throw new InvalidDataException(UiLanguage.Format(Strings.Transfer_Error_NothingInFile, info.Name));
         }
 
         return bundle;
@@ -403,7 +400,7 @@ public sealed class ConfigTransfer
     {
         ArgumentNullException.ThrowIfNull(bundle);
         if (!Enum.IsDefined(mode))
-            throw new ArgumentException($"'{mode}' is not a supported import mode.", nameof(mode));
+            throw new ArgumentException(UiLanguage.Format(Strings.Transfer_Error_UnsupportedMode, mode), nameof(mode));
 
         Normalize(bundle);
 
@@ -438,16 +435,12 @@ public sealed class ConfigTransfer
         catch (OperationCanceledException)
         {
             cancelled = true;
-            warnings.Add(
-                "The import was stopped before it finished. What is counted here was written; the rest of the " +
-                "file was not. Importing the same file again finishes the job.");
+            warnings.Add(Strings.Transfer_Warning_Stopped);
         }
 
         if (bundle.Settings is not null)
         {
-            warnings.Add(
-                "The file also carries application settings. Only folders, connections, multi-configurations " +
-                "and credentials are imported, so those settings were ignored.");
+            warnings.Add(Strings.Transfer_Warning_SettingsIgnored);
         }
 
         var result = new ImportResult(
@@ -480,7 +473,7 @@ public sealed class ConfigTransfer
         var groups = new List<ConnectionGroup>(bundle.Groups.Count);
         foreach (var source in bundle.Groups)
         {
-            if (!Accept(source, source?.Id ?? Guid.Empty, source?.Name, "folder", groupIds, plan, warnings)) continue;
+            if (!Accept(source, source?.Id ?? Guid.Empty, source?.Name, EntryKind.Group, groupIds, plan, warnings)) continue;
             groups.Add(source!.Clone());
         }
 
@@ -488,7 +481,7 @@ public sealed class ConfigTransfer
         var connections = new List<RdpConnection>(bundle.Connections.Count);
         foreach (var source in bundle.Connections)
         {
-            if (!Accept(source, source?.Id ?? Guid.Empty, source?.Name, "connection", connectionIds, plan, warnings))
+            if (!Accept(source, source?.Id ?? Guid.Empty, source?.Name, EntryKind.Connection, connectionIds, plan, warnings))
                 continue;
             connections.Add(source!.Clone());
         }
@@ -497,7 +490,7 @@ public sealed class ConfigTransfer
         var multis = new List<MultiConfig>(bundle.MultiConfigs.Count);
         foreach (var source in bundle.MultiConfigs)
         {
-            if (!Accept(source, source?.Id ?? Guid.Empty, source?.Name, "multi-configuration", multiIds, plan, warnings))
+            if (!Accept(source, source?.Id ?? Guid.Empty, source?.Name, EntryKind.MultiConfig, multiIds, plan, warnings))
                 continue;
             multis.Add(source!.Clone());
         }
@@ -506,7 +499,7 @@ public sealed class ConfigTransfer
         var credentials = new List<TransferCredential>(bundle.Credentials.Count);
         foreach (var source in bundle.Credentials)
         {
-            if (!Accept(source, source?.Id ?? Guid.Empty, source?.Name, "credential", credentialIds, plan, warnings))
+            if (!Accept(source, source?.Id ?? Guid.Empty, source?.Name, EntryKind.Credential, credentialIds, plan, warnings))
                 continue;
             credentials.Add(source!);
         }
@@ -526,9 +519,7 @@ public sealed class ConfigTransfer
             var parent = ResolveReference(group.ParentId, groupMap, groupIds, existing.Groups);
             if (group.ParentId.HasValue && parent is null)
             {
-                warnings.Add(
-                    $"The folder '{Describe(group.Name)}' referenced a parent folder that is not in the file; " +
-                    "it was imported at the top level.");
+                warnings.Add(UiLanguage.Format(Strings.Transfer_Warning_GroupParentMissing, Describe(group.Name)));
             }
 
             group.ParentId = parent;
@@ -544,9 +535,7 @@ public sealed class ConfigTransfer
             var group = ResolveReference(connection.GroupId, groupMap, groupIds, existing.Groups);
             if (connection.GroupId.HasValue && group is null)
             {
-                warnings.Add(
-                    $"'{Describe(connection.Name)}' referenced a folder that is not in the file; it was " +
-                    "imported at the top level.");
+                warnings.Add(UiLanguage.Format(Strings.Transfer_Warning_GroupMissing, Describe(connection.Name)));
             }
             connection.GroupId = group;
 
@@ -554,9 +543,7 @@ public sealed class ConfigTransfer
                 connection.CredentialSetId, credentialMap, credentialIds, existing.Credentials);
             if (connection.CredentialSetId.HasValue && credential is null)
             {
-                warnings.Add(
-                    $"'{Describe(connection.Name)}' referenced a credential that is not in the file; it will " +
-                    "ask for a login instead.");
+                warnings.Add(UiLanguage.Format(Strings.Transfer_Warning_CredentialMissing, Describe(connection.Name)));
             }
             connection.CredentialSetId = credential;
 
@@ -564,9 +551,8 @@ public sealed class ConfigTransfer
                 connection.Gateway.CredentialSetId, credentialMap, credentialIds, existing.Credentials);
             if (connection.Gateway.CredentialSetId.HasValue && gatewayCredential is null)
             {
-                warnings.Add(
-                    $"The gateway credential of '{Describe(connection.Name)}' is not in the file; the session " +
-                    "credential will be used instead.");
+                warnings.Add(UiLanguage.Format(
+                    Strings.Transfer_Warning_GatewayCredentialMissing, Describe(connection.Name)));
             }
             connection.Gateway.CredentialSetId = gatewayCredential;
 
@@ -580,9 +566,7 @@ public sealed class ConfigTransfer
             var group = ResolveReference(multi.GroupId, groupMap, groupIds, existing.Groups);
             if (multi.GroupId.HasValue && group is null)
             {
-                warnings.Add(
-                    $"'{Describe(multi.Name)}' referenced a folder that is not in the file; it was imported at " +
-                    "the top level.");
+                warnings.Add(UiLanguage.Format(Strings.Transfer_Warning_GroupMissing, Describe(multi.Name)));
             }
             multi.GroupId = group;
 
@@ -596,9 +580,8 @@ public sealed class ConfigTransfer
                 {
                     // An entry with no connection behind it can never launch.
                     multi.Items.RemoveAt(i);
-                    warnings.Add(
-                        $"An entry of '{Describe(multi.Name)}' pointed at a connection that is not in the file " +
-                        "and was dropped.");
+                    warnings.Add(UiLanguage.Format(
+                        Strings.Transfer_Warning_EntryConnectionMissing, Describe(multi.Name)));
                     continue;
                 }
 
@@ -608,9 +591,8 @@ public sealed class ConfigTransfer
                     item.CredentialSetIdOverride, credentialMap, credentialIds, existing.Credentials);
                 if (item.CredentialSetIdOverride.HasValue && overrideCredential is null)
                 {
-                    warnings.Add(
-                        $"An entry of '{Describe(multi.Name)}' used a credential that is not in the file; the " +
-                        "connection's own credential will be used.");
+                    warnings.Add(UiLanguage.Format(
+                        Strings.Transfer_Warning_EntryCredentialMissing, Describe(multi.Name)));
                 }
                 item.CredentialSetIdOverride = overrideCredential;
 
@@ -681,7 +663,8 @@ public sealed class ConfigTransfer
             catch (Exception ex)
             {
                 counters.Skipped++;
-                warnings.Add($"The folder '{Describe(group.Name)}' could not be saved: {ex.Message}");
+                warnings.Add(UiLanguage.Format(
+                    Strings.Transfer_Warning_SaveGroupFailed, Describe(group.Name), ex.Message));
                 AppLog.Warn($"Importing the folder '{group.Name}' failed.", ex);
             }
         }
@@ -718,9 +701,7 @@ public sealed class ConfigTransfer
                         if (!missingPassphraseReported)
                         {
                             missingPassphraseReported = true;
-                            warnings.Add(
-                                "This file carries encrypted passwords but no passphrase was given, so the " +
-                                "credentials were imported without them.");
+                            warnings.Add(Strings.Transfer_Warning_NoPassphrase);
                         }
                     }
                     else
@@ -728,8 +709,8 @@ public sealed class ConfigTransfer
                         var raw = DecodeSecret(pending.EncryptedPassword!);
                         if (raw is null)
                         {
-                            warnings.Add(
-                                $"The stored password of '{Describe(set.Name)}' is damaged and was not imported.");
+                            warnings.Add(UiLanguage.Format(
+                                Strings.Transfer_Warning_PasswordDamaged, Describe(set.Name)));
                         }
                         else
                         {
@@ -745,9 +726,8 @@ public sealed class ConfigTransfer
                                     }
                                     catch (Exception ex)
                                     {
-                                        warnings.Add(
-                                            $"The password of '{Describe(set.Name)}' could not be re-encrypted " +
-                                            "for this Windows account and was not imported.");
+                                        warnings.Add(UiLanguage.Format(
+                                            Strings.Transfer_Warning_PasswordNotProtected, Describe(set.Name)));
                                         AppLog.Warn($"Re-protecting the password of '{set.Name}' failed.", ex);
                                     }
                                     break;
@@ -755,16 +735,12 @@ public sealed class ConfigTransfer
                                 case SecretStatus.WrongPassphrase:
                                     // Every password in one file shares the passphrase, so one report is enough.
                                     passphraseRejected = true;
-                                    warnings.Add(
-                                        "The passphrase is incorrect, so no password in this file was imported. " +
-                                        "The credentials themselves were imported and only need their passwords " +
-                                        "entered again.");
+                                    warnings.Add(Strings.Transfer_Warning_WrongPassphrase);
                                     break;
 
                                 default:
-                                    warnings.Add(
-                                        $"The stored password of '{Describe(set.Name)}' is damaged and was not " +
-                                        "imported.");
+                                    warnings.Add(UiLanguage.Format(
+                                        Strings.Transfer_Warning_PasswordDamaged, Describe(set.Name)));
                                     break;
                             }
                         }
@@ -795,7 +771,8 @@ public sealed class ConfigTransfer
                 catch (Exception ex)
                 {
                     counters.Skipped++;
-                    warnings.Add($"The credential '{Describe(set.Name)}' could not be saved: {ex.Message}");
+                    warnings.Add(UiLanguage.Format(
+                        Strings.Transfer_Warning_SaveCredentialFailed, Describe(set.Name), ex.Message));
                     AppLog.Warn($"Importing the credential '{set.Name}' failed.", ex);
                 }
                 finally
@@ -846,7 +823,8 @@ public sealed class ConfigTransfer
             catch (Exception ex)
             {
                 counters.Skipped++;
-                warnings.Add($"The connection '{Describe(connection.Name)}' could not be saved: {ex.Message}");
+                warnings.Add(UiLanguage.Format(
+                    Strings.Transfer_Warning_SaveConnectionFailed, Describe(connection.Name), ex.Message));
                 AppLog.Warn($"Importing the connection '{connection.Name}' failed.", ex);
             }
         }
@@ -887,7 +865,8 @@ public sealed class ConfigTransfer
             catch (Exception ex)
             {
                 counters.Skipped++;
-                warnings.Add($"The multi-configuration '{Describe(multi.Name)}' could not be saved: {ex.Message}");
+                warnings.Add(UiLanguage.Format(
+                    Strings.Transfer_Warning_SaveMultiConfigFailed, Describe(multi.Name), ex.Message));
                 AppLog.Warn($"Importing the multi-configuration '{multi.Name}' failed.", ex);
             }
         }
@@ -904,13 +883,12 @@ public sealed class ConfigTransfer
     public async Task<string> BackupDatabaseAsync(string targetPath, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(targetPath))
-            throw new ArgumentException("A backup file path is required.", nameof(targetPath));
+            throw new ArgumentException(Strings.Transfer_Error_BackupPathRequired, nameof(targetPath));
 
         var source = ResolveDatabasePath();
         if (!File.Exists(source))
         {
-            throw new InvalidDataException(
-                $"The database file '{source}' does not exist yet, so there is nothing to back up.");
+            throw new InvalidDataException(UiLanguage.Format(Strings.Transfer_Error_NoDatabase, source));
         }
 
         var target = ToFullPath(targetPath, nameof(targetPath));
@@ -926,8 +904,7 @@ public sealed class ConfigTransfer
             IsSamePath(target, source + "-wal") ||
             IsSamePath(target, source + "-shm"))
         {
-            throw new ArgumentException(
-                "The backup cannot be written over the live database.", nameof(targetPath));
+            throw new ArgumentException(Strings.Transfer_Error_BackupOverLive, nameof(targetPath));
         }
 
         var directory = Path.GetDirectoryName(target);
@@ -1076,21 +1053,18 @@ public sealed class ConfigTransfer
     {
         if (string.IsNullOrEmpty(passphrase))
         {
-            throw new ArgumentException(
-                "Exporting passwords needs a passphrase; whoever imports the file will be asked for it.",
-                nameof(passphrase));
+            throw new ArgumentException(Strings.Transfer_Error_PassphraseRequired, nameof(passphrase));
         }
 
         if (passphrase.Length < MinPassphraseLength)
         {
             throw new ArgumentException(
-                $"The passphrase must be at least {MinPassphraseLength} characters long.", nameof(passphrase));
+                UiLanguage.Format(Strings.Transfer_Error_PassphraseTooShort, MinPassphraseLength), nameof(passphrase));
         }
 
         if (string.IsNullOrWhiteSpace(passphrase))
         {
-            throw new ArgumentException(
-                "The passphrase cannot be spaces alone.", nameof(passphrase));
+            throw new ArgumentException(Strings.Transfer_Error_PassphraseBlank, nameof(passphrase));
         }
     }
 
@@ -1220,26 +1194,49 @@ public sealed class ConfigTransfer
     }
 
     private static bool Accept(
-        object? entity, Guid id, string? name, string noun, HashSet<Guid> seen, ImportPlan plan, WarningSink warnings)
+        object? entity, Guid id, string? name, EntryKind kind, HashSet<Guid> seen, ImportPlan plan, WarningSink warnings)
     {
+        // One complete sentence per kind of entry: the noun changes the rest of the sentence in Norwegian.
         if (entity is null)
         {
             plan.Rejected++;
-            warnings.Add($"An empty {noun} entry in the file was ignored.");
+            warnings.Add(kind switch
+            {
+                EntryKind.Group => Strings.Transfer_Warning_EmptyEntry_Group,
+                EntryKind.Connection => Strings.Transfer_Warning_EmptyEntry_Connection,
+                EntryKind.MultiConfig => Strings.Transfer_Warning_EmptyEntry_MultiConfig,
+                _ => Strings.Transfer_Warning_EmptyEntry_Credential,
+            });
             return false;
         }
 
         if (id == Guid.Empty)
         {
             plan.Rejected++;
-            warnings.Add($"The {noun} '{Describe(name)}' has no identifier and was ignored.");
+            warnings.Add(UiLanguage.Format(
+                kind switch
+                {
+                    EntryKind.Group => Strings.Transfer_Warning_NoId_Group,
+                    EntryKind.Connection => Strings.Transfer_Warning_NoId_Connection,
+                    EntryKind.MultiConfig => Strings.Transfer_Warning_NoId_MultiConfig,
+                    _ => Strings.Transfer_Warning_NoId_Credential,
+                },
+                Describe(name)));
             return false;
         }
 
         if (!seen.Add(id))
         {
             plan.Rejected++;
-            warnings.Add($"The {noun} '{Describe(name)}' appears twice in the file; the second copy was ignored.");
+            warnings.Add(UiLanguage.Format(
+                kind switch
+                {
+                    EntryKind.Group => Strings.Transfer_Warning_Twice_Group,
+                    EntryKind.Connection => Strings.Transfer_Warning_Twice_Connection,
+                    EntryKind.MultiConfig => Strings.Transfer_Warning_Twice_MultiConfig,
+                    _ => Strings.Transfer_Warning_Twice_Credential,
+                },
+                Describe(name)));
             return false;
         }
 
@@ -1315,9 +1312,7 @@ public sealed class ConfigTransfer
                 // write a tree that can never be drawn.
                 foreach (var group in next)
                 {
-                    warnings?.Add(
-                        $"The folder '{Describe(group.Name)}' sits in a circular folder chain; it was placed at " +
-                        "the top level.");
+                    warnings?.Add(UiLanguage.Format(Strings.Transfer_Warning_CircularGroup, Describe(group.Name)));
                     group.ParentId = null;
                     ordered.Add(group);
                 }
@@ -1366,7 +1361,7 @@ public sealed class ConfigTransfer
             if (string.IsNullOrWhiteSpace(connection.Name))
             {
                 connection.Name = string.IsNullOrEmpty(connection.Host)
-                    ? "Imported connection"
+                    ? Strings.Transfer_ImportedConnection_Name
                     : connection.Host;
             }
 
@@ -1379,7 +1374,7 @@ public sealed class ConfigTransfer
 
         foreach (var multi in bundle.MultiConfigs)
         {
-            if (string.IsNullOrWhiteSpace(multi.Name)) multi.Name = "Imported multi-configuration";
+            if (string.IsNullOrWhiteSpace(multi.Name)) multi.Name = Strings.Transfer_ImportedMultiConfig_Name;
             if (multi.InitialDelayMs < 0) multi.InitialDelayMs = 0;
             if (multi.CreatedUtc == default) multi.CreatedUtc = now;
             if (multi.ModifiedUtc == default) multi.ModifiedUtc = now;
@@ -1432,6 +1427,7 @@ public sealed class ConfigTransfer
         if (display.CustomHeight is <= 0 or > MaxPixels) display.CustomHeight = null;
         if (display.ColorDepth is not (null or 8 or 15 or 16 or 24 or 32)) display.ColorDepth = null;
         if (display.DesktopScaleFactor is < 100 or > 500) display.DesktopScaleFactor = null;
+        if (display.DeviceScaleFactor is not (null or 100 or 140 or 180)) display.DeviceScaleFactor = null;
         if (display.TargetMonitorIndex is < 0) display.TargetMonitorIndex = null;
         if (display.CustomLeft is < -MaxPixels or > MaxPixels) display.CustomLeft = null;
         if (display.CustomTop is < -MaxPixels or > MaxPixels) display.CustomTop = null;
@@ -1475,7 +1471,7 @@ public sealed class ConfigTransfer
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
-            throw new ArgumentException($"'{path}' is not a usable file path.", parameterName, ex);
+            throw new ArgumentException(UiLanguage.Format(Strings.Transfer_Error_InvalidPath, path), parameterName, ex);
         }
     }
 
@@ -1533,6 +1529,15 @@ public sealed class ConfigTransfer
         Decrypted = 0,
         WrongPassphrase = 1,
         Malformed = 2,
+    }
+
+    /// <summary>The kind of entry an import note is about.</summary>
+    private enum EntryKind
+    {
+        Group = 0,
+        Connection = 1,
+        MultiConfig = 2,
+        Credential = 3,
     }
 
     private sealed record Library(
@@ -1594,7 +1599,8 @@ public sealed class ConfigTransfer
         {
             if (_suppressed > 0)
             {
-                _items.Add($"{_suppressed} further problem(s) were found but are not listed here.");
+                _items.Add(UiLanguage.Plural(
+                    _suppressed, Strings.Transfer_Warning_MoreProblems_One, Strings.Transfer_Warning_MoreProblems_Many));
                 _suppressed = 0;
             }
 

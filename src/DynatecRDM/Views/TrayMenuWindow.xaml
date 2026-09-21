@@ -5,8 +5,11 @@
         xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
         xmlns:conv="clr-namespace:DynatecRDM.Converters"
         xmlns:vm="clr-namespace:DynatecRDM.ViewModels"
+        xmlns:res="clr-namespace:DynatecRDM.Resources"
+        xmlns:views="clr-namespace:DynatecRDM.Views"
+        xmlns:services="clr-namespace:DynatecRDM.Services"
         mc:Ignorable="po"
-        Title="DYNATEC Quick Launch"
+        Title="{x:Static res:Strings.Tray_Window_Title}"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -21,7 +24,7 @@
         MaxHeight="620"
         FontFamily="{StaticResource AppFontFamily}"
         FontSize="{StaticResource FontSizeNormal}"
-        Foreground="{StaticResource TextPrimaryBrush}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display">
@@ -30,7 +33,6 @@
 
         <!-- Icons. Terse 24x24 outlines drawn as geometry so nothing depends on an icon font. -->
         <PathGeometry x:Key="TrayIconSearch" po:Freeze="True" Figures="M4,10.5 A6.5,6.5 0 1 1 17,10.5 A6.5,6.5 0 1 1 4,10.5 Z M15.2,15.2 L20.5,20.5" />
-        <PathGeometry x:Key="TrayIconClose" po:Freeze="True" Figures="M7,7 L17,17 M17,7 L7,17" />
         <PathGeometry x:Key="TrayIconWindow" po:Freeze="True" Figures="M3,5 L21,5 L21,19 L3,19 Z M3,9 L21,9" />
         <PathGeometry x:Key="TrayIconSliders" po:Freeze="True" Figures="M3,7 H21 M3,12 H21 M3,17 H21 M8,4.6 V9.4 M16,9.6 V14.4 M11,14.6 V19.4" />
         <PathGeometry x:Key="TrayIconPower" po:Freeze="True" Figures="M12,3 V10.5 M6.6,6.2 A7.6,7.6 0 1 0 17.4,6.2" />
@@ -46,7 +48,7 @@
             <Setter Property="StrokeStartLineCap" Value="Round" />
             <Setter Property="StrokeEndLineCap" Value="Round" />
             <Setter Property="StrokeLineJoin" Value="Round" />
-            <Setter Property="Stroke" Value="{StaticResource TextMutedBrush}" />
+            <Setter Property="Stroke" Value="{DynamicResource TextMutedBrush}" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
         </Style>
@@ -54,20 +56,80 @@
         <Style x:Key="TrayFooterGlyph" TargetType="Path" BasedOn="{StaticResource TrayGlyph}">
             <Setter Property="Width" Value="14" />
             <Setter Property="Height" Value="14" />
-            <Setter Property="Stroke" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
-                    <Setter Property="Stroke" Value="{StaticResource TextPrimaryBrush}" />
+                    <Setter Property="Stroke" Value="{DynamicResource TextPrimaryBrush}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="TrayCloseGlyph" TargetType="Path" BasedOn="{StaticResource TrayGlyph}">
-            <Setter Property="Width" Value="11" />
-            <Setter Property="Height" Value="11" />
+        <!-- The one-click way out of a session. Labelled rather than an icon so it reads at a
+             glance, and not focusable so clicking it leaves the search box in charge of the keys
+             (Delete does the same thing for the highlighted row). Disabled while disconnecting. -->
+        <Style x:Key="TrayDisconnectButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushStrong}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="7,3,9,3" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ToolTipService.InitialShowDelay" Value="500" />
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="False" />
+            <Setter Property="Command" Value="{Binding DataContext.DisconnectCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" />
+            <Setter Property="CommandParameter" Value="{Binding}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource RadiusSmall}"
+                                SnapsToDevicePixels="True">
+                            <StackPanel Margin="{TemplateBinding Padding}" Orientation="Horizontal">
+                                <Path x:Name="Glyph"
+                                      Style="{StaticResource TrayGlyph}"
+                                      Width="11"
+                                      Height="11"
+                                      StrokeThickness="1.9"
+                                      Stroke="{TemplateBinding Foreground}"
+                                      Data="{StaticResource TrayIconPower}" />
+                                <TextBlock x:Name="Label"
+                                           Margin="5,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{TemplateBinding Foreground}"
+                                           Text="{x:Static res:Strings.Tray_Disconnect}" />
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DangerSubtleBrush}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+                                <Setter TargetName="Glyph" Property="Stroke" Value="{DynamicResource DangerBrush}" />
+                                <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DangerFillBrush}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource DangerFillBrush}" />
+                                <Setter TargetName="Glyph" Property="Stroke" Value="{DynamicResource OnDangerBrush}" />
+                                <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource OnDangerBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BorderBrushSoft}" />
+                                <Setter TargetName="Glyph" Property="Stroke" Value="{DynamicResource TextMutedBrush}" />
+                                <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
-                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
-                    <Setter Property="Stroke" Value="{StaticResource DangerBrush}" />
+                <DataTrigger Binding="{Binding IsDisconnecting}" Value="True">
+                    <Setter Property="IsEnabled" Value="False" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -103,7 +165,7 @@
                        HorizontalAlignment="Center"
                        TextAlignment="Center"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource TextMutedBrush}"
+                       Foreground="{DynamicResource TextMutedBrush}"
                        Text="{Binding Text}" />
         </DataTemplate>
 
@@ -122,69 +184,51 @@
                       Margin="0,0,10,0"
                       VerticalAlignment="Center"
                       Visibility="{Binding ShowSnapshot, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                    <Border Background="{StaticResource SurfaceAltBrush}"
-                            BorderBrush="{StaticResource BorderBrushSoft}"
-                            BorderThickness="1"
-                            CornerRadius="{StaticResource RadiusSmall}" />
-                    <Image Margin="1"
-                           Stretch="UniformToFill"
-                           RenderOptions.BitmapScalingMode="LowQuality"
-                           Visibility="{Binding HasSnapshot, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}"
-                           Source="{Binding SnapshotPath, Converter={x:Static conv:FileToImageConverter.Instance}, ConverterParameter=132}">
-                        <Image.Clip>
-                            <RectangleGeometry Rect="0,0,64,38" RadiusX="3" RadiusY="3" />
-                        </Image.Clip>
-                    </Image>
-                    <TextBlock Margin="4,0"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               FontSize="{StaticResource FontSizeSmall}"
-                               Foreground="{StaticResource TextMutedBrush}"
-                               TextTrimming="CharacterEllipsis"
-                               Visibility="{Binding ShowPlaceholder, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}"
-                               Text="{Binding Host}" />
+                    <views:SnapshotImage DecodeWidth="132"
+                                         Path="{Binding SnapshotPath}"
+                                         Stamp="{Binding Session.LastSnapshotUtc}" />
                 </Grid>
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock FontWeight="SemiBold"
                                TextTrimming="CharacterEllipsis"
-                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                Text="{Binding Title}" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <Border Style="{StaticResource StatusPillStyle}" Padding="7,1" MinHeight="16">
                             <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="6"
+                                <Ellipse x:Name="StateDot"
+                                         Width="6"
                                          Height="6"
                                          Margin="0,0,5,0"
-                                         VerticalAlignment="Center"
-                                         Fill="{Binding Session.State, Converter={x:Static conv:SessionStateToBrushConverter.Instance}}" />
-                                <TextBlock FontSize="{StaticResource FontSizeSmall}"
-                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                         Style="{StaticResource SessionStateDotStyle}"
+                                         Tag="{Binding Session.State}" />
+                                <TextBlock x:Name="StateText"
+                                           FontSize="{StaticResource FontSizeSmall}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                            Text="{Binding Session.StateText}" />
                             </StackPanel>
                         </Border>
                         <TextBlock Margin="8,0,0,0"
                                    VerticalAlignment="Center"
                                    FontSize="{StaticResource FontSizeSmall}"
-                                   Foreground="{StaticResource TextMutedBrush}"
+                                   Foreground="{DynamicResource TextMutedBrush}"
                                    Text="{Binding UptimeText}" />
                     </StackPanel>
                 </StackPanel>
 
-                <Button Grid.Column="2"
-                        Width="24"
-                        Height="24"
-                        VerticalAlignment="Center"
-                        Style="{StaticResource IconButtonStyle}"
-                        ToolTipService.InitialShowDelay="500"
-                        Command="{Binding DataContext.CloseSessionCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                        CommandParameter="{Binding}">
+                <Button Grid.Column="2" Margin="8,0,0,0" Style="{StaticResource TrayDisconnectButton}">
                     <Button.ToolTip>
-                        <ToolTip Style="{StaticResource AppToolTipStyle}" Content="End this session" />
+                        <ToolTip Style="{StaticResource AppToolTipStyle}" Content="{x:Static res:Strings.Tray_Disconnect_Session_Tooltip}" />
                     </Button.ToolTip>
-                    <Path Style="{StaticResource TrayCloseGlyph}" Data="{StaticResource TrayIconClose}" />
                 </Button>
             </Grid>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsDisconnecting}" Value="True">
+                    <Setter TargetName="StateDot" Property="Fill" Value="{DynamicResource WarningBrush}" />
+                    <Setter TargetName="StateText" Property="Text" Value="{x:Static res:Strings.Tray_State_Disconnecting}" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type vm:TrayMultiRow}">
@@ -198,88 +242,190 @@
                 <Path Grid.Column="0"
                       Margin="1,0,10,0"
                       Style="{StaticResource TrayGlyph}"
-                      Stroke="{StaticResource TextSecondaryBrush}"
+                      Stroke="{DynamicResource TextSecondaryBrush}"
                       Data="{StaticResource TrayIconGrid}" />
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock FontWeight="SemiBold"
                                TextTrimming="CharacterEllipsis"
-                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                Text="{Binding Title}" />
                     <TextBlock Margin="0,2,0,0"
                                FontSize="{StaticResource FontSizeSmall}"
-                               Foreground="{StaticResource TextMutedBrush}"
+                               Foreground="{DynamicResource TextMutedBrush}"
                                Text="{Binding CountText}" />
                 </StackPanel>
 
-                <Border Grid.Column="2"
-                        Margin="8,0,0,0"
-                        Style="{StaticResource StatusPillStyle}"
-                        Padding="7,1"
-                        MinHeight="16"
-                        Visibility="{Binding IsRunning, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                    <StackPanel Orientation="Horizontal">
-                        <Ellipse Width="6"
-                                 Height="6"
-                                 Margin="0,0,5,0"
-                                 VerticalAlignment="Center"
-                                 Fill="{StaticResource SuccessBrush}" />
-                        <TextBlock FontSize="{StaticResource FontSizeSmall}"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                   Text="Running" />
-                    </StackPanel>
-                </Border>
+                <StackPanel Grid.Column="2"
+                            Margin="8,0,0,0"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding IsRunning, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                    <Border Style="{StaticResource StatusPillStyle}" Padding="7,1" MinHeight="16" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="StateDot"
+                                     Width="6"
+                                     Height="6"
+                                     Margin="0,0,5,0"
+                                     VerticalAlignment="Center"
+                                     Fill="{DynamicResource SuccessBrush}" />
+                            <TextBlock x:Name="StateText"
+                                       FontSize="{StaticResource FontSizeSmall}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="{x:Static res:Strings.Tray_State_Running}" />
+                        </StackPanel>
+                    </Border>
+                    <Button Margin="8,0,0,0" Style="{StaticResource TrayDisconnectButton}">
+                        <Button.ToolTip>
+                            <ToolTip Style="{StaticResource AppToolTipStyle}" Content="{x:Static res:Strings.Tray_Disconnect_Multi_Tooltip}" />
+                        </Button.ToolTip>
+                    </Button>
+                </StackPanel>
             </Grid>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsDisconnecting}" Value="True">
+                    <Setter TargetName="StateDot" Property="Fill" Value="{DynamicResource WarningBrush}" />
+                    <Setter TargetName="StateText" Property="Text" Value="{x:Static res:Strings.Tray_State_Disconnecting}" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type vm:TrayConnectionRow}">
             <Grid Margin="8,5,10,5">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
+                <!-- The connection's own colour, or a quiet neutral that follows the theme. With
+                     pictures on, the colour moves onto the picture's edge instead. -->
                 <Border Grid.Column="0"
                         Width="3"
                         Margin="1,1,10,1"
                         MinHeight="24"
                         CornerRadius="2"
-                        Background="{Binding Color, Converter={x:Static conv:HexToBrushConverter.Instance}, ConverterParameter=#3A414D}" />
+                        Visibility="{Binding ShowSnapshot, Converter={x:Static conv:BoolToVisibilityConverter.Instance}, ConverterParameter=invert}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{DynamicResource BorderBrushSoft}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Color, Converter={x:Static conv:IsColorConverter.Instance}}" Value="True">
+                                    <Setter Property="Background" Value="{Binding Color, Converter={x:Static conv:HexToBrushConverter.Instance}}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
 
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <!-- What the connection looked like last time, lined up with the running sessions' pictures. -->
+                <Grid Grid.Column="1"
+                      Width="66"
+                      Height="40"
+                      Margin="0,0,10,0"
+                      VerticalAlignment="Center"
+                      Visibility="{Binding ShowSnapshot, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                    <views:SnapshotImage DecodeWidth="132"
+                                         Path="{Binding SnapshotPath}"
+                                         Stamp="{Binding SnapshotStamp}" />
+                    <Border Width="3"
+                            HorizontalAlignment="Left"
+                            CornerRadius="3,0,0,3"
+                            Background="{Binding Color, Converter={x:Static conv:HexToBrushConverter.Instance}}">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Color, Converter={x:Static conv:IsColorConverter.Instance}}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </Grid>
+
+                <StackPanel Grid.Column="2" VerticalAlignment="Center">
                     <TextBlock TextTrimming="CharacterEllipsis"
-                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                Text="{Binding Title}" />
                     <TextBlock Margin="0,2,0,0"
                                FontSize="{StaticResource FontSizeSmall}"
                                TextTrimming="CharacterEllipsis"
-                               Foreground="{StaticResource TextMutedBrush}"
+                               Foreground="{DynamicResource TextMutedBrush}"
                                Text="{Binding Host}" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="2"
+                <!-- Not running: whether the host answers on its Remote Desktop port, once checked. -->
+                <StackPanel Grid.Column="3"
                             Margin="8,0,0,0"
+                            Orientation="Horizontal"
                             VerticalAlignment="Center"
-                            HorizontalAlignment="Right"
-                            Visibility="{Binding IsConnected, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Ellipse Width="7"
-                                 Height="7"
-                                 Margin="0,0,5,0"
-                                 VerticalAlignment="Center"
-                                 Fill="{StaticResource SuccessBrush}" />
-                        <TextBlock FontSize="{StaticResource FontSizeSmall}"
-                                   Foreground="{StaticResource SuccessBrush}"
-                                   Text="Connected" />
-                    </StackPanel>
-                    <TextBlock Margin="0,1,0,0"
-                               HorizontalAlignment="Right"
+                            Background="Transparent"
+                            ToolTip="{Binding ReachTooltip}">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Reach}" Value="Responds">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Reach}" Value="NoAnswer">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center" StrokeThickness="1.5">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Stroke" Value="{DynamicResource SuccessBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Reach}" Value="NoAnswer">
+                                        <Setter Property="Stroke" Value="{DynamicResource DangerBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock VerticalAlignment="Center"
                                FontSize="{StaticResource FontSizeSmall}"
-                               Foreground="{StaticResource TextMutedBrush}"
-                               Text="click to focus" />
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               Text="{Binding ReachLabel}" />
+                </StackPanel>
+
+                <!-- Clicking the row itself focuses the live session; the button ends it. -->
+                <StackPanel Grid.Column="3"
+                            Margin="8,0,0,0"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding IsConnected, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                    <Ellipse x:Name="StateDot"
+                             Width="7"
+                             Height="7"
+                             Margin="0,0,5,0"
+                             VerticalAlignment="Center"
+                             Fill="{DynamicResource SuccessBrush}" />
+                    <TextBlock x:Name="StateText"
+                               VerticalAlignment="Center"
+                               FontSize="{StaticResource FontSizeSmall}"
+                               Foreground="{DynamicResource SuccessBrush}"
+                               Text="{x:Static res:Strings.Tray_State_Connected}" />
+                    <Button Margin="10,0,0,0" Style="{StaticResource TrayDisconnectButton}">
+                        <Button.ToolTip>
+                            <ToolTip Style="{StaticResource AppToolTipStyle}" Content="{x:Static res:Strings.Tray_Disconnect_Connection_Tooltip}" />
+                        </Button.ToolTip>
+                    </Button>
                 </StackPanel>
             </Grid>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsDisconnecting}" Value="True">
+                    <Setter TargetName="StateDot" Property="Fill" Value="{DynamicResource WarningBrush}" />
+                    <Setter TargetName="StateText" Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                    <Setter TargetName="StateText" Property="Text" Value="{x:Static res:Strings.Tray_State_Disconnecting}" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type vm:TrayMoreRow}">
@@ -291,13 +437,13 @@
                 <TextBlock Grid.Column="0"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
-                           Foreground="{StaticResource AccentBrush}"
+                           Foreground="{DynamicResource AccentBrush}"
                            Text="{Binding Text}" />
                 <Path Grid.Column="1"
                       Width="12"
                       Height="12"
                       Style="{StaticResource TrayGlyph}"
-                      Stroke="{StaticResource AccentBrush}"
+                      Stroke="{DynamicResource AccentBrush}"
                       Data="{StaticResource TrayIconChevron}" />
             </Grid>
         </DataTemplate>
@@ -305,8 +451,8 @@
     </Window.Resources>
 
     <Border x:Name="Root"
-            Background="{StaticResource SurfaceBrush}"
-            BorderBrush="{StaticResource BorderBrushStrong}"
+            Background="{DynamicResource SurfaceBrush}"
+            BorderBrush="{DynamicResource BorderBrushStrong}"
             BorderThickness="1"
             CornerRadius="{StaticResource RadiusLarge}"
             SnapsToDevicePixels="True">
@@ -324,17 +470,20 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0"
-                           Style="{StaticResource SectionHeaderStyle}"
-                           Margin="0"
-                           VerticalAlignment="Center"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           Text="DYNATEC QUICK LAUNCH" />
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <views:AppIcon Width="24" Height="24" VerticalAlignment="Center" />
+                    <TextBlock Margin="8,0,0,0"
+                               VerticalAlignment="Center"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               Text="{x:Static services:AppIdentity.Name}" />
+                </StackPanel>
                 <TextBlock Grid.Column="1"
                            Margin="8,0,0,0"
                            VerticalAlignment="Center"
                            FontSize="{StaticResource FontSizeSmall}"
-                           Foreground="{StaticResource AccentBrush}"
+                           Foreground="{DynamicResource AccentBrush}"
                            Text="{Binding RunningSummary}" />
             </Grid>
 
@@ -355,8 +504,8 @@
                 <TextBlock Margin="32,0,10,0"
                            VerticalAlignment="Center"
                            IsHitTestVisible="False"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           Text="Search connections"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           Text="{x:Static res:Strings.Tray_Search_Placeholder}"
                            Visibility="{Binding SearchText, Converter={x:Static conv:StringToVisibilityConverter.Instance}, ConverterParameter=invert}" />
             </Grid>
 
@@ -385,8 +534,8 @@
             <!-- Footer -->
             <Border Grid.Row="3"
                     Padding="6"
-                    Background="{StaticResource SurfaceAltBrush}"
-                    BorderBrush="{StaticResource BorderBrushSoft}"
+                    Background="{DynamicResource SurfaceAltBrush}"
+                    BorderBrush="{DynamicResource BorderBrushSoft}"
                     BorderThickness="0,1,0,0"
                     CornerRadius="0,0,9,9">
                 <Grid>
@@ -399,21 +548,21 @@
                     <Button Grid.Column="0" Style="{StaticResource TrayFooterButton}" Command="{Binding OpenManagerCommand}">
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource TrayFooterGlyph}" Data="{StaticResource TrayIconWindow}" />
-                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" Text="Open manager" />
+                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" Text="{x:Static res:Strings.Tray_OpenManager}" />
                         </StackPanel>
                     </Button>
 
                     <Button Grid.Column="1" Style="{StaticResource TrayFooterButton}" Command="{Binding OpenSettingsCommand}">
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource TrayFooterGlyph}" Data="{StaticResource TrayIconSliders}" />
-                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" Text="Settings" />
+                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" Text="{x:Static res:Strings.Tray_Settings}" />
                         </StackPanel>
                     </Button>
 
                     <Button Grid.Column="2" Style="{StaticResource TrayFooterButton}" Command="{Binding ExitCommand}">
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource TrayFooterGlyph}" Data="{StaticResource TrayIconPower}" />
-                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" Text="Exit" />
+                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" Text="{x:Static res:Strings.Tray_Exit}" />
                         </StackPanel>
                     </Button>
                 </Grid>

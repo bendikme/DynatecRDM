@@ -5,8 +5,11 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <!-- Replaced at startup, and whenever Windows changes app mode, by ThemeService. -->
+                <ResourceDictionary Source="Themes/Palette.Dark.xaml" />
                 <ResourceDictionary Source="Themes/Theme.xaml" />
                 <ResourceDictionary Source="Themes/Controls.xaml" />
+                <ResourceDictionary Source="Themes/EditorStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

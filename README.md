@@ -1,4 +1,4 @@
-# DYNATEC Remote Desktop Manager
+# Remote Desktop Manager
 
 A fast Windows manager for Remote Desktop sessions. It stores connections in a local database,
 launches them through Windows' own Remote Desktop Connection (`mstsc.exe`), and keeps them alive
@@ -13,6 +13,17 @@ live thumbnail of every running session.
   (`use multimon`, `selectedmonitors`), per-monitor full screen, window placement, scaling factors,
   RemoteApp, RD Gateway, drive and camera redirection, and a raw key/value editor with a live
   preview of the exact `.rdp` file that will be generated.
+- **Full screen and window, done right.** A session on one monitor starts full screen at that
+  monitor's own resolution and knows the window to drop back to, so Ctrl+Alt+Break (or the session
+  bar) switches cleanly between the two - no more sessions stuck at the wrong size. A window can
+  also be placed exactly by dragging and resizing it on a map of your monitors.
+- **True dynamic resolution, optionally.** The built-in Remote Desktop client (`mstsc`) only scales
+  the remote desktop to the window. When the modern **Remote Desktop client** (`msrdc`, from
+  `winget install Microsoft.RemoteDesktopClient`) is installed, Settings > Remote Desktop client can
+  launch through it instead, and the remote resolution then changes to match as you resize the
+  window or leave full screen - the same behaviour as the macOS Windows App. Sessions keep their
+  live thumbnails, placement and session bar either way, and fall back to `mstsc` when the modern
+  client is not present.
 - **Groups connections** into nested folders, with search, favourites and colour coding.
 - **Reuses credentials.** A credential set can be shared by many connections. Passwords are stored
   DPAPI-protected and are never written to disk in clear.
@@ -23,12 +34,23 @@ live thumbnail of every running session.
   overrides the connection's own settings. A layout map shows which session lands on which monitor.
 - **Tray quick launch.** A global shortcut (Ctrl+Alt+R by default) opens a searchable menu of every
   connection and multi-config, marking the ones already connected and showing a thumbnail of each
-  live session.
+  live session. Anything running has a **Disconnect** button, and Delete ends the highlighted one.
+  The main window's live-session cards show the same thumbnails.
+- **Session bar.** Rest the pointer on the top edge of a full-screen session and a slim bar slides
+  down with a tab for every running connection: one click (or a scroll) swaps which one fills the
+  screen, so several full-screen sessions on one monitor behave like tabs of a single window. It
+  also minimises, leaves full screen and disconnects, and replaces Remote Desktop's own connection
+  bar. On by default; Settings > Full screen turns it off.
 - **Reconnect watchdog.** Sessions that drop - or that never came up because the far end was still
   booting - are relaunched, up to a per-connection attempt limit.
 - **Export and import.** Move single connections, a selection, or the whole library between machines
   as a `.drdm` file, and back up the database.
 - **Updates itself** from GitHub releases, if you point it at a repository.
+- **Light and dark.** Follows the Windows app mode (Settings > Personalisation > Colours) and
+  switches live when it changes, title bars and tray menu included. Both palettes meet WCAG AA
+  contrast, and the accent chosen in Settings is adjusted per theme until it does too.
+- **English and Norwegian.** Speaks Norwegian (Bokmål) when Windows does and English otherwise,
+  or whichever you pick under **Settings > Language**. A change applies as soon as you save.
 
 ## Requirements
 
@@ -76,7 +98,8 @@ for a private repository. Releases are published by tagging `v<version>`, which 
 | `src\DynatecRDM\Data` | SQLite store, schema and versioned migrations |
 | `src\DynatecRDM\Services` | `.rdp` generation, credentials, monitors, snapshots, sessions, updates, transfer |
 | `src\DynatecRDM\Interop` | The Win32, credential, DPAPI and monitor P/Invokes |
-| `src\DynatecRDM\ViewModels` / `Views` / `Themes` | WPF UI and the dark design system |
+| `src\DynatecRDM\ViewModels` / `Views` / `Themes` | WPF UI and the light/dark design system (`Themes\Palette.*.xaml` hold the colours) |
+| `src\DynatecRDM\Resources` | Every piece of UI text: `Strings.resx` (English) and `Strings.nb.resx` (Norwegian). A new string goes into both |
 | `installer`, `build`, `.github\workflows` | Packaging and release |
 
 ## A note on `cmdkey`

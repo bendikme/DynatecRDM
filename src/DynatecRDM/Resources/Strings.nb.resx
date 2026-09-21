@@ -1,0 +1,3132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="App_StartupFailed" xml:space="preserve">
+    <value>Remote Desktop Manager kunne ikke starte.
+
+{0}
+
+Logg: {1}</value>
+  </data>
+  <data name="App_UnhandledError" xml:space="preserve">
+    <value>Noe gikk galt.
+
+{0}
+
+Loggen ligger her: {1}</value>
+  </data>
+  <data name="App_UpdateAvailable_Message" xml:space="preserve">
+    <value>Versjon {0} er klar til å installeres. Åpne hovedvinduet for å oppdatere.</value>
+  </data>
+  <data name="App_UpdateAvailable_Title" xml:space="preserve">
+    <value>Oppdatering tilgjengelig</value>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Avbryt</value>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Lukk</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Slett</value>
+  </data>
+  <data name="Common_OK" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Lagre</value>
+  </data>
+  <data name="Creds_ChangePassword" xml:space="preserve">
+    <value>Endre</value>
+  </data>
+  <data name="Creds_ChangePassword_Tooltip" xml:space="preserve">
+    <value>Erstatt det lagrede passordet</value>
+  </data>
+  <data name="Creds_ConfirmDelete_Message" xml:space="preserve">
+    <value>Vil du slette «{0}»? Tilkoblinger som bruker settet, vil be om passord i stedet.</value>
+  </data>
+  <data name="Creds_ConfirmDelete_Title" xml:space="preserve">
+    <value>Slett legitimasjonssett</value>
+  </data>
+  <data name="Creds_CopyName" xml:space="preserve">
+    <value>{0} (kopi)</value>
+  </data>
+  <data name="Creds_DefaultBadge" xml:space="preserve">
+    <value>Standard</value>
+  </data>
+  <data name="Creds_Delete_Tooltip" xml:space="preserve">
+    <value>Slett det valgte settet</value>
+  </data>
+  <data name="Creds_Domain_Hint" xml:space="preserve">
+    <value>Uten domene er kontoen lokal. Du logges på hver vert som VERT\bruker, og hver av dem får en egen oppføring i hvelvet.</value>
+  </data>
+  <data name="Creds_Duplicate" xml:space="preserve">
+    <value>Dupliser</value>
+  </data>
+  <data name="Creds_Duplicate_Tooltip" xml:space="preserve">
+    <value>Kopier det valgte settet, inkludert passordet</value>
+  </data>
+  <data name="Creds_Editor_Header" xml:space="preserve">
+    <value>REDIGER LEGITIMASJONSSETT</value>
+  </data>
+  <data name="Creds_Error_Create" xml:space="preserve">
+    <value>Legitimasjonssettet kunne ikke opprettes. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Creds_Error_Delete" xml:space="preserve">
+    <value>Legitimasjonssettet kunne ikke slettes. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Creds_Error_Duplicate" xml:space="preserve">
+    <value>Legitimasjonssettet kunne ikke dupliseres. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Creds_Error_NameRequired" xml:space="preserve">
+    <value>Gi legitimasjonssettet et navn.</value>
+  </data>
+  <data name="Creds_Error_Read" xml:space="preserve">
+    <value>Legitimasjonssettene kunne ikke leses. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Creds_Error_Save" xml:space="preserve">
+    <value>Legitimasjonssettet kunne ikke lagres. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Creds_Field_Domain" xml:space="preserve">
+    <value>Domene</value>
+  </data>
+  <data name="Creds_Field_Name" xml:space="preserve">
+    <value>Navn</value>
+  </data>
+  <data name="Creds_Field_Notes" xml:space="preserve">
+    <value>Notater</value>
+  </data>
+  <data name="Creds_Field_Password" xml:space="preserve">
+    <value>Passord</value>
+  </data>
+  <data name="Creds_Field_Username" xml:space="preserve">
+    <value>Brukernavn</value>
+  </data>
+  <data name="Creds_Intro" xml:space="preserve">
+    <value>Pålogginger som tilkoblingene dine kan dele, og legitimasjonen Windows lagrer for dem.</value>
+  </data>
+  <data name="Creds_IsDefault" xml:space="preserve">
+    <value>Standard for nye tilkoblinger</value>
+  </data>
+  <data name="Creds_IsDefault_Hint" xml:space="preserve">
+    <value>Nye tilkoblinger bruker dette settet automatisk. Bare ett sett kan være standard.</value>
+  </data>
+  <data name="Creds_KeepPassword" xml:space="preserve">
+    <value>Behold nåværende</value>
+  </data>
+  <data name="Creds_KeepPassword_Tooltip" xml:space="preserve">
+    <value>La det lagrede passordet være uendret</value>
+  </data>
+  <data name="Creds_New" xml:space="preserve">
+    <value>Nytt</value>
+  </data>
+  <data name="Creds_New_Tooltip" xml:space="preserve">
+    <value>Opprett et nytt legitimasjonssett</value>
+  </data>
+  <data name="Creds_NewSetName" xml:space="preserve">
+    <value>Ny legitimasjon</value>
+  </data>
+  <data name="Creds_NoSelection_Hint" xml:space="preserve">
+    <value>Velg et legitimasjonssett til venstre eller opprett et nytt.</value>
+  </data>
+  <data name="Creds_NothingSelected" xml:space="preserve">
+    <value>Ingenting er valgt</value>
+  </data>
+  <data name="Creds_Password_Hint" xml:space="preserve">
+    <value>Passordet beskyttes med DPAPI for Windows-kontoen din. Det vises aldri igjen og lagres aldri ukryptert på disk.</value>
+  </data>
+  <data name="Creds_PasswordStored" xml:space="preserve">
+    <value>Passord lagret</value>
+  </data>
+  <data name="Creds_Revert" xml:space="preserve">
+    <value>Forkast</value>
+  </data>
+  <data name="Creds_Sets_Header" xml:space="preserve">
+    <value>LEGITIMASJONSSETT</value>
+  </data>
+  <data name="Creds_Status_Created" xml:space="preserve">
+    <value>Et nytt legitimasjonssett er opprettet. Fyll inn opplysningene og lagre.</value>
+  </data>
+  <data name="Creds_Status_Deleted" xml:space="preserve">
+    <value>«{0}» er slettet.</value>
+  </data>
+  <data name="Creds_Status_Duplicated" xml:space="preserve">
+    <value>Settet er duplisert som «{0}».</value>
+  </data>
+  <data name="Creds_Status_Reverted" xml:space="preserve">
+    <value>Endringene er forkastet.</value>
+  </data>
+  <data name="Creds_Status_Saved" xml:space="preserve">
+    <value>«{0}» er lagret.</value>
+  </data>
+  <data name="Creds_Title" xml:space="preserve">
+    <value>Legitimasjonsbehandling</value>
+  </data>
+  <data name="Dialog_Confirm_Title" xml:space="preserve">
+    <value>Bekreft</value>
+  </data>
+  <data name="Dialog_Input_Title" xml:space="preserve">
+    <value>Skriv inn en verdi</value>
+  </data>
+  <data name="Editor_AddProperty" xml:space="preserve">
+    <value>Legg til egenskap</value>
+  </data>
+  <data name="Editor_AdminSession" xml:space="preserve">
+    <value>Koble til den administrative økten</value>
+  </data>
+  <data name="Editor_AlternateShell" xml:space="preserve">
+    <value>Alternativt skall</value>
+  </data>
+  <data name="Editor_AlwaysOnTop" xml:space="preserve">
+    <value>Hold øktvinduet alltid øverst</value>
+  </data>
+  <data name="Editor_Appearance_Header" xml:space="preserve">
+    <value>UTSEENDE</value>
+  </data>
+  <data name="Editor_Audio_DoNotPlay" xml:space="preserve">
+    <value>Ikke spill av</value>
+  </data>
+  <data name="Editor_Audio_DoNotRecord" xml:space="preserve">
+    <value>Ikke spill inn</value>
+  </data>
+  <data name="Editor_Audio_PlayHere" xml:space="preserve">
+    <value>Spill av på denne datamaskinen</value>
+  </data>
+  <data name="Editor_Audio_PlayRemote" xml:space="preserve">
+    <value>Spill av på den eksterne datamaskinen</value>
+  </data>
+  <data name="Editor_Audio_RecordHere" xml:space="preserve">
+    <value>Spill inn fra denne datamaskinen</value>
+  </data>
+  <data name="Editor_AudioPlayback" xml:space="preserve">
+    <value>Lydavspilling</value>
+  </data>
+  <data name="Editor_AudioRecording" xml:space="preserve">
+    <value>Lydopptak</value>
+  </data>
+  <data name="Editor_AudioVideo_Header" xml:space="preserve">
+    <value>LYD OG VIDEO</value>
+  </data>
+  <data name="Editor_Auth_None" xml:space="preserve">
+    <value>Koble til uten å advare meg</value>
+  </data>
+  <data name="Editor_Auth_NotSpecified" xml:space="preserve">
+    <value>Ikke angitt</value>
+  </data>
+  <data name="Editor_Auth_Require" xml:space="preserve">
+    <value>Ikke koble til hvis godkjenningen mislykkes</value>
+  </data>
+  <data name="Editor_Auth_Warn" xml:space="preserve">
+    <value>Advar meg hvis godkjenningen mislykkes</value>
+  </data>
+  <data name="Editor_AuthLevel" xml:space="preserve">
+    <value>Godkjenningsnivå</value>
+  </data>
+  <data name="Editor_AutoReconnect" xml:space="preserve">
+    <value>Overvåk økten og koble til på nytt hvis den brytes</value>
+  </data>
+  <data name="Editor_AutoReconnect_Header" xml:space="preserve">
+    <value>AUTOMATISK GJENOPPKOBLING</value>
+  </data>
+  <data name="Editor_BandwidthAutoDetect" xml:space="preserve">
+    <value>Oppdag båndbredden automatisk</value>
+  </data>
+  <data name="Editor_BitmapCache" xml:space="preserve">
+    <value>Vedvarende punktgrafikkbufring</value>
+  </data>
+  <data name="Editor_Broker_Header" xml:space="preserve">
+    <value>TILKOBLINGSMEGLER</value>
+  </data>
+  <data name="Editor_Cameras_Hint" xml:space="preserve">
+    <value>Bruk * for alle kameraer eller en semikolonseparert liste med baner til enhetsforekomster.</value>
+  </data>
+  <data name="Editor_Colour" xml:space="preserve">
+    <value>Farge</value>
+  </data>
+  <data name="Editor_Colour_Amber" xml:space="preserve">
+    <value>Ravgul</value>
+  </data>
+  <data name="Editor_Colour_Blue" xml:space="preserve">
+    <value>Blå</value>
+  </data>
+  <data name="Editor_Colour_Green" xml:space="preserve">
+    <value>Grønn</value>
+  </data>
+  <data name="Editor_Colour_Indigo" xml:space="preserve">
+    <value>Indigo</value>
+  </data>
+  <data name="Editor_Colour_None" xml:space="preserve">
+    <value>Ingen farge</value>
+  </data>
+  <data name="Editor_Colour_Orange" xml:space="preserve">
+    <value>Oransje</value>
+  </data>
+  <data name="Editor_Colour_Pink" xml:space="preserve">
+    <value>Rosa</value>
+  </data>
+  <data name="Editor_Colour_Purple" xml:space="preserve">
+    <value>Lilla</value>
+  </data>
+  <data name="Editor_Colour_Red" xml:space="preserve">
+    <value>Rød</value>
+  </data>
+  <data name="Editor_Colour_Slate" xml:space="preserve">
+    <value>Skifergrå</value>
+  </data>
+  <data name="Editor_Colour_Teal" xml:space="preserve">
+    <value>Blågrønn</value>
+  </data>
+  <data name="Editor_ColourDepth" xml:space="preserve">
+    <value>Fargedybde</value>
+  </data>
+  <data name="Editor_ColourDepth_15" xml:space="preserve">
+    <value>15-biters</value>
+  </data>
+  <data name="Editor_ColourDepth_16" xml:space="preserve">
+    <value>16-biters (sparer båndbredde)</value>
+  </data>
+  <data name="Editor_ColourDepth_24" xml:space="preserve">
+    <value>24-biters</value>
+  </data>
+  <data name="Editor_ColourDepth_32" xml:space="preserve">
+    <value>32-biters (høyeste kvalitet)</value>
+  </data>
+  <data name="Editor_Compression" xml:space="preserve">
+    <value>Komprimer øktdataene</value>
+  </data>
+  <data name="Editor_Connection_Header" xml:space="preserve">
+    <value>TILKOBLING</value>
+  </data>
+  <data name="Editor_ConnectionQuality" xml:space="preserve">
+    <value>Tilkoblingskvalitet</value>
+  </data>
+  <data name="Editor_Credential_Label" xml:space="preserve">
+    <value>{0} – {1}</value>
+  </data>
+  <data name="Editor_Credential_Prompt" xml:space="preserve">
+    <value>(spør hver gang)</value>
+  </data>
+  <data name="Editor_Credential_UseSession" xml:space="preserve">
+    <value>(bruk øktens legitimasjon)</value>
+  </data>
+  <data name="Editor_CredentialDelivery" xml:space="preserve">
+    <value>Legitimasjonslevering</value>
+  </data>
+  <data name="Editor_CredentialSet" xml:space="preserve">
+    <value>Legitimasjonssett</value>
+  </data>
+  <data name="Editor_CredentialSummary_Prompt" xml:space="preserve">
+    <value>Windows ber om brukernavn og passord.</value>
+  </data>
+  <data name="Editor_CredentialSummary_SignsIn" xml:space="preserve">
+    <value>Logger på som {0}.</value>
+  </data>
+  <data name="Editor_CredentialSummary_SignsInNoPassword" xml:space="preserve">
+    <value>Logger på som {0} – passordet er ikke lagret, så Windows spør etter det.</value>
+  </data>
+  <data name="Editor_CursorShadow" xml:space="preserve">
+    <value>Skygge under musepekeren</value>
+  </data>
+  <data name="Editor_Custom_Hint" xml:space="preserve">
+    <value>Koordinatene er piksler på det virtuelle skrivebordet, så en skjerm til venstre for eller over hovedskjermen har negative verdier.</value>
+  </data>
+  <data name="Editor_Custom_Left" xml:space="preserve">
+    <value>Venstre</value>
+  </data>
+  <data name="Editor_Custom_Top" xml:space="preserve">
+    <value>Topp</value>
+  </data>
+  <data name="Editor_Delivery_Both" xml:space="preserve">
+    <value>Oppføring i hvelvet og innebygd passord (anbefalt)</value>
+  </data>
+  <data name="Editor_Delivery_Both_Help" xml:space="preserve">
+    <value>Lagrer oppføringen i hvelvet og bygger inn det krypterte passordet. Dette er det mest pålitelige valget og standardvalget.</value>
+  </data>
+  <data name="Editor_Delivery_Embedded" xml:space="preserve">
+    <value>Bare innebygd i .rdp-filen</value>
+  </data>
+  <data name="Editor_Delivery_Embedded_Help" xml:space="preserve">
+    <value>Passordet krypteres med nøkkelen til Windows-kontoen din og bygges inn i den genererte .rdp-filen. Filen slettes etter start hvis det er slått på i innstillingene.</value>
+  </data>
+  <data name="Editor_Delivery_HostPlaceholder" xml:space="preserve">
+    <value>&lt;vert&gt;</value>
+  </data>
+  <data name="Editor_Delivery_Prompt" xml:space="preserve">
+    <value>Spør hver gang</value>
+  </data>
+  <data name="Editor_Delivery_Prompt_Help" xml:space="preserve">
+    <value>Ingenting lagres. Windows ber om passordet hver gang økten starter.</value>
+  </data>
+  <data name="Editor_Delivery_Vault" xml:space="preserve">
+    <value>Bare Windows-legitimasjonshvelvet</value>
+  </data>
+  <data name="Editor_Delivery_Vault_Help" xml:space="preserve">
+    <value>Påloggingen lagres i Windows-legitimasjonshvelvet som TERMSRV/{0} rett før økten starter. Ingenting sensitivt havner i .rdp-filen.</value>
+  </data>
+  <data name="Editor_Description" xml:space="preserve">
+    <value>Beskrivelse</value>
+  </data>
+  <data name="Editor_DesktopComposition" xml:space="preserve">
+    <value>Skrivebordssammensetning</value>
+  </data>
+  <data name="Editor_DesktopScale" xml:space="preserve">
+    <value>Skrivebordsskalering</value>
+  </data>
+  <data name="Editor_DeviceScale" xml:space="preserve">
+    <value>Enhetsskalering</value>
+  </data>
+  <data name="Editor_Drives_Hint" xml:space="preserve">
+    <value>Bruk * for alle stasjoner eller en semikolonseparert liste, for eksempel C:;D:</value>
+  </data>
+  <data name="Editor_DrivesCameras_Header" xml:space="preserve">
+    <value>STASJONER OG KAMERAER</value>
+  </data>
+  <data name="Editor_EnableCredSsp" xml:space="preserve">
+    <value>Slå på CredSSP (godkjenning på nettverksnivå)</value>
+  </data>
+  <data name="Editor_Error_HostRequired" xml:space="preserve">
+    <value>Skriv inn et vertsnavn eller en IP-adresse.</value>
+  </data>
+  <data name="Editor_Error_NameRequired" xml:space="preserve">
+    <value>Skriv inn et navn.</value>
+  </data>
+  <data name="Editor_Error_PortNotNumber" xml:space="preserve">
+    <value>Skriv inn et tall.</value>
+  </data>
+  <data name="Editor_Error_PortRange" xml:space="preserve">
+    <value>Bruk et tall fra 1 til 65535.</value>
+  </data>
+  <data name="Editor_Error_SaveFailed" xml:space="preserve">
+    <value>Tilkoblingen kunne ikke lagres: {0}</value>
+  </data>
+  <data name="Editor_Favourite" xml:space="preserve">
+    <value>Vis som favoritt i hurtigstartmenyen</value>
+  </data>
+  <data name="Editor_FontSmoothing" xml:space="preserve">
+    <value>Skriftutjevning</value>
+  </data>
+  <data name="Editor_Footer_Hint" xml:space="preserve">
+    <value>Ctrl+S lagrer, Esc avbryter.</value>
+  </data>
+  <data name="Editor_FullWindowDrag" xml:space="preserve">
+    <value>Vis vindusinnhold mens du drar</value>
+  </data>
+  <data name="Editor_Gateway_Always" xml:space="preserve">
+    <value>Bruk alltid gatewayen</value>
+  </data>
+  <data name="Editor_Gateway_Default" xml:space="preserve">
+    <value>Bruk standardinnstillingene for gateway</value>
+  </data>
+  <data name="Editor_Gateway_Detect" xml:space="preserve">
+    <value>Oppdag gatewayen automatisk</value>
+  </data>
+  <data name="Editor_Gateway_DoNotUse" xml:space="preserve">
+    <value>Ikke bruk gateway</value>
+  </data>
+  <data name="Editor_Gateway_Header" xml:space="preserve">
+    <value>GATEWAY FOR EKSTERNT SKRIVEBORD</value>
+  </data>
+  <data name="Editor_Gateway_Hint" xml:space="preserve">
+    <value>Gatewayen tunnelerer RDP over HTTPS. La gateway-legitimasjonen stå tom for å gjenbruke påloggingen til økten.</value>
+  </data>
+  <data name="Editor_Gateway_NonLocal" xml:space="preserve">
+    <value>Bruk for adresser utenfor det lokale nettverket</value>
+  </data>
+  <data name="Editor_GatewayBypassLocal" xml:space="preserve">
+    <value>Omgå gatewayen for lokale adresser</value>
+  </data>
+  <data name="Editor_GatewayCredential" xml:space="preserve">
+    <value>Gateway-legitimasjon</value>
+  </data>
+  <data name="Editor_GatewayCredentialSource" xml:space="preserve">
+    <value>Legitimasjonskilde</value>
+  </data>
+  <data name="Editor_GatewayHost" xml:space="preserve">
+    <value>Gateway-vert</value>
+  </data>
+  <data name="Editor_GatewaySource_Password" xml:space="preserve">
+    <value>Be om passord (NTLM)</value>
+  </data>
+  <data name="Editor_GatewaySource_Session" xml:space="preserve">
+    <value>Bruk øktens legitimasjon</value>
+  </data>
+  <data name="Editor_GatewaySource_SmartCard" xml:space="preserve">
+    <value>Smartkort</value>
+  </data>
+  <data name="Editor_GatewayUsage" xml:space="preserve">
+    <value>Bruksmåte</value>
+  </data>
+  <data name="Editor_Generated_Header" xml:space="preserve">
+    <value>GENERERT .RDP-FIL</value>
+  </data>
+  <data name="Editor_Generated_Hint" xml:space="preserve">
+    <value>Forhåndsvisning som oppdateres like etter hver endring. Det krypterte passordet vises aldri her.</value>
+  </data>
+  <data name="Editor_Group" xml:space="preserve">
+    <value>Gruppe</value>
+  </data>
+  <data name="Editor_Group_None" xml:space="preserve">
+    <value>(ingen gruppe)</value>
+  </data>
+  <data name="Editor_Height" xml:space="preserve">
+    <value>Høyde</value>
+  </data>
+  <data name="Editor_Host" xml:space="preserve">
+    <value>Vert</value>
+  </data>
+  <data name="Editor_Identity_Header" xml:space="preserve">
+    <value>IDENTITET</value>
+  </data>
+  <data name="Editor_Keyboard_FullscreenOnly" xml:space="preserve">
+    <value>Bare ved bruk av fullskjerm</value>
+  </data>
+  <data name="Editor_Keyboard_Header" xml:space="preserve">
+    <value>TASTATUR</value>
+  </data>
+  <data name="Editor_Keyboard_Local" xml:space="preserve">
+    <value>På denne datamaskinen</value>
+  </data>
+  <data name="Editor_Keyboard_Remote" xml:space="preserve">
+    <value>På den eksterne datamaskinen</value>
+  </data>
+  <data name="Editor_KeyboardHook" xml:space="preserve">
+    <value>Bruk tastekombinasjoner</value>
+  </data>
+  <data name="Editor_KeyboardHook_Hint" xml:space="preserve">
+    <value>Bestemmer hvor kombinasjoner som Alt+Tab og Windows-tasten skal virke.</value>
+  </data>
+  <data name="Editor_List_JoinLast" xml:space="preserve">
+    <value>{0} og {1}</value>
+  </data>
+  <data name="Editor_LoadBalanceInfo" xml:space="preserve">
+    <value>Lastbalanseringsinfo</value>
+  </data>
+  <data name="Editor_LoadBalanceInfo_Hint" xml:space="preserve">
+    <value>Rutingstokenet tilkoblingsmegleren forventer, for eksempel tsv://MS Terminal Services Plugin.1.Collection</value>
+  </data>
+  <data name="Editor_ManageCredentials" xml:space="preserve">
+    <value>Administrer...</value>
+  </data>
+  <data name="Editor_MaxAttempts" xml:space="preserve">
+    <value>Maksimalt antall forsøk</value>
+  </data>
+  <data name="Editor_MaxAttempts_Hint" xml:space="preserve">
+    <value>0 betyr ingen grense</value>
+  </data>
+  <data name="Editor_MenuAnimations" xml:space="preserve">
+    <value>Meny- og vindusanimasjoner</value>
+  </data>
+  <data name="Editor_Monitor_Primary" xml:space="preserve">
+    <value>Hovedskjerm</value>
+  </data>
+  <data name="Editor_Monitor_Tooltip_Position" xml:space="preserve">
+    <value>Posisjon {0}, {1}</value>
+  </data>
+  <data name="Editor_Monitor_Tooltip_Scale" xml:space="preserve">
+    <value>Skalering {0} %</value>
+  </data>
+  <data name="Editor_Monitors_None" xml:space="preserve">
+    <value>Fant ingen skjermer.</value>
+  </data>
+  <data name="Editor_Monitors_Reading" xml:space="preserve">
+    <value>Leser skjermoppsettet...</value>
+  </data>
+  <data name="Editor_Monitors_Selected_Hint" xml:space="preserve">
+    <value>Klikk på en skjerm for å legge den til eller fjerne den. De valgte skjermene må ligge inntil hverandre, ellers kan ikke mstsc bruke dem.</value>
+  </data>
+  <data name="Editor_MstscAutoReconnect" xml:space="preserve">
+    <value>La mstsc koble til på nytt selv</value>
+  </data>
+  <data name="Editor_Name" xml:space="preserve">
+    <value>Navn</value>
+  </data>
+  <data name="Editor_NetworkAutoDetect" xml:space="preserve">
+    <value>Oppdag nettverkskvaliteten automatisk</value>
+  </data>
+  <data name="Editor_NetworkDetect_Hint" xml:space="preserve">
+    <value>Automatisk oppdagelse av nettverkskvalitet virker bare når tilkoblingskvaliteten står på «Oppdag automatisk».</value>
+  </data>
+  <data name="Editor_Organisation_Header" xml:space="preserve">
+    <value>ORGANISERING OG PÅLOGGING</value>
+  </data>
+  <data name="Editor_Outcome_Monitor_Named" xml:space="preserve">
+    <value>skjerm {0} ({1})</value>
+  </data>
+  <data name="Editor_Port" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="Editor_Preset_Balanced" xml:space="preserve">
+    <value>Balansert</value>
+  </data>
+  <data name="Editor_Preset_LowBandwidth" xml:space="preserve">
+    <value>Lav båndbredde</value>
+  </data>
+  <data name="Editor_Presets_Header" xml:space="preserve">
+    <value>FORHÅNDSINNSTILLINGER FOR YTELSE</value>
+  </data>
+  <data name="Editor_Presets_Hint" xml:space="preserve">
+    <value>En forhåndsinnstilling endrer alle valgene i denne fanen på én gang. Du kan justere dem etterpå.</value>
+  </data>
+  <data name="Editor_Problem_NoHost" xml:space="preserve">
+    <value>verten mangler</value>
+  </data>
+  <data name="Editor_Problem_NoName" xml:space="preserve">
+    <value>tilkoblingen mangler navn</value>
+  </data>
+  <data name="Editor_Problem_PortNotNumber" xml:space="preserve">
+    <value>porten er ikke et tall</value>
+  </data>
+  <data name="Editor_Problem_PortRange" xml:space="preserve">
+    <value>porten må være mellom 1 og 65535</value>
+  </data>
+  <data name="Editor_PromptCredentialsOnce" xml:space="preserve">
+    <value>Be om legitimasjon bare én gang</value>
+  </data>
+  <data name="Editor_PublicMode" xml:space="preserve">
+    <value>Offentlig modus (ingenting bufres lokalt)</value>
+  </data>
+  <data name="Editor_Quality_AutoDetect" xml:space="preserve">
+    <value>Oppdag automatisk (anbefalt)</value>
+  </data>
+  <data name="Editor_Quality_HighSpeedBroadband" xml:space="preserve">
+    <value>Bredbånd med høy hastighet (2–10 Mbps)</value>
+  </data>
+  <data name="Editor_Quality_Lan" xml:space="preserve">
+    <value>LAN (10 Mbps eller mer)</value>
+  </data>
+  <data name="Editor_Quality_LowSpeedBroadband" xml:space="preserve">
+    <value>Bredbånd med lav hastighet (256 kbps – 2 Mbps)</value>
+  </data>
+  <data name="Editor_Quality_Modem" xml:space="preserve">
+    <value>Modem (56–256 kbps)</value>
+  </data>
+  <data name="Editor_Quality_Satellite" xml:space="preserve">
+    <value>Satellitt (2–16 Mbps, høy ventetid)</value>
+  </data>
+  <data name="Editor_Quality_Wan" xml:space="preserve">
+    <value>WAN (10 Mbps eller mer, høy ventetid)</value>
+  </data>
+  <data name="Editor_RawProperties_Header" xml:space="preserve">
+    <value>EGENDEFINERTE .RDP-EGENSKAPER</value>
+  </data>
+  <data name="Editor_RawProperties_Hint" xml:space="preserve">
+    <value>Disse linjene skrives uendret inn i den genererte .rdp-filen og overstyrer alle andre innstillinger. Oppgi bare egenskapsnavnet, for eksempel kdcproxyname, eller legg til typesuffikset selv, for eksempel kdcproxyname:s.</value>
+  </data>
+  <data name="Editor_RdpPreview_CommentsNote" xml:space="preserve">
+    <value>Kommentarlinjer (de som begynner med ';') skrives ikke til den ekte filen.</value>
+  </data>
+  <data name="Editor_RdpPreview_Failed" xml:space="preserve">
+    <value>Forhåndsvisningen kunne ikke lages: {0}</value>
+  </data>
+  <data name="Editor_RdpPreview_Intro" xml:space="preserve">
+    <value>Forhåndsvisning av .rdp-filen appen lager for denne tilkoblingen.</value>
+  </data>
+  <data name="Editor_RdpPreview_NoPasswordNote" xml:space="preserve">
+    <value>Det er ikke lagret noe passord for den valgte legitimasjonen, så det skrives ikke noe kryptert passord.</value>
+  </data>
+  <data name="Editor_RdpPreview_PasswordNote" xml:space="preserve">
+    <value>Det krypterte passordet lages ved start og vises aldri her.</value>
+  </data>
+  <data name="Editor_ReconnectDelay" xml:space="preserve">
+    <value>Pause mellom forsøk</value>
+  </data>
+  <data name="Editor_Redirect_Clipboard" xml:space="preserve">
+    <value>Utklippstavle</value>
+  </data>
+  <data name="Editor_Redirect_Location" xml:space="preserve">
+    <value>Posisjon</value>
+  </data>
+  <data name="Editor_Redirect_PnpDevices" xml:space="preserve">
+    <value>Plug and Play-enheter</value>
+  </data>
+  <data name="Editor_Redirect_Ports" xml:space="preserve">
+    <value>Serielle og parallelle porter</value>
+  </data>
+  <data name="Editor_Redirect_Printers" xml:space="preserve">
+    <value>Skrivere</value>
+  </data>
+  <data name="Editor_Redirect_SmartCards" xml:space="preserve">
+    <value>Smartkort</value>
+  </data>
+  <data name="Editor_Redirect_WebAuthn" xml:space="preserve">
+    <value>WebAuthn (sikkerhetsnøkler)</value>
+  </data>
+  <data name="Editor_RedirectCameras" xml:space="preserve">
+    <value>Omdiriger kameraer</value>
+  </data>
+  <data name="Editor_RedirectDrives" xml:space="preserve">
+    <value>Omdiriger stasjoner</value>
+  </data>
+  <data name="Editor_Redirection_Header" xml:space="preserve">
+    <value>OMDIRIGERING</value>
+  </data>
+  <data name="Editor_RemoteAppCmdLine" xml:space="preserve">
+    <value>Kommandolinje</value>
+  </data>
+  <data name="Editor_RemoteAppMode" xml:space="preserve">
+    <value>Kjør som RemoteApp i stedet for et fullt skrivebord</value>
+  </data>
+  <data name="Editor_RemoteAppName" xml:space="preserve">
+    <value>Programnavn</value>
+  </data>
+  <data name="Editor_RemoteAppProgram" xml:space="preserve">
+    <value>Programbane eller alias</value>
+  </data>
+  <data name="Editor_RemoveProperty_Tooltip" xml:space="preserve">
+    <value>Fjern egenskapen</value>
+  </data>
+  <data name="Editor_Resolution_Custom" xml:space="preserve">
+    <value>Egendefinert størrelse</value>
+  </data>
+  <data name="Editor_Scale_Percent" xml:space="preserve">
+    <value>{0} %</value>
+  </data>
+  <data name="Editor_ScreenMode_Fullscreen" xml:space="preserve">
+    <value>Fullskjerm</value>
+  </data>
+  <data name="Editor_ScreenMode_Header" xml:space="preserve">
+    <value>SKJERMMODUS</value>
+  </data>
+  <data name="Editor_ScreenMode_Windowed" xml:space="preserve">
+    <value>I vindu</value>
+  </data>
+  <data name="Editor_FullScreen_OneMonitor" xml:space="preserve">
+    <value>På én skjerm</value>
+  </data>
+  <data name="Editor_FullScreen_SelectedMonitors" xml:space="preserve">
+    <value>Over valgte skjermer</value>
+  </data>
+  <data name="Editor_FullScreen_AllMonitors" xml:space="preserve">
+    <value>Over alle skjermer</value>
+  </data>
+  <data name="Editor_Window_Automatic" xml:space="preserve">
+    <value>La Windows plassere det</value>
+  </data>
+  <data name="Editor_Window_Maximized" xml:space="preserve">
+    <value>Maksimert på én skjerm</value>
+  </data>
+  <data name="Editor_Window_Rectangle" xml:space="preserve">
+    <value>Der jeg velger</value>
+  </data>
+  <data name="Editor_MapHint_FullScreen" xml:space="preserve">
+    <value>Klikk på skjermen økten skal fylle.</value>
+  </data>
+  <data name="Editor_MapHint_Maximized" xml:space="preserve">
+    <value>Klikk på skjermen vinduet skal maksimeres på.</value>
+  </data>
+  <data name="Editor_MapHint_All" xml:space="preserve">
+    <value>Økten dekker alle skjermene.</value>
+  </data>
+  <data name="Editor_MapHint_Automatic" xml:space="preserve">
+    <value>Vinduet åpnes midt på hovedskjermen.</value>
+  </data>
+  <data name="Editor_MapHint_Rectangle" xml:space="preserve">
+    <value>Dra vinduet for å flytte det, eller dra i en kant eller et hjørne for å endre størrelsen. Det fester seg til kantene av skjermene og oppgavelinjen og holder seg innenfor skjermene. Klikk på en skjerm for å flytte det dit. Piltastene flytter det, Shift+piltast endrer størrelsen, og med Ctrl blir steget én piksel.</value>
+  </data>
+  <data name="Editor_Rectangle_Name" xml:space="preserve">
+    <value>Plassering og størrelse på øktvinduet</value>
+  </data>
+  <data name="Editor_Size_Format" xml:space="preserve">
+    <value>{0} x {1}</value>
+  </data>
+  <data name="Editor_Custom_OffScreen" xml:space="preserve">
+    <value>En del av vinduet er utenfor skjermene. Dra det, eller gå ut av feltet, for å hente det inn igjen.</value>
+  </data>
+  <data name="Editor_WindowSize" xml:space="preserve">
+    <value>Vindusstørrelse</value>
+  </data>
+  <data name="Editor_WindowSize_OutsideFullScreen" xml:space="preserve">
+    <value>Vindusstørrelse utenfor fullskjerm</value>
+  </data>
+  <data name="Editor_WindowSize_Restored" xml:space="preserve">
+    <value>Størrelse når det gjenopprettes</value>
+  </data>
+  <data name="Editor_WindowSize_FullScreen_Hint" xml:space="preserve">
+    <value>Fullskjerm bruker alltid skjermens egen oppløsning. Dette er vinduet du får når du går ut av fullskjerm med Ctrl+Alt+Break eller øktlinjen.</value>
+  </data>
+  <data name="Editor_WindowSize_Window_Hint" xml:space="preserve">
+    <value>Størrelsen på det eksterne skrivebordet inne i vinduet.</value>
+  </data>
+  <data name="Editor_WindowSize_Maximized_Hint" xml:space="preserve">
+    <value>Vinduet åpnes maksimert. Dette er størrelsen det får når du gjenoppretter det.</value>
+  </data>
+  <data name="Editor_Resize_Header" xml:space="preserve">
+    <value>NÅR VINDUET ENDRER STØRRELSE</value>
+  </data>
+  <data name="Editor_Resize_Follow" xml:space="preserve">
+    <value>Endre oppløsningen i økten så den passer (anbefalt)</value>
+  </data>
+  <data name="Editor_Resize_Scale" xml:space="preserve">
+    <value>Skaler bildet så det passer</value>
+  </data>
+  <data name="Editor_Resize_Fixed" xml:space="preserve">
+    <value>Behold oppløsningen, med rullefelt når den ikke får plass</value>
+  </data>
+  <data name="Editor_Resize_Hint" xml:space="preserve">
+    <value>Dette bestemmer også hva som skjer når du bytter mellom fullskjerm og vindu med Ctrl+Alt+Break eller øktlinjen.</value>
+  </data>
+  <data name="Editor_Resize_MultiMonitorNote" xml:space="preserve">
+    <value>En økt over flere skjermer beholder hele oppsettet når den går ut av fullskjerm – Tilkobling til eksternt skrivebord kan ikke krympe den til ett vindu. Velg én skjerm for å bytte fritt mellom fullskjerm og vindu.</value>
+  </data>
+  <data name="Editor_Scaling_Header" xml:space="preserve">
+    <value>KVALITET OG SKALERING</value>
+  </data>
+  <data name="Editor_Outcome_FullScreen" xml:space="preserve">
+    <value>Åpnes i fullskjerm på skjerm {0} ({1}, {2}).</value>
+  </data>
+  <data name="Editor_Outcome_FullScreen_Unknown" xml:space="preserve">
+    <value>Åpnes i fullskjerm.</value>
+  </data>
+  <data name="Editor_Outcome_AcrossAll" xml:space="preserve">
+    <value>Åpnes i fullskjerm over alle de {0} skjermene ({1} x {2} totalt).</value>
+  </data>
+  <data name="Editor_Outcome_AcrossSelected" xml:space="preserve">
+    <value>Åpnes i fullskjerm over {0}.</value>
+  </data>
+  <data name="Editor_Outcome_Across_Unknown" xml:space="preserve">
+    <value>Åpnes i fullskjerm over de valgte skjermene.</value>
+  </data>
+  <data name="Editor_Outcome_Maximized" xml:space="preserve">
+    <value>Åpnes maksimert på skjerm {0} ({1}, {2}).</value>
+  </data>
+  <data name="Editor_Outcome_Maximized_Unknown" xml:space="preserve">
+    <value>Åpnes maksimert.</value>
+  </data>
+  <data name="Editor_Outcome_Rectangle" xml:space="preserve">
+    <value>Åpnes i et vindu på {2} x {3} i posisjon {0}, {1}.</value>
+  </data>
+  <data name="Editor_Outcome_Window" xml:space="preserve">
+    <value>Åpnes i et vindu på {0} x {1} midt på skjerm {2}.</value>
+  </data>
+  <data name="Editor_Outcome_Switch_Follow" xml:space="preserve">
+    <value>Ctrl+Alt+Break bytter mellom fullskjerm og et vindu på {0} x {1}, og oppløsningen i økten tilpasses hver gang.</value>
+  </data>
+  <data name="Editor_Outcome_Switch_Scale" xml:space="preserve">
+    <value>Ctrl+Alt+Break bytter mellom fullskjerm og et vindu på {0} x {1}, der det eksterne skrivebordet skaleres så det passer.</value>
+  </data>
+  <data name="Editor_Outcome_Switch_Fixed" xml:space="preserve">
+    <value>Oppløsningen i økten forblir {0} x {1}, så et vindu (Ctrl+Alt+Break) får rullefelt.</value>
+  </data>
+  <data name="Editor_Outcome_Switch_Multi" xml:space="preserve">
+    <value>Når du går ut av fullskjerm, beholdes hele skrivebordet over flere skjermer i ett vindu, med rullefelt.</value>
+  </data>
+  <data name="Editor_Outcome_Switch_MultiScaled" xml:space="preserve">
+    <value>Når du går ut av fullskjerm, beholdes hele skrivebordet over flere skjermer, skalert inn i ett vindu.</value>
+  </data>
+  <data name="Editor_Outcome_Resize_Follow" xml:space="preserve">
+    <value>Når du endrer størrelsen på vinduet, tilpasses oppløsningen i økten.</value>
+  </data>
+  <data name="Editor_Outcome_Resize_Scale" xml:space="preserve">
+    <value>Når du endrer størrelsen på vinduet, skaleres det eksterne skrivebordet så det passer.</value>
+  </data>
+  <data name="Editor_Outcome_Resize_Fixed" xml:space="preserve">
+    <value>Oppløsningen i økten forblir {0} x {1} uansett vindusstørrelse.</value>
+  </data>
+  <data name="Editor_Outcome_OnTop" xml:space="preserve">
+    <value>Vinduet holdes alltid øverst.</value>
+  </data>
+  <data name="Editor_Seconds" xml:space="preserve">
+    <value>sekunder</value>
+  </data>
+  <data name="Editor_Security_Header" xml:space="preserve">
+    <value>SIKKERHET</value>
+  </data>
+  <data name="Editor_StartupProgram_Header" xml:space="preserve">
+    <value>OPPSTARTSPROGRAM</value>
+  </data>
+  <data name="Editor_StartupProgram_Hint" xml:space="preserve">
+    <value>Starter et program i stedet for det eksterne skrivebordet. La begge feltene stå tomme for en vanlig skrivebordsøkt.</value>
+  </data>
+  <data name="Editor_Subtitle_Edit" xml:space="preserve">
+    <value>Du redigerer en eksisterende tilkobling. Endringene gjelder fra neste gang den startes.</value>
+  </data>
+  <data name="Editor_Subtitle_New" xml:space="preserve">
+    <value>Alle innstillingene for Eksternt skrivebord, også de mstsc holder skjult.</value>
+  </data>
+  <data name="Editor_Tab_Advanced" xml:space="preserve">
+    <value>Avansert</value>
+  </data>
+  <data name="Editor_Tab_Display" xml:space="preserve">
+    <value>Skjerm</value>
+  </data>
+  <data name="Editor_Tab_Experience" xml:space="preserve">
+    <value>Opplevelse</value>
+  </data>
+  <data name="Editor_Tab_Gateway" xml:space="preserve">
+    <value>Gateway</value>
+  </data>
+  <data name="Editor_Tab_General" xml:space="preserve">
+    <value>Generelt</value>
+  </data>
+  <data name="Editor_Tab_LocalResources" xml:space="preserve">
+    <value>Lokale ressurser</value>
+  </data>
+  <data name="Editor_Tab_SecurityProgram" xml:space="preserve">
+    <value>Sikkerhet og program</value>
+  </data>
+  <data name="Editor_Tab_Watchdog" xml:space="preserve">
+    <value>Overvåking</value>
+  </data>
+  <data name="Editor_Tags" xml:space="preserve">
+    <value>Etiketter</value>
+  </data>
+  <data name="Editor_Tags_Hint" xml:space="preserve">
+    <value>Kommaseparert, for eksempel: produksjon, sql, oslo</value>
+  </data>
+  <data name="Editor_Test" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="Editor_Test_Answered" xml:space="preserve">
+    <value>{0}:{1} svarte på {2} ms.</value>
+  </data>
+  <data name="Editor_Test_NoAnswer" xml:space="preserve">
+    <value>{0}:{1} svarte ikke.</value>
+  </data>
+  <data name="Editor_Test_Running" xml:space="preserve">
+    <value>Tester...</value>
+  </data>
+  <data name="Editor_Title_Edit" xml:space="preserve">
+    <value>Rediger tilkobling</value>
+  </data>
+  <data name="Editor_Title_New" xml:space="preserve">
+    <value>Ny tilkobling</value>
+  </data>
+  <data name="Editor_Validation_Summary" xml:space="preserve">
+    <value>Kan ikke lagre ennå: {0}.</value>
+  </data>
+  <data name="Editor_Video_Legacy" xml:space="preserve">
+    <value>Eldre avspilling</value>
+  </data>
+  <data name="Editor_Video_Multimedia" xml:space="preserve">
+    <value>Multimedieomdirigering (jevnere video)</value>
+  </data>
+  <data name="Editor_VideoPlayback" xml:space="preserve">
+    <value>Videoavspilling</value>
+  </data>
+  <data name="Editor_Visuals_Header" xml:space="preserve">
+    <value>VISUELT</value>
+  </data>
+  <data name="Editor_VisualStyles" xml:space="preserve">
+    <value>Visuelle stiler</value>
+  </data>
+  <data name="Editor_Wallpaper" xml:space="preserve">
+    <value>Skrivebordsbakgrunn</value>
+  </data>
+  <data name="Editor_Watchdog_Summary_Limited_Delay_Many" xml:space="preserve">
+    <value>Hvis økten brytes, prøver overvåkingen å starte den på nytt hvert {1}. sekund, opptil {0} ganger. Den gir seg så snart du lukker økten selv.</value>
+  </data>
+  <data name="Editor_Watchdog_Summary_Limited_Delay_One" xml:space="preserve">
+    <value>Hvis økten brytes, prøver overvåkingen å starte den på nytt hvert sekund, opptil {0} ganger. Den gir seg så snart du lukker økten selv.</value>
+  </data>
+  <data name="Editor_Watchdog_Summary_Limited_NoDelay" xml:space="preserve">
+    <value>Hvis økten brytes, prøver overvåkingen å starte den på nytt umiddelbart, opptil {0} ganger. Den gir seg så snart du lukker økten selv.</value>
+  </data>
+  <data name="Editor_Watchdog_Summary_Off" xml:space="preserve">
+    <value>Hvis økten brytes, forblir den lukket til du starter den igjen.</value>
+  </data>
+  <data name="Editor_Watchdog_Summary_Once_Delay_Many" xml:space="preserve">
+    <value>Hvis økten brytes, prøver overvåkingen å starte den på nytt etter {1} sekunder, men bare én gang. Den gir seg så snart du lukker økten selv.</value>
+  </data>
+  <data name="Editor_Watchdog_Summary_Once_Delay_One" xml:space="preserve">
+    <value>Hvis økten brytes, prøver overvåkingen å starte den på nytt etter ett sekund, men bare én gang. Den gir seg så snart du lukker økten selv.</value>
+  </data>
+  <data name="Editor_Watchdog_Summary_Once_NoDelay" xml:space="preserve">
+    <value>Hvis økten brytes, prøver overvåkingen å starte den på nytt umiddelbart, men bare én gang. Den gir seg så snart du lukker økten selv.</value>
+  </data>
+  <data name="Editor_Watchdog_Summary_Unlimited_Delay_Many" xml:space="preserve">
+    <value>Hvis økten brytes, prøver overvåkingen å starte den på nytt hvert {1}. sekund, så mange ganger som trengs. Den gir seg så snart du lukker økten selv.</value>
+  </data>
+  <data name="Editor_Watchdog_Summary_Unlimited_Delay_One" xml:space="preserve">
+    <value>Hvis økten brytes, prøver overvåkingen å starte den på nytt hvert sekund, så mange ganger som trengs. Den gir seg så snart du lukker økten selv.</value>
+  </data>
+  <data name="Editor_Watchdog_Summary_Unlimited_NoDelay" xml:space="preserve">
+    <value>Hvis økten brytes, prøver overvåkingen å starte den på nytt umiddelbart, så mange ganger som trengs. Den gir seg så snart du lukker økten selv.</value>
+  </data>
+  <data name="Editor_WhatWillHappen_Header" xml:space="preserve">
+    <value>DETTE VIL SKJE</value>
+  </data>
+  <data name="Editor_Width" xml:space="preserve">
+    <value>Bredde</value>
+  </data>
+  <data name="Editor_WorkingDirectory" xml:space="preserve">
+    <value>Arbeidsmappe</value>
+  </data>
+  <data name="Hotkey_Error_Empty" xml:space="preserve">
+    <value>Skriv inn en hurtigtast, for eksempel Ctrl+Alt+R.</value>
+  </data>
+  <data name="Hotkey_Error_NoKey" xml:space="preserve">
+    <value>Legg til en tast, for eksempel R eller F12.</value>
+  </data>
+  <data name="Hotkey_Error_NoModifier" xml:space="preserve">
+    <value>Legg til minst én av tastene Ctrl, Alt, Shift eller Win.</value>
+  </data>
+  <data name="Hotkey_Error_OneKey" xml:space="preserve">
+    <value>Bruk bare én tast utenom Ctrl, Alt, Shift og Win.</value>
+  </data>
+  <data name="Hotkey_Error_UnsupportedKey" xml:space="preserve">
+    <value>Tasten «{0}» støttes ikke.</value>
+  </data>
+  <data name="Language_Header" xml:space="preserve">
+    <value>SPRÅK</value>
+  </data>
+  <data name="Language_Hint" xml:space="preserve">
+    <value>«Samme som Windows» velger norsk når Windows er på norsk, ellers engelsk.</value>
+  </data>
+  <data name="Language_Label" xml:space="preserve">
+    <value>Visningsspråk</value>
+  </data>
+  <data name="Language_System" xml:space="preserve">
+    <value>Samme som Windows</value>
+  </data>
+  <data name="Main_Breadcrumb_Library" xml:space="preserve">
+    <value>Bibliotek</value>
+  </data>
+  <data name="Main_CloseMulti_Message" xml:space="preserve">
+    <value>Vil du lukke alle øktene som «{0}» har startet?</value>
+  </data>
+  <data name="Main_CloseMulti_Title" xml:space="preserve">
+    <value>Lukk økter</value>
+  </data>
+  <data name="Main_CloseSession_Message" xml:space="preserve">
+    <value>Vil du lukke økten «{0}»?</value>
+  </data>
+  <data name="Main_CloseSession_Title" xml:space="preserve">
+    <value>Lukk økt</value>
+  </data>
+  <data name="Main_CopyName" xml:space="preserve">
+    <value>{0} (kopi)</value>
+  </data>
+  <data name="Main_Count_Connections_Many" xml:space="preserve">
+    <value>{0} tilkoblinger</value>
+  </data>
+  <data name="Main_Count_Connections_One" xml:space="preserve">
+    <value>{0} tilkobling</value>
+  </data>
+  <data name="Main_Count_Groups_Many" xml:space="preserve">
+    <value>{0} grupper</value>
+  </data>
+  <data name="Main_Count_Groups_One" xml:space="preserve">
+    <value>{0} gruppe</value>
+  </data>
+  <data name="Main_Count_MultiConfigs_Many" xml:space="preserve">
+    <value>{0} multikonfigurasjoner</value>
+  </data>
+  <data name="Main_Count_MultiConfigs_One" xml:space="preserve">
+    <value>{0} multikonfigurasjon</value>
+  </data>
+  <data name="Main_Count_Running_Many" xml:space="preserve">
+    <value>{0} aktive</value>
+  </data>
+  <data name="Main_Count_Running_One" xml:space="preserve">
+    <value>{0} aktiv</value>
+  </data>
+  <data name="Main_Count_SubGroups_Many" xml:space="preserve">
+    <value>{0} undergrupper</value>
+  </data>
+  <data name="Main_Count_SubGroups_One" xml:space="preserve">
+    <value>{0} undergruppe</value>
+  </data>
+  <data name="Main_Credential_None" xml:space="preserve">
+    <value>Ingen legitimasjon tilknyttet</value>
+  </data>
+  <data name="Main_Credential_Prompt" xml:space="preserve">
+    <value>Windows ber om passord</value>
+  </data>
+  <data name="Main_DeleteConnection_Message" xml:space="preserve">
+    <value>Vil du slette tilkoblingen «{0}»? Dette kan ikke angres.</value>
+  </data>
+  <data name="Main_DeleteConnection_Title" xml:space="preserve">
+    <value>Slett tilkobling</value>
+  </data>
+  <data name="Main_DeleteGroup_Message" xml:space="preserve">
+    <value>Vil du slette gruppen «{0}»? Alt innholdet flyttes opp til den overordnede gruppen.</value>
+  </data>
+  <data name="Main_DeleteGroup_Title" xml:space="preserve">
+    <value>Slett gruppe</value>
+  </data>
+  <data name="Main_DeleteMultiConfig_Message" xml:space="preserve">
+    <value>Vil du slette multikonfigurasjonen «{0}»? Tilkoblingene i den beholdes.</value>
+  </data>
+  <data name="Main_DeleteMultiConfig_Title" xml:space="preserve">
+    <value>Slett multikonfigurasjon</value>
+  </data>
+  <data name="Main_Detail_Connect" xml:space="preserve">
+    <value>Koble til</value>
+  </data>
+  <data name="Main_Detail_Credential_Header" xml:space="preserve">
+    <value>LEGITIMASJON</value>
+  </data>
+  <data name="Main_Detail_Display_Header" xml:space="preserve">
+    <value>SKJERM</value>
+  </data>
+  <data name="Main_Detail_Duplicate" xml:space="preserve">
+    <value>Dupliser</value>
+  </data>
+  <data name="Main_Detail_Edit" xml:space="preserve">
+    <value>Rediger</value>
+  </data>
+  <data name="Main_Detail_ExportRdp" xml:space="preserve">
+    <value>Eksporter .rdp</value>
+  </data>
+  <data name="Main_Detail_Favourite" xml:space="preserve">
+    <value>Favoritt</value>
+  </data>
+  <data name="Main_Detail_LastConnected_Header" xml:space="preserve">
+    <value>SIST TILKOBLET</value>
+  </data>
+  <data name="Main_Detail_Launched_Many" xml:space="preserve">
+    <value>Startet {0} ganger</value>
+  </data>
+  <data name="Main_Detail_Launched_One" xml:space="preserve">
+    <value>Startet én gang</value>
+  </data>
+  <data name="Main_Detail_Launches_Header" xml:space="preserve">
+    <value>ANTALL STARTER</value>
+  </data>
+  <data name="Main_Detail_Never" xml:space="preserve">
+    <value>Aldri</value>
+  </data>
+  <data name="Main_Detail_Tags_Header" xml:space="preserve">
+    <value>ETIKETTER</value>
+  </data>
+  <data name="Main_Display_AllMonitors" xml:space="preserve">
+    <value>Alle skjermer</value>
+  </data>
+  <data name="Main_Display_CustomRectangle" xml:space="preserve">
+    <value>{0}x{1} i posisjon {2}, {3}</value>
+  </data>
+  <data name="Main_Display_Fullscreen" xml:space="preserve">
+    <value>Fullskjerm</value>
+  </data>
+  <data name="Main_Display_MonitorFullscreen" xml:space="preserve">
+    <value>Fullskjerm på skjerm {0}</value>
+  </data>
+  <data name="Main_Display_MonitorList" xml:space="preserve">
+    <value>Skjerm {0}</value>
+  </data>
+  <data name="Main_Display_MonitorMaximized" xml:space="preserve">
+    <value>Maksimert på skjerm {0}</value>
+  </data>
+  <data name="Main_Display_SelectedMonitors" xml:space="preserve">
+    <value>Valgte skjermer</value>
+  </data>
+  <data name="Main_Display_SpanAll" xml:space="preserve">
+    <value>Strukket over alle skjermer</value>
+  </data>
+  <data name="Main_Display_Windowed" xml:space="preserve">
+    <value>{0}x{1} i vindu</value>
+  </data>
+  <data name="Main_Empty_Hint" xml:space="preserve">
+    <value>Velg noe til venstre, eller opprett en tilkobling.</value>
+  </data>
+  <data name="Main_Error_ClearHistory" xml:space="preserve">
+    <value>Kunne ikke tømme historikken: {0}</value>
+  </data>
+  <data name="Main_Error_CloseMulti" xml:space="preserve">
+    <value>Øktene til «{0}» kunne ikke lukkes: {1}</value>
+  </data>
+  <data name="Main_Error_CloseSession" xml:space="preserve">
+    <value>«{0}» kunne ikke lukkes: {1}</value>
+  </data>
+  <data name="Main_Error_CreateGroup" xml:space="preserve">
+    <value>Kunne ikke opprette gruppen: {0}</value>
+  </data>
+  <data name="Main_Error_DeleteConnection" xml:space="preserve">
+    <value>Kunne ikke slette tilkoblingen: {0}</value>
+  </data>
+  <data name="Main_Error_DeleteGroup" xml:space="preserve">
+    <value>Kunne ikke slette gruppen: {0}</value>
+  </data>
+  <data name="Main_Error_DeleteMultiConfig" xml:space="preserve">
+    <value>Kunne ikke slette multikonfigurasjonen: {0}</value>
+  </data>
+  <data name="Main_Error_DuplicateConnection" xml:space="preserve">
+    <value>Kunne ikke duplisere tilkoblingen: {0}</value>
+  </data>
+  <data name="Main_Error_DuplicateGroup" xml:space="preserve">
+    <value>Kunne ikke duplisere gruppen: {0}</value>
+  </data>
+  <data name="Main_Error_DuplicateMultiConfig" xml:space="preserve">
+    <value>Kunne ikke duplisere multikonfigurasjonen: {0}</value>
+  </data>
+  <data name="Main_Error_Export" xml:space="preserve">
+    <value>«{0}» kunne ikke eksporteres: {1}</value>
+  </data>
+  <data name="Main_Error_Focus" xml:space="preserve">
+    <value>«{0}» kunne ikke hentes frem.</value>
+  </data>
+  <data name="Main_Error_Import" xml:space="preserve">
+    <value>Importen mislyktes: {0}</value>
+  </data>
+  <data name="Main_Error_LoadLibrary" xml:space="preserve">
+    <value>Tilkoblingsbiblioteket kunne ikke lastes inn: {0}</value>
+  </data>
+  <data name="Main_Error_OpenFileDialog" xml:space="preserve">
+    <value>Fildialogen kunne ikke åpnes: {0}</value>
+  </data>
+  <data name="Main_Error_OpenWindow" xml:space="preserve">
+    <value>Vinduet kunne ikke åpnes: {0}</value>
+  </data>
+  <data name="Main_Error_Reconnect" xml:space="preserve">
+    <value>«{0}» kunne ikke kobles til på nytt: {1}</value>
+  </data>
+  <data name="Main_Error_RenameConnection" xml:space="preserve">
+    <value>Kunne ikke gi tilkoblingen nytt navn: {0}</value>
+  </data>
+  <data name="Main_Error_RenameGroup" xml:space="preserve">
+    <value>Kunne ikke gi gruppen nytt navn: {0}</value>
+  </data>
+  <data name="Main_Error_RenameMultiConfig" xml:space="preserve">
+    <value>Kunne ikke gi multikonfigurasjonen nytt navn: {0}</value>
+  </data>
+  <data name="Main_Error_SaveConnection" xml:space="preserve">
+    <value>Kunne ikke lagre tilkoblingen: {0}</value>
+  </data>
+  <data name="Main_Error_SaveMultiConfig" xml:space="preserve">
+    <value>Kunne ikke lagre multikonfigurasjonen: {0}</value>
+  </data>
+  <data name="Main_Error_Start" xml:space="preserve">
+    <value>«{0}» kunne ikke startes: {1}</value>
+  </data>
+  <data name="Main_Error_StartNoSession" xml:space="preserve">
+    <value>«{0}» kunne ikke startes.</value>
+  </data>
+  <data name="Main_Error_UpdateConnection" xml:space="preserve">
+    <value>Kunne ikke oppdatere tilkoblingen: {0}</value>
+  </data>
+  <data name="Main_Error_UpdateMultiConfig" xml:space="preserve">
+    <value>Kunne ikke oppdatere multikonfigurasjonen: {0}</value>
+  </data>
+  <data name="Main_Export_DefaultFileName" xml:space="preserve">
+    <value>tilkobling</value>
+  </data>
+  <data name="Main_Export_Done" xml:space="preserve">
+    <value>«{0}» ble eksportert til {1}.</value>
+  </data>
+  <data name="Main_Export_Title" xml:space="preserve">
+    <value>Eksporter fil for eksternt skrivebord</value>
+  </data>
+  <data name="Main_FileDialog_RdpFilter" xml:space="preserve">
+    <value>Filer for eksternt skrivebord (*.rdp)|*.rdp|Alle filer (*.*)|*.*</value>
+  </data>
+  <data name="Main_Filter_All" xml:space="preserve">
+    <value>Alle</value>
+  </data>
+  <data name="Main_Filter_Connected" xml:space="preserve">
+    <value>Tilkoblet</value>
+  </data>
+  <data name="Main_Filter_Favourites" xml:space="preserve">
+    <value>Favoritter</value>
+  </data>
+  <data name="Main_History_Clear" xml:space="preserve">
+    <value>Tøm historikk</value>
+  </data>
+  <data name="Main_History_Clear_Confirm" xml:space="preserve">
+    <value>Tøm</value>
+  </data>
+  <data name="Main_History_Clear_Message" xml:space="preserve">
+    <value>Vil du tømme historikken til «{0}»? De avsluttede øktene fjernes for godt. En økt som fortsatt kjører, blir stående i listen.</value>
+  </data>
+  <data name="Main_History_Clear_Tooltip" xml:space="preserve">
+    <value>Fjern de avsluttede øktene fra historikken til denne tilkoblingen</value>
+  </data>
+  <data name="Main_Import_Done_Many" xml:space="preserve">
+    <value>{0} tilkoblinger ble importert.</value>
+  </data>
+  <data name="Main_Import_Done_One" xml:space="preserve">
+    <value>{0} tilkobling ble importert.</value>
+  </data>
+  <data name="Main_Import_Title" xml:space="preserve">
+    <value>Importer filer for eksternt skrivebord</value>
+  </data>
+  <data name="Main_Kind_Connection" xml:space="preserve">
+    <value>Tilkobling</value>
+  </data>
+  <data name="Main_Kind_Group" xml:space="preserve">
+    <value>Gruppe</value>
+  </data>
+  <data name="Main_Kind_MultiConfig" xml:space="preserve">
+    <value>Multikonfigurasjon</value>
+  </data>
+  <data name="Main_Library_Empty" xml:space="preserve">
+    <value>Biblioteket er tomt. Opprett en tilkobling for å komme i gang.</value>
+  </data>
+  <data name="Main_Library_NoResults" xml:space="preserve">
+    <value>Ingenting samsvarer med søket eller filteret.</value>
+  </data>
+  <data name="Main_Multi_CloseAll" xml:space="preserve">
+    <value>Lukk alle</value>
+  </data>
+  <data name="Main_Multi_ItemDisabled" xml:space="preserve">
+    <value>Deaktivert</value>
+  </data>
+  <data name="Main_Multi_LaunchAll" xml:space="preserve">
+    <value>Start alle</value>
+  </data>
+  <data name="Main_Multi_NothingToLaunch" xml:space="preserve">
+    <value>«{0}» har ingenting å starte.</value>
+  </data>
+  <data name="Main_MultiItem_MissingConnection" xml:space="preserve">
+    <value>Manglende tilkobling</value>
+  </data>
+  <data name="Main_MultiItem_NotFound" xml:space="preserve">
+    <value>Ikke funnet</value>
+  </data>
+  <data name="Main_MultiSummary_Sequential" xml:space="preserve">
+    <value>{0} som startes etter tur</value>
+  </data>
+  <data name="Main_MultiSummary_Sequential_CloseTogether" xml:space="preserve">
+    <value>{0} som startes etter tur og lukkes samlet</value>
+  </data>
+  <data name="Main_MultiSummary_Together" xml:space="preserve">
+    <value>{0} som startes samtidig</value>
+  </data>
+  <data name="Main_MultiSummary_Together_CloseTogether" xml:space="preserve">
+    <value>{0} som startes og lukkes samlet</value>
+  </data>
+  <data name="Main_NewConnection" xml:space="preserve">
+    <value>Ny tilkobling</value>
+  </data>
+  <data name="Main_NewGroup" xml:space="preserve">
+    <value>Ny gruppe</value>
+  </data>
+  <data name="Main_NewGroup_DefaultName" xml:space="preserve">
+    <value>Ny gruppe</value>
+  </data>
+  <data name="Main_NewGroup_Prompt" xml:space="preserve">
+    <value>Navn på den nye gruppen</value>
+  </data>
+  <data name="Main_NewMultiConfig" xml:space="preserve">
+    <value>Ny multikonfigurasjon</value>
+  </data>
+  <data name="Main_Rename" xml:space="preserve">
+    <value>Gi nytt navn</value>
+  </data>
+  <data name="Main_Rename_Prompt" xml:space="preserve">
+    <value>Nytt navn</value>
+  </data>
+  <data name="Main_Search_Clear_Tooltip" xml:space="preserve">
+    <value>Tøm søket</value>
+  </data>
+  <data name="Main_Search_Placeholder" xml:space="preserve">
+    <value>Søk</value>
+  </data>
+  <data name="Main_Search_Tooltip" xml:space="preserve">
+    <value>Søk i tilkoblinger, verter og etiketter (Ctrl+F)</value>
+  </data>
+  <data name="Main_Session_Close" xml:space="preserve">
+    <value>Lukk</value>
+  </data>
+  <data name="Main_Session_Focus" xml:space="preserve">
+    <value>Hent frem</value>
+  </data>
+  <data name="Main_Session_Reconnect" xml:space="preserve">
+    <value>Koble til igjen</value>
+  </data>
+  <data name="Main_Session_Thumbnail_Tooltip" xml:space="preserve">
+    <value>Hent frem denne økten</value>
+  </data>
+  <data name="Main_Sessions_Header" xml:space="preserve">
+    <value>AKTIVE ØKTER</value>
+  </data>
+  <data name="Main_Status_Running" xml:space="preserve">
+    <value>Kjører</value>
+  </data>
+  <data name="Main_Toolbar_Connection" xml:space="preserve">
+    <value>Tilkobling</value>
+  </data>
+  <data name="Main_Toolbar_Credentials" xml:space="preserve">
+    <value>Legitimasjonsbehandling</value>
+  </data>
+  <data name="Main_Toolbar_Group" xml:space="preserve">
+    <value>Gruppe</value>
+  </data>
+  <data name="Main_Toolbar_Import" xml:space="preserve">
+    <value>Importer .rdp-fil</value>
+  </data>
+  <data name="Main_Toolbar_Import_Tooltip" xml:space="preserve">
+    <value>Importer .rdp-fil (Ctrl+O)</value>
+  </data>
+  <data name="Main_Toolbar_MultiConfig" xml:space="preserve">
+    <value>Multikonfigurasjon</value>
+  </data>
+  <data name="Main_Toolbar_NewConnection_Tooltip" xml:space="preserve">
+    <value>Ny tilkobling (Ctrl+N)</value>
+  </data>
+  <data name="Main_Toolbar_NewGroup_Tooltip" xml:space="preserve">
+    <value>Ny gruppe (Ctrl+Shift+N)</value>
+  </data>
+  <data name="Main_Toolbar_NewMultiConfig_Tooltip" xml:space="preserve">
+    <value>Ny multikonfigurasjon (Ctrl+M)</value>
+  </data>
+  <data name="Main_Toolbar_Reload" xml:space="preserve">
+    <value>Last inn biblioteket på nytt</value>
+  </data>
+  <data name="Main_Toolbar_Reload_Tooltip" xml:space="preserve">
+    <value>Last inn biblioteket på nytt (F5)</value>
+  </data>
+  <data name="Main_Toolbar_Settings" xml:space="preserve">
+    <value>Innstillinger</value>
+  </data>
+  <data name="Main_Toolbar_Transfer" xml:space="preserve">
+    <value>Eksporter eller importer konfigurasjoner</value>
+  </data>
+  <data name="Main_UntitledGroup" xml:space="preserve">
+    <value>Gruppe uten navn</value>
+  </data>
+  <data name="Main_UntitledMultiConfig" xml:space="preserve">
+    <value>Sett uten navn</value>
+  </data>
+  <data name="Monitor_Display" xml:space="preserve">
+    <value>Skjerm</value>
+  </data>
+  <data name="Monitor_Label_Primary" xml:space="preserve">
+    <value>{0}. {1} ({2}, hovedskjerm)</value>
+  </data>
+  <data name="Monitor_PrimaryDisplay" xml:space="preserve">
+    <value>Hovedskjerm</value>
+  </data>
+  <data name="Multi_AddConnection" xml:space="preserve">
+    <value>Legg til tilkobling...</value>
+  </data>
+  <data name="Multi_AutoReconnect_Inherit_Off" xml:space="preserve">
+    <value>Som tilkoblingen (kobler ikke til på nytt)</value>
+  </data>
+  <data name="Multi_AutoReconnect_Inherit_On" xml:space="preserve">
+    <value>Som tilkoblingen (kobler til på nytt)</value>
+  </data>
+  <data name="Multi_AutoReconnect_Label" xml:space="preserve">
+    <value>Gjenoppkobling</value>
+  </data>
+  <data name="Multi_AutoReconnect_Off" xml:space="preserve">
+    <value>Koble aldri til på nytt</value>
+  </data>
+  <data name="Multi_AutoReconnect_On" xml:space="preserve">
+    <value>Koble alltid til på nytt</value>
+  </data>
+  <data name="Multi_CloseTogether_Hint" xml:space="preserve">
+    <value>Lukker du én økt i settet, lukkes resten også.</value>
+  </data>
+  <data name="Multi_CloseTogether_Toggle" xml:space="preserve">
+    <value>Lukk dem samtidig</value>
+  </data>
+  <data name="Multi_Colour_Amber" xml:space="preserve">
+    <value>Ravgul</value>
+  </data>
+  <data name="Multi_Colour_Blue" xml:space="preserve">
+    <value>Blå</value>
+  </data>
+  <data name="Multi_Colour_Green" xml:space="preserve">
+    <value>Grønn</value>
+  </data>
+  <data name="Multi_Colour_Grey" xml:space="preserve">
+    <value>Grå</value>
+  </data>
+  <data name="Multi_Colour_Label" xml:space="preserve">
+    <value>Farge</value>
+  </data>
+  <data name="Multi_Colour_None" xml:space="preserve">
+    <value>Ingen farge</value>
+  </data>
+  <data name="Multi_Colour_Pink" xml:space="preserve">
+    <value>Rosa</value>
+  </data>
+  <data name="Multi_Colour_Purple" xml:space="preserve">
+    <value>Lilla</value>
+  </data>
+  <data name="Multi_Colour_Red" xml:space="preserve">
+    <value>Rød</value>
+  </data>
+  <data name="Multi_Colour_Teal" xml:space="preserve">
+    <value>Blågrønn</value>
+  </data>
+  <data name="Multi_Credential_Deleted" xml:space="preserve">
+    <value>Slettet legitimasjonssett</value>
+  </data>
+  <data name="Multi_Credential_UseConnections" xml:space="preserve">
+    <value>Bruk tilkoblingens egen legitimasjon</value>
+  </data>
+  <data name="Multi_CredentialSet_Label" xml:space="preserve">
+    <value>Legitimasjonssett</value>
+  </data>
+  <data name="Multi_DelayAfter_Hint" xml:space="preserve">
+    <value>Brukes bare når tilkoblingene startes etter hverandre.</value>
+  </data>
+  <data name="Multi_DelayAfter_Label" xml:space="preserve">
+    <value>Forsinkelse etter (ms)</value>
+  </data>
+  <data name="Multi_DelayAfter_Tooltip" xml:space="preserve">
+    <value>Ventetid etter dette elementet før det neste starter</value>
+  </data>
+  <data name="Multi_Description_Label" xml:space="preserve">
+    <value>Beskrivelse</value>
+  </data>
+  <data name="Multi_DisplayName_Label" xml:space="preserve">
+    <value>Visningsnavn</value>
+  </data>
+  <data name="Multi_DisplayName_Tooltip" xml:space="preserve">
+    <value>La feltet stå tomt for å bruke tilkoblingens eget navn</value>
+  </data>
+  <data name="Multi_Display_FromConnection" xml:space="preserve">
+    <value>Bruk tilkoblingens skjerminnstillinger</value>
+  </data>
+  <data name="Multi_Display_Header" xml:space="preserve">
+    <value>SKJERMINNSTILLINGER</value>
+  </data>
+  <data name="Multi_Display_Hint" xml:space="preserve">
+    <value>Endrer du noe nedenfor eller på kartet, får økten egne skjerminnstillinger i dette settet. Selve tilkoblingen endres ikke.</value>
+  </data>
+  <data name="Multi_Display_Own" xml:space="preserve">
+    <value>Egne skjerminnstillinger i dette settet</value>
+  </data>
+  <data name="Multi_Duplicate_Tooltip" xml:space="preserve">
+    <value>Dupliser det valgte elementet</value>
+  </data>
+  <data name="Multi_Error_Load" xml:space="preserve">
+    <value>De lagrede tilkoblingene kunne ikke leses: {0}</value>
+  </data>
+  <data name="Multi_Error_Missing_Many" xml:space="preserve">
+    <value>{0} elementer peker på tilkoblinger som ikke finnes lenger.</value>
+  </data>
+  <data name="Multi_Error_Missing_One" xml:space="preserve">
+    <value>Ett element peker på en tilkobling som ikke finnes lenger. Fjern elementet eller velg en annen tilkobling.</value>
+  </data>
+  <data name="Multi_Error_NoItems" xml:space="preserve">
+    <value>Legg til minst én tilkobling.</value>
+  </data>
+  <data name="Multi_Error_NoName" xml:space="preserve">
+    <value>Gi multikonfigurasjonen et navn.</value>
+  </data>
+  <data name="Multi_Error_NoneEnabled" xml:space="preserve">
+    <value>Minst ett element må være aktivert.</value>
+  </data>
+  <data name="Multi_Error_Save" xml:space="preserve">
+    <value>Multikonfigurasjonen kunne ikke lagres: {0}</value>
+  </data>
+  <data name="Multi_Favorite_Label" xml:space="preserve">
+    <value>Favoritt</value>
+  </data>
+  <data name="Multi_Favorite_Toggle" xml:space="preserve">
+    <value>Vis øverst i listen</value>
+  </data>
+  <data name="Multi_Group_Label" xml:space="preserve">
+    <value>Gruppe</value>
+  </data>
+  <data name="Multi_Header_Edit" xml:space="preserve">
+    <value>Rediger multikonfigurasjon</value>
+  </data>
+  <data name="Multi_Header_New" xml:space="preserve">
+    <value>Ny multikonfigurasjon</value>
+  </data>
+  <data name="Multi_Info_Sequential_Many" xml:space="preserve">
+    <value>{0} av {1} elementer startes etter hverandre.</value>
+  </data>
+  <data name="Multi_Info_Sequential_One" xml:space="preserve">
+    <value>{0} av {1} element startes.</value>
+  </data>
+  <data name="Multi_Info_Together_Many" xml:space="preserve">
+    <value>{0} av {1} elementer startes samtidig.</value>
+  </data>
+  <data name="Multi_Info_Together_One" xml:space="preserve">
+    <value>{0} av {1} element startes.</value>
+  </data>
+  <data name="Multi_InitialDelay_Label" xml:space="preserve">
+    <value>Startforsinkelse (ms)</value>
+  </data>
+  <data name="Multi_InitialDelay_Tooltip" xml:space="preserve">
+    <value>Ventetid før den første økten starter</value>
+  </data>
+  <data name="Multi_Item_ConnectionGone" xml:space="preserve">
+    <value>Denne tilkoblingen finnes ikke lenger</value>
+  </data>
+  <data name="Multi_Item_Enabled_Tooltip" xml:space="preserve">
+    <value>Start denne tilkoblingen sammen med settet</value>
+  </data>
+  <data name="Multi_Item_MissingConnection" xml:space="preserve">
+    <value>Manglende tilkobling</value>
+  </data>
+  <data name="Multi_Item_MoveDown_Tooltip" xml:space="preserve">
+    <value>Flytt ned</value>
+  </data>
+  <data name="Multi_Item_MoveUp_Tooltip" xml:space="preserve">
+    <value>Flytt opp</value>
+  </data>
+  <data name="Multi_ItemOnly_Header" xml:space="preserve">
+    <value>BARE DETTE ELEMENTET</value>
+  </data>
+  <data name="Multi_Items_Header" xml:space="preserve">
+    <value>TILKOBLINGER I DETTE SETTET</value>
+  </data>
+  <data name="Multi_Items_Hint" xml:space="preserve">
+    <value>De startes i denne rekkefølgen. Fjern merket for en tilkobling for å beholde den i settet uten å starte den.</value>
+  </data>
+  <data name="Multi_LaunchNow" xml:space="preserve">
+    <value>Start nå</value>
+  </data>
+  <data name="Multi_LaunchNow_Tooltip" xml:space="preserve">
+    <value>Lagre settet og start alle aktiverte elementer nå</value>
+  </data>
+  <data name="Multi_Map_Header" xml:space="preserve">
+    <value>SKJERMOVERSIKT</value>
+  </data>
+  <data name="Multi_Map_Intro" xml:space="preserve">
+    <value>Viser hvor hver økt i settet åpnes. Klikk på et navn for å velge økten, og klikk deretter på en skjerm eller dra vinduet for å plassere den.</value>
+  </data>
+  <data name="Multi_Name_Label" xml:space="preserve">
+    <value>Navn</value>
+  </data>
+  <data name="Multi_NoGroup" xml:space="preserve">
+    <value>Ingen gruppe</value>
+  </data>
+  <data name="Multi_NoSelection_Hint" xml:space="preserve">
+    <value>Velg et element til venstre for å gi det egen skjermplassering, egen legitimasjon eller eget visningsnavn.</value>
+  </data>
+  <data name="Multi_Picker_Add" xml:space="preserve">
+    <value>Legg til</value>
+  </data>
+  <data name="Multi_Picker_HostAndGroup" xml:space="preserve">
+    <value>{0} – {1}</value>
+  </data>
+  <data name="Multi_Picker_NoConnections" xml:space="preserve">
+    <value>Det finnes ingen lagrede tilkoblinger ennå.</value>
+  </data>
+  <data name="Multi_Picker_NoMatch" xml:space="preserve">
+    <value>Ingen tilkoblinger samsvarer med søket.</value>
+  </data>
+  <data name="Multi_Remove_Tooltip" xml:space="preserve">
+    <value>Fjern det valgte elementet</value>
+  </data>
+  <data name="Multi_ResetOverrides" xml:space="preserve">
+    <value>Tilbakestill overstyringer</value>
+  </data>
+  <data name="Multi_ResetOverrides_Tooltip" xml:space="preserve">
+    <value>Fjern alle overstyringer og bruk tilkoblingens egne innstillinger</value>
+  </data>
+  <data name="Multi_Sequential_Hint" xml:space="preserve">
+    <value>Hver økt startes først når vinduet til den forrige vises, slik at skjermene fylles i en forutsigbar rekkefølge. Slå av for å starte alle samtidig.</value>
+  </data>
+  <data name="Multi_Sequential_Toggle" xml:space="preserve">
+    <value>Start dem etter hverandre</value>
+  </data>
+  <data name="Multi_Summary_AcrossMonitors" xml:space="preserve">
+    <value>Strukket over skjermene {0}</value>
+  </data>
+  <data name="Multi_Summary_AlwaysOnTop" xml:space="preserve">
+    <value>{0}, alltid øverst</value>
+  </data>
+  <data name="Multi_Summary_CustomRect" xml:space="preserve">
+    <value>Vindu på {0} x {1} i posisjon {2}, {3}</value>
+  </data>
+  <data name="Multi_Summary_FullScreenDefault" xml:space="preserve">
+    <value>Fullskjerm på skjermen tilkoblingen velger</value>
+  </data>
+  <data name="Multi_Summary_FullScreenOnMonitor" xml:space="preserve">
+    <value>Fullskjerm på skjerm {0}</value>
+  </data>
+  <data name="Multi_Summary_MaximizedOnMonitor" xml:space="preserve">
+    <value>Maksimert på skjerm {0}</value>
+  </data>
+  <data name="Multi_Summary_SpanAll" xml:space="preserve">
+    <value>Strukket over alle skjermer</value>
+  </data>
+  <data name="Multi_Summary_Windowed" xml:space="preserve">
+    <value>I vindu på {0} x {1}</value>
+  </data>
+  <data name="Multi_Warning_SameScreen" xml:space="preserve">
+    <value>To økter vil ta over samme skjerm – {0}. Det er som regel en feil, men det er tillatt.</value>
+  </data>
+  <data name="Multi_Warning_SameScreen_Clash" xml:space="preserve">
+    <value>skjerm {0} ({1} og {2})</value>
+  </data>
+  <data name="Rdp_ImportedConnection_Name" xml:space="preserve">
+    <value>Importert tilkobling</value>
+  </data>
+  <data name="Session_State_Connected" xml:space="preserve">
+    <value>Tilkoblet</value>
+  </data>
+  <data name="Session_State_Connecting" xml:space="preserve">
+    <value>Kobler til</value>
+  </data>
+  <data name="Session_State_Disconnected" xml:space="preserve">
+    <value>Frakoblet</value>
+  </data>
+  <data name="Session_State_Failed" xml:space="preserve">
+    <value>Mislyktes</value>
+  </data>
+  <data name="Session_State_Reconnecting" xml:space="preserve">
+    <value>Kobler til på nytt</value>
+  </data>
+  <data name="Session_State_Starting" xml:space="preserve">
+    <value>Starter</value>
+  </data>
+  <data name="SessionBar_Disconnect" xml:space="preserve">
+    <value>Koble fra</value>
+  </data>
+  <data name="SessionBar_Disconnect_Confirm" xml:space="preserve">
+    <value>Koble fra?</value>
+  </data>
+  <data name="SessionBar_Disconnect_Tooltip" xml:space="preserve">
+    <value>Avslutt denne økten</value>
+  </data>
+  <data name="SessionBar_Error_Disconnect" xml:space="preserve">
+    <value>«{0}» kunne ikke kobles fra: {1}</value>
+  </data>
+  <data name="SessionBar_ExitFullScreen_Tooltip" xml:space="preserve">
+    <value>Gå ut av fullskjerm (Ctrl+Alt+Break)</value>
+  </data>
+  <data name="SessionBar_Launch_Tooltip" xml:space="preserve">
+    <value>Koble til en annen datamaskin</value>
+  </data>
+  <data name="SessionBar_Minimize_Tooltip" xml:space="preserve">
+    <value>Minimer</value>
+  </data>
+  <data name="SessionBar_OpenManager_Tooltip" xml:space="preserve">
+    <value>Åpne Remote Desktop Manager</value>
+  </data>
+  <data name="SessionBar_Window_Title" xml:space="preserve">
+    <value>Øktlinje for Remote Desktop Manager</value>
+  </data>
+  <data name="Settings_About_DataFolder" xml:space="preserve">
+    <value>Datamappe</value>
+  </data>
+  <data name="Settings_About_Header" xml:space="preserve">
+    <value>OM</value>
+  </data>
+  <data name="Settings_About_OpenFolder" xml:space="preserve">
+    <value>Åpne mappe</value>
+  </data>
+  <data name="Settings_About_OpenFolder_Tooltip" xml:space="preserve">
+    <value>Åpne datamappen i Filutforsker</value>
+  </data>
+  <data name="Settings_About_OpenLog" xml:space="preserve">
+    <value>Åpne logg</value>
+  </data>
+  <data name="Settings_About_OpenLog_Tooltip" xml:space="preserve">
+    <value>Åpne loggfilen</value>
+  </data>
+  <data name="Settings_About_Version" xml:space="preserve">
+    <value>Versjon</value>
+  </data>
+  <data name="Settings_Appearance_Accent" xml:space="preserve">
+    <value>Uthevingsfarge</value>
+  </data>
+  <data name="Settings_Appearance_Accent_Hint" xml:space="preserve">
+    <value>Uthevingsfargen tas i bruk i hele appen når du lagrer.</value>
+  </data>
+  <data name="Settings_Appearance_ConfirmClose" xml:space="preserve">
+    <value>Be om bekreftelse før en aktiv økt lukkes</value>
+  </data>
+  <data name="Settings_Appearance_Header" xml:space="preserve">
+    <value>UTSEENDE</value>
+  </data>
+  <data name="Settings_Error_Save" xml:space="preserve">
+    <value>Innstillingene kunne ikke lagres. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Settings_Client_Header" xml:space="preserve">
+    <value>KLIENT FOR EKSTERNT SKRIVEBORD</value>
+  </data>
+  <data name="Settings_Client_Intro" xml:space="preserve">
+    <value>Når det eksterne skrivebordet vises inne i denne appen, kobles det til uten sikkerhetsadvarselen fra Windows, og oppløsningen endres så den passer når du endrer størrelse på vinduet eller går ut av fullskjerm – ekte dynamisk oppløsning. Den innebygde klienten (mstsc) skalerer bare bildet til vinduet, og advarer om hver tilkoblingsfil den åpner.</value>
+  </data>
+  <data name="Session_Menu_FullScreen" xml:space="preserve">
+    <value>Fullskjerm</value>
+  </data>
+  <data name="Session_Menu_ExitFullScreen" xml:space="preserve">
+    <value>Avslutt fullskjerm</value>
+  </data>
+  <data name="Settings_Client_UseEmbedded" xml:space="preserve">
+    <value>Vis det eksterne skrivebordet inne i denne appen (ingen sikkerhetsadvarsel, dynamisk oppløsning)</value>
+  </data>
+  <data name="Settings_EmbeddedClient_On" xml:space="preserve">
+    <value>Tilkoblinger åpnes i et vindu som denne appen viser: ingen sikkerhetsadvarsel, og oppløsningen følger vinduet. Trer i kraft neste gang du starter appen.</value>
+  </data>
+  <data name="Settings_EmbeddedClient_Off" xml:space="preserve">
+    <value>Tilkoblinger starter den eksterne klienten for eksternt skrivebord. Slå på dette for å vise dem inne i appen i stedet – ingen sikkerhetsadvarsel og ekte dynamisk oppløsning. Trer i kraft neste gang du starter appen.</value>
+  </data>
+  <data name="Settings_Files_Header" xml:space="preserve">
+    <value>TILKOBLINGSFILER</value>
+  </data>
+  <data name="Settings_Files_Intro" xml:space="preserve">
+    <value>Tilkoblinger som bare bruker innstillinger som kan angis på kommandolinjen, startes uten .rdp-fil, og for dem viser Windows aldri noen advarsel. De andre trenger en fil, og Windows advarer mot alle filer som ikke er signert.</value>
+  </data>
+  <data name="Settings_Files_Sign" xml:space="preserve">
+    <value>Signer tilkoblingsfilene som appen lager</value>
+  </data>
+  <data name="Settings_Files_Sign_Certificate" xml:space="preserve">
+    <value>Signeres med sertifikatet du har angitt. Hvis det er utstedt av en sertifiseringsinstans denne PC-en stoler på, kan Windows huske svaret ditt.</value>
+  </data>
+  <data name="Settings_Files_Sign_Off" xml:space="preserve">
+    <value>Filene signeres ikke, så Windows viser en advarsel før hver tilkobling som trenger en fil.</value>
+  </data>
+  <data name="Settings_Files_Sign_SelfSigned" xml:space="preserve">
+    <value>Et selvsignert sertifikat blir brukt. Windows godtar signaturen, men kan ikke vise hvem utgiveren er, så du blir spurt hver gang likevel.</value>
+  </data>
+  <data name="Settings_Files_Thumbprint" xml:space="preserve">
+    <value>Avtrykk for signeringssertifikatet</value>
+  </data>
+  <data name="Settings_Files_Thumbprint_Hint" xml:space="preserve">
+    <value>La feltet stå tomt for å bruke et selvsignert sertifikat. Windows kan bare vise utgiveren og huske svaret ditt når sertifikatet er utstedt av en sertifiseringsinstans denne PC-en stoler på, for eksempel virksomhetens interne CA.</value>
+  </data>
+  <data name="Settings_FullScreen_ConnectionBar_Hint" xml:space="preserve">
+    <value>Økter som startes mens dette er slått på, vises uten tilkoblingslinjen til Eksternt skrivebord. Ctrl+Alt+Break går alltid ut av fullskjerm.</value>
+  </data>
+  <data name="Settings_FullScreen_Header" xml:space="preserve">
+    <value>FULLSKJERM</value>
+  </data>
+  <data name="Settings_FullScreen_SessionBar" xml:space="preserve">
+    <value>Vis øktlinjen i fullskjermøkter</value>
+  </data>
+  <data name="Settings_FullScreen_SessionBar_Hint" xml:space="preserve">
+    <value>Hold pekeren mot øvre kant av en fullskjermøkt for å bytte til en annen aktiv tilkobling med ett klikk, eller rull over linjen for å bla gjennom dem. Fra linjen kan du også minimere, gå ut av fullskjerm og koble fra.</value>
+  </data>
+  <data name="Settings_QuickLaunch_Header" xml:space="preserve">
+    <value>HURTIGSTART</value>
+  </data>
+  <data name="Settings_QuickLaunch_Hotkey" xml:space="preserve">
+    <value>Global hurtigtast</value>
+  </data>
+  <data name="Settings_QuickLaunch_Hotkey_Hint" xml:space="preserve">
+    <value>For eksempel Ctrl+Alt+R. La feltet stå tomt for å slå av hurtigtasten.</value>
+  </data>
+  <data name="Settings_QuickLaunch_Hotkey_Taken" xml:space="preserve">
+    <value>Hurtigtasten {0} brukes allerede av en annen app.</value>
+  </data>
+  <data name="Settings_QuickLaunch_MaxItems" xml:space="preserve">
+    <value>Maks antall oppføringer i hurtigstartmenyen</value>
+  </data>
+  <data name="Settings_QuickLaunch_MaxItems_Hint" xml:space="preserve">
+    <value>Holder menyen kort når du har mange tilkoblinger (5 til 200).</value>
+  </data>
+  <data name="Settings_QuickLaunch_ShowGroups" xml:space="preserve">
+    <value>Vis grupper i hurtigstartmenyen</value>
+  </data>
+  <data name="Settings_QuickLaunch_ShowThumbnails" xml:space="preserve">
+    <value>Vis miniatyrbilder av økter i hurtigstartmenyen</value>
+  </data>
+  <data name="Settings_Security_Delivery" xml:space="preserve">
+    <value>Standard levering av legitimasjon</value>
+  </data>
+  <data name="Settings_Security_Delivery_Both" xml:space="preserve">
+    <value>Begge (mest pålitelig)</value>
+  </data>
+  <data name="Settings_Security_Delivery_Embedded" xml:space="preserve">
+    <value>Innebygd i .rdp-filen</value>
+  </data>
+  <data name="Settings_Security_Delivery_Hint" xml:space="preserve">
+    <value>Hvordan nye tilkoblinger gir mstsc passordet.</value>
+  </data>
+  <data name="Settings_Security_Delivery_Prompt" xml:space="preserve">
+    <value>Spør alltid</value>
+  </data>
+  <data name="Settings_Security_Delivery_Vault" xml:space="preserve">
+    <value>Windows-legitimasjonshvelvet</value>
+  </data>
+  <data name="Settings_Security_Header" xml:space="preserve">
+    <value>SIKKERHET</value>
+  </data>
+  <data name="Settings_Security_Shred" xml:space="preserve">
+    <value>Slett genererte .rdp-filer etter start</value>
+  </data>
+  <data name="Settings_Security_Shred_Hint" xml:space="preserve">
+    <value>En generert .rdp-fil kan inneholde passordet i kryptert form, så en fil som blir liggende i den midlertidige mappen, er en brukbar kopi av påloggingen.</value>
+  </data>
+  <data name="Settings_Security_VaultMethod" xml:space="preserve">
+    <value>Skrivemetode for hvelvet</value>
+  </data>
+  <data name="Settings_Security_VaultMethod_Api" xml:space="preserve">
+    <value>Legitimasjons-API i Windows</value>
+  </data>
+  <data name="Settings_Security_VaultMethod_Api_Hint" xml:space="preserve">
+    <value>Legitimasjons-API-et i Windows skriver direkte fra appen, så passordet havner aldri på en kommandolinje.</value>
+  </data>
+  <data name="Settings_Security_VaultMethod_CmdKey_Hint" xml:space="preserve">
+    <value>cmdkey.exe er den dokumenterte manuelle metoden, men passordet er synlig på kommandolinjen så lenge programmet kjører.</value>
+  </data>
+  <data name="Settings_Snapshots_Clear" xml:space="preserve">
+    <value>Slett miniatyrbilder</value>
+  </data>
+  <data name="Settings_Snapshots_Clear_Error" xml:space="preserve">
+    <value>Miniatyrbildene kunne ikke slettes. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Settings_Snapshots_Clear_Tooltip" xml:space="preserve">
+    <value>Slett alle lagrede miniatyrbilder</value>
+  </data>
+  <data name="Settings_Snapshots_Cleared" xml:space="preserve">
+    <value>Lagrede miniatyrbilder er slettet.</value>
+  </data>
+  <data name="Settings_Snapshots_Enable" xml:space="preserve">
+    <value>Ta miniatyrbilder av økter</value>
+  </data>
+  <data name="Settings_Snapshots_Enable_Hint" xml:space="preserve">
+    <value>Miniatyrbildene lages i en bakgrunnstråd og lagres som JPEG-filer i datamappen.</value>
+  </data>
+  <data name="Settings_Snapshots_Header" xml:space="preserve">
+    <value>MINIATYRBILDER</value>
+  </data>
+  <data name="Settings_Snapshots_Interval" xml:space="preserve">
+    <value>Oppdateringsintervall</value>
+  </data>
+  <data name="Settings_Snapshots_Interval_Hint" xml:space="preserve">
+    <value>Sekunder mellom hvert bilde som tas i bakgrunnen. Med 0 tas bilder bare ved behov.</value>
+  </data>
+  <data name="Settings_Snapshots_MaxEdge" xml:space="preserve">
+    <value>Lengste side</value>
+  </data>
+  <data name="Settings_Snapshots_MaxEdge_Hint" xml:space="preserve">
+    <value>Piksler på den lengste siden av et lagret miniatyrbilde (48 til 4096).</value>
+  </data>
+  <data name="Settings_Snapshots_Measuring" xml:space="preserve">
+    <value>Måler...</value>
+  </data>
+  <data name="Settings_Snapshots_Quality" xml:space="preserve">
+    <value>JPEG-kvalitet</value>
+  </data>
+  <data name="Settings_Snapshots_Quality_Hint" xml:space="preserve">
+    <value>1 til 100. Lavere verdier gir mindre filer.</value>
+  </data>
+  <data name="Settings_Snapshots_Stored" xml:space="preserve">
+    <value>Lagrede miniatyrbilder</value>
+  </data>
+  <data name="Settings_Snapshots_Stored_Many" xml:space="preserve">
+    <value>{0} filer, {1} på disken.</value>
+  </data>
+  <data name="Settings_Snapshots_Stored_None" xml:space="preserve">
+    <value>Ingen miniatyrbilder er lagret.</value>
+  </data>
+  <data name="Settings_Snapshots_Stored_One" xml:space="preserve">
+    <value>{0} fil, {1} på disken.</value>
+  </data>
+  <data name="Settings_Startup_CloseToTray" xml:space="preserve">
+    <value>Lukk-knappen minimerer til systemstatusfeltet</value>
+  </data>
+  <data name="Settings_Startup_CloseToTray_Hint" xml:space="preserve">
+    <value>Slå av dette for at Lukk-knappen skal avslutte appen.</value>
+  </data>
+  <data name="Settings_Startup_Header" xml:space="preserve">
+    <value>OPPSTART</value>
+  </data>
+  <data name="Settings_Startup_LaunchAtLogon" xml:space="preserve">
+    <value>Start ved pålogging</value>
+  </data>
+  <data name="Settings_Startup_LaunchAtLogon_Error" xml:space="preserve">
+    <value>Innstillingen for start ved pålogging kunne ikke endres. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Settings_Startup_LaunchAtLogon_Hint" xml:space="preserve">
+    <value>Registrerer appen under Run-nøkkelen for gjeldende bruker. Det som vises her, leses fra registeret.</value>
+  </data>
+  <data name="Settings_Startup_StartInTray" xml:space="preserve">
+    <value>Start i systemstatusfeltet</value>
+  </data>
+  <data name="Settings_Startup_StartInTray_Hint" xml:space="preserve">
+    <value>Hovedvinduet forblir skjult til du åpner det fra ikonet i systemstatusfeltet.</value>
+  </data>
+  <data name="Settings_Subtitle" xml:space="preserve">
+    <value>Endringene tas i bruk når du lagrer.</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Innstillinger</value>
+  </data>
+  <data name="Settings_Updates_AutoInstall" xml:space="preserve">
+    <value>Last ned og installer uten å spørre</value>
+  </data>
+  <data name="Settings_Updates_AutoInstall_Hint" xml:space="preserve">
+    <value>Appen installeres per bruker, så en oppdatering ber aldri om administratorrettigheter. Tilkoblingene og legitimasjonen din ligger utenfor installasjonsmappen og berøres ikke av oppdateringer.</value>
+  </data>
+  <data name="Settings_Updates_CheckNow" xml:space="preserve">
+    <value>Se etter oppdateringer</value>
+  </data>
+  <data name="Settings_Updates_Enable" xml:space="preserve">
+    <value>Se etter nye versjoner på GitHub</value>
+  </data>
+  <data name="Settings_Updates_Header" xml:space="preserve">
+    <value>OPPDATERINGER</value>
+  </data>
+  <data name="Settings_Updates_InstalledVersion" xml:space="preserve">
+    <value>Installert versjon {0}</value>
+  </data>
+  <data name="Settings_Updates_Interval" xml:space="preserve">
+    <value>Sjekkintervall</value>
+  </data>
+  <data name="Settings_Updates_Interval_Hint" xml:space="preserve">
+    <value>Timer mellom hver sjekk i bakgrunnen (1 til 720).</value>
+  </data>
+  <data name="Settings_Updates_LastChecked" xml:space="preserve">
+    <value>Sist sjekket {0:dd.MM.yyyy 'kl.' HH:mm}.</value>
+  </data>
+  <data name="Settings_Updates_NeverChecked" xml:space="preserve">
+    <value>Ikke sjekket ennå.</value>
+  </data>
+  <data name="Settings_Updates_Prereleases" xml:space="preserve">
+    <value>Ta med forhåndsversjoner</value>
+  </data>
+  <data name="Settings_Updates_Repository" xml:space="preserve">
+    <value>Repo for utgivelser</value>
+  </data>
+  <data name="Settings_Updates_Repository_CharError" xml:space="preserve">
+    <value>«{0}» kan ikke brukes i eier- eller reponavn på GitHub.</value>
+  </data>
+  <data name="Settings_Updates_Repository_FormatError" xml:space="preserve">
+    <value>Bruk formen eier/repo, for eksempel DYNATEC/DynatecRDM.</value>
+  </data>
+  <data name="Settings_Updates_Repository_Hint" xml:space="preserve">
+    <value>GitHub-repoet der utgivelsene publiseres, på formen eier/repo. La feltet stå tomt for å slå av oppdateringssjekken.</value>
+  </data>
+  <data name="Settings_Updates_State_Checking" xml:space="preserve">
+    <value>Ser etter nye versjoner i {0}.</value>
+  </data>
+  <data name="Settings_Updates_State_NoRepository" xml:space="preserve">
+    <value>Det er ikke angitt noe repo, så oppdateringssjekken er slått av.</value>
+  </data>
+  <data name="Settings_Updates_Token" xml:space="preserve">
+    <value>Tilgangstoken</value>
+  </data>
+  <data name="Settings_Updates_Token_Hint" xml:space="preserve">
+    <value>Trengs bare for private repoer. For offentlige repoer kan feltet stå tomt.</value>
+  </data>
+  <data name="Settings_Updates_Transfer" xml:space="preserve">
+    <value>Eksporter eller importer konfigurasjoner</value>
+  </data>
+  <data name="Settings_Watchdog_Enable" xml:space="preserve">
+    <value>Overvåk økter og koble dem til på nytt</value>
+  </data>
+  <data name="Settings_Watchdog_Enable_Hint" xml:space="preserve">
+    <value>Overvåkingen sjekker jevnlig vinduet til hver aktive økt og kobler til på nytt når en tilkobling faller ut, helt til tilkoblingens egen grense for antall forsøk er nådd.</value>
+  </data>
+  <data name="Settings_Watchdog_Header" xml:space="preserve">
+    <value>OVERVÅKING</value>
+  </data>
+  <data name="Settings_Watchdog_Interval" xml:space="preserve">
+    <value>Kontrollintervall</value>
+  </data>
+  <data name="Settings_Watchdog_Interval_Hint" xml:space="preserve">
+    <value>Sekunder mellom hver kontroll (1 til 120).</value>
+  </data>
+  <data name="Time_DateOtherYear" xml:space="preserve">
+    <value>d. MMM yyyy</value>
+  </data>
+  <data name="Time_DateThisYear" xml:space="preserve">
+    <value>d. MMM</value>
+  </data>
+  <data name="Time_HoursAgo" xml:space="preserve">
+    <value>for {0} t siden</value>
+  </data>
+  <data name="Time_JustNow" xml:space="preserve">
+    <value>nå nettopp</value>
+  </data>
+  <data name="Time_MinutesAgo" xml:space="preserve">
+    <value>for {0} min siden</value>
+  </data>
+  <data name="Time_Uptime_Hours" xml:space="preserve">
+    <value>{0} t {1:00} min</value>
+  </data>
+  <data name="Time_Uptime_Minutes" xml:space="preserve">
+    <value>{0} min {1:00} s</value>
+  </data>
+  <data name="Time_Uptime_Seconds" xml:space="preserve">
+    <value>{0} s</value>
+  </data>
+  <data name="Time_Yesterday" xml:space="preserve">
+    <value>i går</value>
+  </data>
+  <data name="Transfer_Backup_Summary" xml:space="preserve">
+    <value>Hele databasen ble kopiert, inkludert alt som kan eksporteres herfra.</value>
+  </data>
+  <data name="Transfer_BackupDialog_FileName" xml:space="preserve">
+    <value>DynatecRDM-sikkerhetskopi-{0}.db</value>
+  </data>
+  <data name="Transfer_BackupDialog_Filter" xml:space="preserve">
+    <value>Databasefiler (*.db)|*.db|Alle filer (*.*)|*.*</value>
+  </data>
+  <data name="Transfer_BackupDialog_Title" xml:space="preserve">
+    <value>Sikkerhetskopier databasen</value>
+  </data>
+  <data name="Transfer_Busy_Building" xml:space="preserve">
+    <value>Klargjør eksporten...</value>
+  </data>
+  <data name="Transfer_Busy_CopyingDatabase" xml:space="preserve">
+    <value>Kopierer databasen...</value>
+  </data>
+  <data name="Transfer_Busy_Importing" xml:space="preserve">
+    <value>Importerer...</value>
+  </data>
+  <data name="Transfer_Busy_Reading" xml:space="preserve">
+    <value>Leser filen...</value>
+  </data>
+  <data name="Transfer_Busy_Writing" xml:space="preserve">
+    <value>Skriver filen...</value>
+  </data>
+  <data name="Transfer_Count_Connections_Many" xml:space="preserve">
+    <value>{0} tilkoblinger</value>
+  </data>
+  <data name="Transfer_Count_Connections_One" xml:space="preserve">
+    <value>1 tilkobling</value>
+  </data>
+  <data name="Transfer_Count_Credentials_Many" xml:space="preserve">
+    <value>{0} legitimasjonssett</value>
+  </data>
+  <data name="Transfer_Count_Credentials_One" xml:space="preserve">
+    <value>1 legitimasjonssett</value>
+  </data>
+  <data name="Transfer_Count_Groups_Many" xml:space="preserve">
+    <value>{0} grupper</value>
+  </data>
+  <data name="Transfer_Count_Groups_One" xml:space="preserve">
+    <value>1 gruppe</value>
+  </data>
+  <data name="Transfer_Count_MultiConfigs_Many" xml:space="preserve">
+    <value>{0} multikonfigurasjoner</value>
+  </data>
+  <data name="Transfer_Count_MultiConfigs_One" xml:space="preserve">
+    <value>1 multikonfigurasjon</value>
+  </data>
+  <data name="Transfer_Error_BackupOverLive" xml:space="preserve">
+    <value>Sikkerhetskopien kan ikke skrives over databasen som er i bruk.</value>
+  </data>
+  <data name="Transfer_Error_BackupPathRequired" xml:space="preserve">
+    <value>Du må oppgi en bane for sikkerhetskopien.</value>
+  </data>
+  <data name="Transfer_Error_ExportPathRequired" xml:space="preserve">
+    <value>Du må oppgi en bane for eksportfilen.</value>
+  </data>
+  <data name="Transfer_Error_FileDialog" xml:space="preserve">
+    <value>Fildialogen kunne ikke åpnes: {0}</value>
+  </data>
+  <data name="Transfer_Error_FileEmpty" xml:space="preserve">
+    <value>«{0}» er tom, så det er ingenting å importere.</value>
+  </data>
+  <data name="Transfer_Error_FileNotFound" xml:space="preserve">
+    <value>Konfigurasjonsfilen «{0}» finnes ikke.</value>
+  </data>
+  <data name="Transfer_Error_FilePathRequired" xml:space="preserve">
+    <value>Du må oppgi en filbane.</value>
+  </data>
+  <data name="Transfer_Error_FileTooLarge" xml:space="preserve">
+    <value>«{0}» er på {1} MB. En konfigurasjonsfil er aldri på langt nær så stor, så dette ser ikke ut som en eksport fra Remote Desktop Manager.</value>
+  </data>
+  <data name="Transfer_Error_InsideDataFolder" xml:space="preserve">
+    <value>Velg en mappe utenfor datamappen til appen – der ligger databasen som er i bruk.</value>
+  </data>
+  <data name="Transfer_Error_InvalidPath" xml:space="preserve">
+    <value>«{0}» er ikke en gyldig filbane.</value>
+  </data>
+  <data name="Transfer_Error_LoadLibrary" xml:space="preserve">
+    <value>Biblioteket kunne ikke leses: {0}</value>
+  </data>
+  <data name="Transfer_Error_NewerFormat" xml:space="preserve">
+    <value>«{0}» er skrevet i versjon {1} av konfigurasjonsformatet, men denne versjonen av appen forstår versjon {2}. Oppdater Remote Desktop Manager og prøv igjen.</value>
+  </data>
+  <data name="Transfer_Error_NoData" xml:space="preserve">
+    <value>«{0}» inneholder ingen konfigurasjonsdata.</value>
+  </data>
+  <data name="Transfer_Error_NoDatabase" xml:space="preserve">
+    <value>Databasefilen «{0}» finnes ikke ennå, så det er ingenting å sikkerhetskopiere.</value>
+  </data>
+  <data name="Transfer_Error_NothingInFile" xml:space="preserve">
+    <value>«{0}» inneholder ingen tilkoblinger, grupper, multikonfigurasjoner eller legitimasjonssett.</value>
+  </data>
+  <data name="Transfer_Error_NothingSelected" xml:space="preserve">
+    <value>Velg minst én tilkobling eller multikonfigurasjon som skal eksporteres.</value>
+  </data>
+  <data name="Transfer_Error_NotReadable" xml:space="preserve">
+    <value>«{0}» er ikke en lesbar konfigurasjonsfil fra Remote Desktop Manager: {1}</value>
+  </data>
+  <data name="Transfer_Error_PassphraseBlank" xml:space="preserve">
+    <value>Passordfrasen kan ikke bestå av bare mellomrom.</value>
+  </data>
+  <data name="Transfer_Error_PassphraseRequired" xml:space="preserve">
+    <value>Eksport av passord krever en passordfrase. Den som importerer filen, blir bedt om å oppgi den.</value>
+  </data>
+  <data name="Transfer_Error_PassphraseTooShort" xml:space="preserve">
+    <value>Passordfrasen må ha minst {0} tegn.</value>
+  </data>
+  <data name="Transfer_Error_ReasonInLog" xml:space="preserve">
+    <value>årsaken står i loggen</value>
+  </data>
+  <data name="Transfer_Error_UnsupportedMode" xml:space="preserve">
+    <value>«{0}» er ikke en støttet importmodus.</value>
+  </data>
+  <data name="Transfer_Error_UnsupportedValue" xml:space="preserve">
+    <value>«{0}» inneholder en verdi som denne versjonen ikke kan lese: {1}</value>
+  </data>
+  <data name="Transfer_Export_Backup" xml:space="preserve">
+    <value>Sikkerhetskopier databasen...</value>
+  </data>
+  <data name="Transfer_Export_Backup_Tooltip" xml:space="preserve">
+    <value>Kopierer hele databasefilen nøyaktig slik den ligger på disken</value>
+  </data>
+  <data name="Transfer_Export_Button" xml:space="preserve">
+    <value>Eksporter...</value>
+  </data>
+  <data name="Transfer_Export_IncludePasswords" xml:space="preserve">
+    <value>Ta med lagrede passord</value>
+  </data>
+  <data name="Transfer_Export_IncludePasswords_Hint" xml:space="preserve">
+    <value>Windows knytter de lagrede passordene dine til denne brukerkontoen og denne PC-en, så de krypteres på nytt med en passordfrase du velger her. Den som importerer filen, må skrive inn den samme passordfrasen – den lagres ikke noe sted og kan ikke gjenopprettes.</value>
+  </data>
+  <data name="Transfer_Export_IncludeSettings" xml:space="preserve">
+    <value>Ta med appinnstillinger</value>
+  </data>
+  <data name="Transfer_Export_IncludeSettings_Hint" xml:space="preserve">
+    <value>Tas bare med når hele biblioteket eksporteres. Innstillingene lagres i filen som referanse, og en import endrer aldri innstillingene på denne PC-en.</value>
+  </data>
+  <data name="Transfer_Export_Loading" xml:space="preserve">
+    <value>Leser biblioteket...</value>
+  </data>
+  <data name="Transfer_Export_Options_Header" xml:space="preserve">
+    <value>ALTERNATIVER</value>
+  </data>
+  <data name="Transfer_Export_PassphraseRepeat_Label" xml:space="preserve">
+    <value>Gjenta passordfrasen</value>
+  </data>
+  <data name="Transfer_Export_Scope_Chosen" xml:space="preserve">
+    <value>Bare det jeg velger</value>
+  </data>
+  <data name="Transfer_Export_Scope_Everything" xml:space="preserve">
+    <value>Alt i biblioteket</value>
+  </data>
+  <data name="Transfer_Export_Scope_Everything_Hint" xml:space="preserve">
+    <value>Alle gruppene, tilkoblingene og multikonfigurasjonene dine.</value>
+  </data>
+  <data name="Transfer_Export_Scope_Header" xml:space="preserve">
+    <value>HVA SOM SKAL EKSPORTERES</value>
+  </data>
+  <data name="Transfer_Export_Search_Placeholder" xml:space="preserve">
+    <value>Søk i tilkoblinger og multikonfigurasjoner</value>
+  </data>
+  <data name="Transfer_Export_SelectAll" xml:space="preserve">
+    <value>Velg alle</value>
+  </data>
+  <data name="Transfer_Export_Selection_Many" xml:space="preserve">
+    <value>{0} valgt</value>
+  </data>
+  <data name="Transfer_Export_Selection_One" xml:space="preserve">
+    <value>1 valgt</value>
+  </data>
+  <data name="Transfer_Export_SelectNone" xml:space="preserve">
+    <value>Velg ingen</value>
+  </data>
+  <data name="Transfer_Export_Summary" xml:space="preserve">
+    <value>{0} og {1} ble eksportert.</value>
+  </data>
+  <data name="Transfer_Export_Summary_WithPasswords" xml:space="preserve">
+    <value>{0} og {1} ble eksportert, inkludert lagrede passord.</value>
+  </data>
+  <data name="Transfer_ExportDialog_FileName" xml:space="preserve">
+    <value>DynatecRDM-bibliotek-{0}{1}</value>
+  </data>
+  <data name="Transfer_ExportDialog_Title" xml:space="preserve">
+    <value>Eksporter konfigurasjoner</value>
+  </data>
+  <data name="Transfer_FileFilter" xml:space="preserve">
+    <value>Remote Desktop Manager-bibliotek (*{0})|*{0}|Alle filer (*.*)|*.*</value>
+  </data>
+  <data name="Transfer_Import_Button" xml:space="preserve">
+    <value>Importer</value>
+  </data>
+  <data name="Transfer_Import_ChooseFile" xml:space="preserve">
+    <value>Velg fil...</value>
+  </data>
+  <data name="Transfer_Import_Mode_Copies" xml:space="preserve">
+    <value>Importer som kopier</value>
+  </data>
+  <data name="Transfer_Import_Mode_Copies_Hint" xml:space="preserve">
+    <value>Ingenting blir endret – alt i filen legges til ved siden av det du har.</value>
+  </data>
+  <data name="Transfer_Import_Mode_Header" xml:space="preserve">
+    <value>NÅR NOE FINNES FRA FØR</value>
+  </data>
+  <data name="Transfer_Import_Mode_Replace" xml:space="preserve">
+    <value>Erstatt med versjonen i filen</value>
+  </data>
+  <data name="Transfer_Import_Mode_Replace_Hint" xml:space="preserve">
+    <value>Eksisterende elementer overskrives, så lokale endringer i dem går tapt.</value>
+  </data>
+  <data name="Transfer_Import_Mode_Skip" xml:space="preserve">
+    <value>Behold det jeg har</value>
+  </data>
+  <data name="Transfer_Import_Mode_Skip_Hint" xml:space="preserve">
+    <value>Alt som allerede finnes i biblioteket ditt, blir stående akkurat som det er.</value>
+  </data>
+  <data name="Transfer_Import_NoFile" xml:space="preserve">
+    <value>Ingen fil er valgt ennå</value>
+  </data>
+  <data name="Transfer_Import_NothingWritten_Hint" xml:space="preserve">
+    <value>Ingenting skrives til biblioteket ditt før du trykker på Importer.</value>
+  </data>
+  <data name="Transfer_Import_Passphrase_Hint" xml:space="preserve">
+    <value>Filen inneholder lagrede passord. De ble låst med en passordfrase da filen ble laget, og bare den samme passordfrasen kan låse dem opp igjen.</value>
+  </data>
+  <data name="Transfer_ImportedConnection_Name" xml:space="preserve">
+    <value>Importert tilkobling</value>
+  </data>
+  <data name="Transfer_ImportedMultiConfig_Name" xml:space="preserve">
+    <value>Importert multikonfigurasjon</value>
+  </data>
+  <data name="Transfer_ImportedSuffix" xml:space="preserve">
+    <value> (importert)</value>
+  </data>
+  <data name="Transfer_Kind_Connection" xml:space="preserve">
+    <value>Tilkobling</value>
+  </data>
+  <data name="Transfer_Kind_MultiConfig" xml:space="preserve">
+    <value>Multikonfigurasjon</value>
+  </data>
+  <data name="Transfer_List_LastSeparator" xml:space="preserve">
+    <value> og </value>
+  </data>
+  <data name="Transfer_OpenDialog_Title" xml:space="preserve">
+    <value>Velg en konfigurasjonsfil</value>
+  </data>
+  <data name="Transfer_Passphrase_Label" xml:space="preserve">
+    <value>Passordfrase</value>
+  </data>
+  <data name="Transfer_Passphrase_Mismatch" xml:space="preserve">
+    <value>Passordfrasene er ikke like.</value>
+  </data>
+  <data name="Transfer_Passphrase_OnlySpaces" xml:space="preserve">
+    <value>Bruk noe annet enn bare mellomrom.</value>
+  </data>
+  <data name="Transfer_Passphrase_TooShort" xml:space="preserve">
+    <value>Bruk minst {0} tegn.</value>
+  </data>
+  <data name="Transfer_Preview_Conflicts" xml:space="preserve">
+    <value>{0} av disse finnes allerede i biblioteket ditt. Nedenfor bestemmer du hva som skal skje.</value>
+  </data>
+  <data name="Transfer_Preview_Connections" xml:space="preserve">
+    <value>Tilkoblinger</value>
+  </data>
+  <data name="Transfer_Preview_Credentials" xml:space="preserve">
+    <value>Legitimasjonssett</value>
+  </data>
+  <data name="Transfer_Preview_Groups" xml:space="preserve">
+    <value>Grupper</value>
+  </data>
+  <data name="Transfer_Preview_Header" xml:space="preserve">
+    <value>INNHOLDET I FILEN</value>
+  </data>
+  <data name="Transfer_Preview_MultiConfigs" xml:space="preserve">
+    <value>Multikonfigurasjoner</value>
+  </data>
+  <data name="Transfer_Preview_Origin_Date" xml:space="preserve">
+    <value>Eksportert {0:d. MMMM yyyy}</value>
+  </data>
+  <data name="Transfer_Preview_Origin_Unknown" xml:space="preserve">
+    <value>Filen oppgir ikke når den ble opprettet.</value>
+  </data>
+  <data name="Transfer_Preview_Origin_Version" xml:space="preserve">
+    <value>Eksportert med versjon {0}</value>
+  </data>
+  <data name="Transfer_Preview_Origin_VersionAndDate" xml:space="preserve">
+    <value>Eksportert {1:d. MMMM yyyy} med versjon {0}</value>
+  </data>
+  <data name="Transfer_Result_Added" xml:space="preserve">
+    <value>Lagt til</value>
+  </data>
+  <data name="Transfer_Result_AddedSummary" xml:space="preserve">
+    <value>Lagt til {0}.</value>
+  </data>
+  <data name="Transfer_Result_Header" xml:space="preserve">
+    <value>RESULTAT</value>
+  </data>
+  <data name="Transfer_Result_NothingAdded" xml:space="preserve">
+    <value>Ingenting nytt ble lagt til.</value>
+  </data>
+  <data name="Transfer_Result_Replaced" xml:space="preserve">
+    <value>Erstattet</value>
+  </data>
+  <data name="Transfer_Result_Skipped" xml:space="preserve">
+    <value>Hoppet over</value>
+  </data>
+  <data name="Transfer_Status_BackupDone" xml:space="preserve">
+    <value>Sikkerhetskopieringen er fullført: {0}</value>
+  </data>
+  <data name="Transfer_Status_BackupFailed" xml:space="preserve">
+    <value>Sikkerhetskopieringen mislyktes: {0}</value>
+  </data>
+  <data name="Transfer_Status_ExportDone" xml:space="preserve">
+    <value>Eksporten er fullført: {0}</value>
+  </data>
+  <data name="Transfer_Status_ExportFailed" xml:space="preserve">
+    <value>Eksporten mislyktes: {0}</value>
+  </data>
+  <data name="Transfer_Status_ImportDone" xml:space="preserve">
+    <value>Importen er fullført.</value>
+  </data>
+  <data name="Transfer_Status_ImportDoneWithNotes_Many" xml:space="preserve">
+    <value>Importen er fullført med {0} merknader (se nedenfor).</value>
+  </data>
+  <data name="Transfer_Status_ImportDoneWithNotes_One" xml:space="preserve">
+    <value>Importen er fullført med 1 merknad (se nedenfor).</value>
+  </data>
+  <data name="Transfer_Status_ImportFailed" xml:space="preserve">
+    <value>Importen mislyktes: {0}</value>
+  </data>
+  <data name="Transfer_Status_PassphraseNeeded" xml:space="preserve">
+    <value>Filen inneholder lagrede passord. Skriv inn passordfrasen den ble eksportert med.</value>
+  </data>
+  <data name="Transfer_Status_ReadFailed" xml:space="preserve">
+    <value>Filen kunne ikke leses: {0}</value>
+  </data>
+  <data name="Transfer_Subtitle" xml:space="preserve">
+    <value>Flytt konfigurasjoner mellom maskiner eller ta vare på en kopi av hele biblioteket.</value>
+  </data>
+  <data name="Transfer_Tab_Export" xml:space="preserve">
+    <value>Eksport</value>
+  </data>
+  <data name="Transfer_Tab_Import" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="Transfer_Title" xml:space="preserve">
+    <value>Eksport og import</value>
+  </data>
+  <data name="Transfer_Ungrouped" xml:space="preserve">
+    <value>Uten gruppe</value>
+  </data>
+  <data name="Transfer_Unnamed" xml:space="preserve">
+    <value>(uten navn)</value>
+  </data>
+  <data name="Transfer_UnnamedGroup" xml:space="preserve">
+    <value>Gruppe</value>
+  </data>
+  <data name="Transfer_UnnamedMultiConfig" xml:space="preserve">
+    <value>Multikonfigurasjon</value>
+  </data>
+  <data name="Transfer_Warning_CircularGroup" xml:space="preserve">
+    <value>Gruppen «{0}» inngår i en sirkulær gruppekjede og ble plassert på øverste nivå.</value>
+  </data>
+  <data name="Transfer_Warning_CredentialMissing" xml:space="preserve">
+    <value>«{0}» viste til et legitimasjonssett som ikke finnes i filen, og vil be om pålogging i stedet.</value>
+  </data>
+  <data name="Transfer_Warning_EmptyEntry_Connection" xml:space="preserve">
+    <value>En tom oppføring for en tilkobling i filen ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_EmptyEntry_Credential" xml:space="preserve">
+    <value>En tom oppføring for et legitimasjonssett i filen ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_EmptyEntry_Group" xml:space="preserve">
+    <value>En tom oppføring for en gruppe i filen ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_EmptyEntry_MultiConfig" xml:space="preserve">
+    <value>En tom oppføring for en multikonfigurasjon i filen ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_EntryConnectionMissing" xml:space="preserve">
+    <value>Et element i «{0}» viste til en tilkobling som ikke finnes i filen, og ble fjernet.</value>
+  </data>
+  <data name="Transfer_Warning_EntryCredentialMissing" xml:space="preserve">
+    <value>Et element i «{0}» brukte et legitimasjonssett som ikke finnes i filen, så tilkoblingens egen legitimasjon blir brukt.</value>
+  </data>
+  <data name="Transfer_Warning_GatewayCredentialMissing" xml:space="preserve">
+    <value>Gateway-legitimasjonen til «{0}» finnes ikke i filen, så øktens legitimasjon brukes i stedet.</value>
+  </data>
+  <data name="Transfer_Warning_GroupMissing" xml:space="preserve">
+    <value>«{0}» viste til en gruppe som ikke finnes i filen, og ble importert på øverste nivå.</value>
+  </data>
+  <data name="Transfer_Warning_GroupParentMissing" xml:space="preserve">
+    <value>Gruppen «{0}» viste til en overordnet gruppe som ikke finnes i filen, og ble importert på øverste nivå.</value>
+  </data>
+  <data name="Transfer_Warning_MoreProblems_Many" xml:space="preserve">
+    <value>{0} problemer til ble funnet, men vises ikke her.</value>
+  </data>
+  <data name="Transfer_Warning_MoreProblems_One" xml:space="preserve">
+    <value>1 problem til ble funnet, men vises ikke her.</value>
+  </data>
+  <data name="Transfer_Warning_NoId_Connection" xml:space="preserve">
+    <value>Tilkoblingen «{0}» mangler ID og ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_NoId_Credential" xml:space="preserve">
+    <value>Legitimasjonssettet «{0}» mangler ID og ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_NoId_Group" xml:space="preserve">
+    <value>Gruppen «{0}» mangler ID og ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_NoId_MultiConfig" xml:space="preserve">
+    <value>Multikonfigurasjonen «{0}» mangler ID og ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_NoPassphrase" xml:space="preserve">
+    <value>Filen inneholder krypterte passord, men ingen passordfrase ble oppgitt, så legitimasjonssettene ble importert uten passord.</value>
+  </data>
+  <data name="Transfer_Warning_PasswordDamaged" xml:space="preserve">
+    <value>Det lagrede passordet til «{0}» er skadet og ble ikke importert.</value>
+  </data>
+  <data name="Transfer_Warning_PasswordNotProtected" xml:space="preserve">
+    <value>Passordet til «{0}» kunne ikke krypteres på nytt for denne Windows-kontoen og ble ikke importert.</value>
+  </data>
+  <data name="Transfer_Warning_SaveConnectionFailed" xml:space="preserve">
+    <value>Tilkoblingen «{0}» kunne ikke lagres: {1}</value>
+  </data>
+  <data name="Transfer_Warning_SaveCredentialFailed" xml:space="preserve">
+    <value>Legitimasjonssettet «{0}» kunne ikke lagres: {1}</value>
+  </data>
+  <data name="Transfer_Warning_SaveGroupFailed" xml:space="preserve">
+    <value>Gruppen «{0}» kunne ikke lagres: {1}</value>
+  </data>
+  <data name="Transfer_Warning_SaveMultiConfigFailed" xml:space="preserve">
+    <value>Multikonfigurasjonen «{0}» kunne ikke lagres: {1}</value>
+  </data>
+  <data name="Transfer_Warning_SettingsIgnored" xml:space="preserve">
+    <value>Filen inneholder også appinnstillinger. Bare grupper, tilkoblinger, multikonfigurasjoner og legitimasjonssett importeres, så innstillingene ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_Stopped" xml:space="preserve">
+    <value>Importen ble stoppet før den var ferdig. Det som er talt opp her, ble lagret, men ikke resten av filen. Importer den samme filen på nytt for å fullføre.</value>
+  </data>
+  <data name="Transfer_Warning_Twice_Connection" xml:space="preserve">
+    <value>Tilkoblingen «{0}» finnes to ganger i filen. Den andre forekomsten ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_Twice_Credential" xml:space="preserve">
+    <value>Legitimasjonssettet «{0}» finnes to ganger i filen. Den andre forekomsten ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_Twice_Group" xml:space="preserve">
+    <value>Gruppen «{0}» finnes to ganger i filen. Den andre forekomsten ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_Twice_MultiConfig" xml:space="preserve">
+    <value>Multikonfigurasjonen «{0}» finnes to ganger i filen. Den andre forekomsten ble ignorert.</value>
+  </data>
+  <data name="Transfer_Warning_WrongPassphrase" xml:space="preserve">
+    <value>Passordfrasen er feil, så ingen passord fra filen ble importert. Selve legitimasjonssettene ble importert, og du trenger bare å skrive inn passordene på nytt.</value>
+  </data>
+  <data name="Tray_CloseAllSessions" xml:space="preserve">
+    <value>Lukk alle økter</value>
+  </data>
+  <data name="Tray_Credentials" xml:space="preserve">
+    <value>Legitimasjon</value>
+  </data>
+  <data name="Tray_Disconnect" xml:space="preserve">
+    <value>Koble fra</value>
+  </data>
+  <data name="Tray_Disconnect_Connection_Tooltip" xml:space="preserve">
+    <value>Avslutt økten for denne tilkoblingen (Del)</value>
+  </data>
+  <data name="Tray_Disconnect_Multi_Tooltip" xml:space="preserve">
+    <value>Avslutt alle øktene i denne multikonfigurasjonen (Del)</value>
+  </data>
+  <data name="Tray_Disconnect_Session_Tooltip" xml:space="preserve">
+    <value>Avslutt denne økten (Del)</value>
+  </data>
+  <data name="Tray_Empty_NoConnections" xml:space="preserve">
+    <value>Ingen tilkoblinger ennå. Åpne hovedvinduet for å legge til en.</value>
+  </data>
+  <data name="Tray_Empty_NoMatch" xml:space="preserve">
+    <value>Ingenting samsvarer med «{0}».</value>
+  </data>
+  <data name="Tray_Exit" xml:space="preserve">
+    <value>Avslutt</value>
+  </data>
+  <data name="Tray_Header_Connections" xml:space="preserve">
+    <value>TILKOBLINGER</value>
+  </data>
+  <data name="Tray_Header_Group" xml:space="preserve">
+    <value>GRUPPE</value>
+  </data>
+  <data name="Tray_Header_MultiConfigs" xml:space="preserve">
+    <value>MULTIKONFIGURASJONER</value>
+  </data>
+  <data name="Tray_Header_Running" xml:space="preserve">
+    <value>AKTIVE ØKTER</value>
+  </data>
+  <data name="Tray_LaunchFailed_Message" xml:space="preserve">
+    <value>Eksternt skrivebord startet ikke for «{0}».</value>
+  </data>
+  <data name="Tray_LaunchFailed_Title" xml:space="preserve">
+    <value>Kunne ikke koble til</value>
+  </data>
+  <data name="Tray_More" xml:space="preserve">
+    <value>Flere...</value>
+  </data>
+  <data name="Tray_More_Count_Many" xml:space="preserve">
+    <value>Flere... ({0} tilkoblinger til)</value>
+  </data>
+  <data name="Tray_More_Count_One" xml:space="preserve">
+    <value>Flere... (1 tilkobling til)</value>
+  </data>
+  <data name="Tray_Multi_Count_Many" xml:space="preserve">
+    <value>{0} tilkoblinger</value>
+  </data>
+  <data name="Tray_Multi_Count_One" xml:space="preserve">
+    <value>1 tilkobling</value>
+  </data>
+  <data name="Tray_MultiNothingStarted_Message" xml:space="preserve">
+    <value>«{0}» har ingen tilkobling som kunne startes.</value>
+  </data>
+  <data name="Tray_MultiNothingStarted_Title" xml:space="preserve">
+    <value>Ingenting ble startet</value>
+  </data>
+  <data name="Tray_OpenManager" xml:space="preserve">
+    <value>Åpne hovedvinduet</value>
+  </data>
+  <data name="Tray_QuickLaunch" xml:space="preserve">
+    <value>Hurtigstart</value>
+  </data>
+  <data name="Tray_RunningSummary_Many" xml:space="preserve">
+    <value>{0} aktive</value>
+  </data>
+  <data name="Tray_RunningSummary_None" xml:space="preserve">
+    <value>Ingen økter</value>
+  </data>
+  <data name="Tray_RunningSummary_One" xml:space="preserve">
+    <value>1 aktiv</value>
+  </data>
+  <data name="Tray_Search_Placeholder" xml:space="preserve">
+    <value>Søk i tilkoblinger</value>
+  </data>
+  <data name="Tray_Settings" xml:space="preserve">
+    <value>Innstillinger</value>
+  </data>
+  <data name="Tray_State_Connected" xml:space="preserve">
+    <value>Tilkoblet</value>
+  </data>
+  <data name="Tray_State_Disconnecting" xml:space="preserve">
+    <value>Kobler fra</value>
+  </data>
+  <data name="Tray_State_Running" xml:space="preserve">
+    <value>Kjører</value>
+  </data>
+  <data name="Tray_Tooltip" xml:space="preserve">
+    <value>{0} – {1}</value>
+  </data>
+  <data name="Tray_Tooltip_Sessions_Many" xml:space="preserve">
+    <value>{0} økter</value>
+  </data>
+  <data name="Tray_Tooltip_Sessions_One" xml:space="preserve">
+    <value>1 økt</value>
+  </data>
+  <data name="Tray_Uptime_Days" xml:space="preserve">
+    <value>{0} d {1} t</value>
+  </data>
+  <data name="Tray_Uptime_Hours" xml:space="preserve">
+    <value>{0} t {1} min</value>
+  </data>
+  <data name="Tray_Uptime_Minutes" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="Tray_Uptime_Seconds" xml:space="preserve">
+    <value>{0} s</value>
+  </data>
+  <data name="Tray_Window_Title" xml:space="preserve">
+    <value>Hurtigstart for Remote Desktop Manager</value>
+  </data>
+  <data name="Update_Available" xml:space="preserve">
+    <value>En oppdatering er tilgjengelig</value>
+  </data>
+  <data name="Update_Available_Version" xml:space="preserve">
+    <value>Versjon {0} er tilgjengelig</value>
+  </data>
+  <data name="Update_CheckAgain" xml:space="preserve">
+    <value>Sjekk på nytt</value>
+  </data>
+  <data name="Update_CheckedAt" xml:space="preserve">
+    <value>Sjekket kl. {0:HH:mm}</value>
+  </data>
+  <data name="Update_Checking" xml:space="preserve">
+    <value>Ser etter oppdateringer...</value>
+  </data>
+  <data name="Update_Comparison" xml:space="preserve">
+    <value>Du har {0}</value>
+  </data>
+  <data name="Update_Comparison_Published" xml:space="preserve">
+    <value>Du har {0}  ·  Publisert {1}</value>
+  </data>
+  <data name="Update_CurrentVersion" xml:space="preserve">
+    <value>Du bruker versjon {0}</value>
+  </data>
+  <data name="Update_DisplayVersion_Prerelease" xml:space="preserve">
+    <value>{0} (forhåndsversjon)</value>
+  </data>
+  <data name="Update_Download_Header" xml:space="preserve">
+    <value>NEDLASTING</value>
+  </data>
+  <data name="Update_DownloadAndInstall" xml:space="preserve">
+    <value>Last ned og installer</value>
+  </data>
+  <data name="Update_Error_CheckFailed" xml:space="preserve">
+    <value>Oppdateringssjekken kunne ikke fullføres. Kontroller internettforbindelsen og prøv igjen.</value>
+  </data>
+  <data name="Update_Error_DownloadFailed" xml:space="preserve">
+    <value>Oppdateringen kunne ikke lastes ned. Du kan prøve igjen eller laste den ned fra versjonssiden på GitHub.</value>
+  </data>
+  <data name="Update_Error_InstallerNotStarted" xml:space="preserve">
+    <value>Installasjonsprogrammet kunne ikke startes. Du kan laste det ned fra versjonssiden og kjøre det selv.</value>
+  </data>
+  <data name="Update_Failed_Header" xml:space="preserve">
+    <value>Det gikk ikke</value>
+  </data>
+  <data name="Update_InstallNow" xml:space="preserve">
+    <value>Installer nå</value>
+  </data>
+  <data name="Update_LastChecked" xml:space="preserve">
+    <value>Sist sjekket {0:dd.MM.yyyy 'kl.' HH:mm}</value>
+  </data>
+  <data name="Update_Later" xml:space="preserve">
+    <value>Senere</value>
+  </data>
+  <data name="Update_NotCheckedYet" xml:space="preserve">
+    <value>Ikke sjekket ennå</value>
+  </data>
+  <data name="Update_NotConfigured_Disabled" xml:space="preserve">
+    <value>Oppdateringssjekken er slått av. Slå den på igjen i Innstillinger for å bli varslet om nye versjoner.</value>
+  </data>
+  <data name="Update_NotConfigured_Header" xml:space="preserve">
+    <value>Oppdateringer er ikke satt opp</value>
+  </data>
+  <data name="Update_NotConfigured_NoRepository" xml:space="preserve">
+    <value>Det er ikke angitt noe GitHub-repo for oppdateringer, så det er ingenting å sjekke. I Innstillinger kan du legge til repoet der utgivelsene publiseres.</value>
+  </data>
+  <data name="Update_Notes_None" xml:space="preserve">
+    <value>Det finnes ingen merknader for denne versjonen.</value>
+  </data>
+  <data name="Update_Notes_Shortened" xml:space="preserve">
+    <value>(Merknadene er forkortet.)</value>
+  </data>
+  <data name="Update_Notice_BadReleaseUrl" xml:space="preserve">
+    <value>Adressen til versjonssiden kunne ikke brukes.</value>
+  </data>
+  <data name="Update_Notice_DownloadCancelled" xml:space="preserve">
+    <value>Nedlastingen ble avbrutt.</value>
+  </data>
+  <data name="Update_Notice_ReleasePageNotOpened" xml:space="preserve">
+    <value>Versjonssiden kunne ikke åpnes i nettleseren.</value>
+  </data>
+  <data name="Update_OpenSettings" xml:space="preserve">
+    <value>Åpne innstillinger</value>
+  </data>
+  <data name="Update_Prerelease_Pill" xml:space="preserve">
+    <value>Forhåndsversjon</value>
+  </data>
+  <data name="Update_PublishedDate_Format" xml:space="preserve">
+    <value>d. MMMM yyyy</value>
+  </data>
+  <data name="Update_Ready" xml:space="preserve">
+    <value>Oppdateringen er klar til å installeres</value>
+  </data>
+  <data name="Update_Ready_DataSafe" xml:space="preserve">
+    <value>Tilkoblingene, legitimasjonen og innstillingene dine ligger utenfor installasjonsmappen og berøres ikke.</value>
+  </data>
+  <data name="Update_Ready_Restart" xml:space="preserve">
+    <value>Appen avsluttes mens installasjonsprogrammet kjører, og startes igjen når det er ferdig.</value>
+  </data>
+  <data name="Update_Ready_Version" xml:space="preserve">
+    <value>Versjon {0} er klar til å installeres</value>
+  </data>
+  <data name="Update_Repository_None" xml:space="preserve">
+    <value>Det er ikke angitt noe repo</value>
+  </data>
+  <data name="Update_Skip" xml:space="preserve">
+    <value>Hopp over denne versjonen</value>
+  </data>
+  <data name="Update_Skip_Tooltip" xml:space="preserve">
+    <value>Denne versjonen blir ikke tilbudt igjen</value>
+  </data>
+  <data name="Update_Status_AlreadyRunning" xml:space="preserve">
+    <value>En oppdateringssjekk pågår allerede.</value>
+  </data>
+  <data name="Update_Status_BadRepository" xml:space="preserve">
+    <value>Repoet for oppdateringer må skrives som «eier/repo».</value>
+  </data>
+  <data name="Update_Status_BadResponse" xml:space="preserve">
+    <value>GitHub ga et uventet svar.</value>
+  </data>
+  <data name="Update_Status_Cancelled" xml:space="preserve">
+    <value>Oppdateringssjekken ble avbrutt.</value>
+  </data>
+  <data name="Update_Status_CheckRunning" xml:space="preserve">
+    <value>En annen oppdateringssjekk pågår fortsatt. Prøv igjen om litt.</value>
+  </data>
+  <data name="Update_Status_Disabled" xml:space="preserve">
+    <value>Oppdateringssjekken er slått av.</value>
+  </data>
+  <data name="Update_Status_Failed" xml:space="preserve">
+    <value>Oppdateringssjekken mislyktes. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Update_Status_Forbidden" xml:space="preserve">
+    <value>GitHub avviste oppdateringssjekken (403). Kontroller tilgangstokenet for oppdateringer.</value>
+  </data>
+  <data name="Update_Status_HttpError" xml:space="preserve">
+    <value>GitHub svarte med HTTP {0}.</value>
+  </data>
+  <data name="Update_Status_Newest" xml:space="preserve">
+    <value>{0} er den nyeste versjonen.</value>
+  </data>
+  <data name="Update_Status_NoRelease" xml:space="preserve">
+    <value>Fant ingen publisert versjon i {0}.</value>
+  </data>
+  <data name="Update_Status_NoReleasesYet" xml:space="preserve">
+    <value>{0} har ingen publiserte versjoner ennå, så det er ingenting å oppdatere til.</value>
+  </data>
+  <data name="Update_Status_NoRepository" xml:space="preserve">
+    <value>Det er ikke angitt noe repo for oppdateringer.</value>
+  </data>
+  <data name="Update_Status_NotFound" xml:space="preserve">
+    <value>Fant ingen versjoner i {0}. Kontroller navnet på repoet.</value>
+  </data>
+  <data name="Update_Status_NoVersionNumber" xml:space="preserve">
+    <value>Den nyeste utgivelsen i {0} har ikke et gyldig versjonsnummer.</value>
+  </data>
+  <data name="Update_Status_RateLimited" xml:space="preserve">
+    <value>Grensen for antall forespørsler til GitHub er nådd. Neste sjekk kjøres senere.</value>
+  </data>
+  <data name="Update_Status_Skipped" xml:space="preserve">
+    <value>Du har valgt å hoppe over versjon {0}.</value>
+  </data>
+  <data name="Update_Status_Timeout" xml:space="preserve">
+    <value>GitHub svarte ikke i tide.</value>
+  </data>
+  <data name="Update_Status_Unauthorized" xml:space="preserve">
+    <value>GitHub avviste tilgangstokenet for oppdateringer.</value>
+  </data>
+  <data name="Update_Status_Unreachable" xml:space="preserve">
+    <value>Fikk ikke kontakt med GitHub. Kontroller nettverkstilkoblingen.</value>
+  </data>
+  <data name="Update_Title" xml:space="preserve">
+    <value>Programvareoppdatering</value>
+  </data>
+  <data name="Update_TryAgain" xml:space="preserve">
+    <value>Prøv igjen</value>
+  </data>
+  <data name="Update_UpToDate" xml:space="preserve">
+    <value>Du har den nyeste versjonen ({0})</value>
+  </data>
+  <data name="Update_ViewOnGitHub" xml:space="preserve">
+    <value>Vis på GitHub</value>
+  </data>
+  <data name="Vault_ApplyPrompt_Message" xml:space="preserve">
+    <value>Hvilken vert skal påloggingen lagres for? Skriv inn navnet nøyaktig slik tilkoblingen bruker det.</value>
+  </data>
+  <data name="Vault_ApplyPrompt_Title" xml:space="preserve">
+    <value>Bruk på vert</value>
+  </data>
+  <data name="Vault_ApplyToHost" xml:space="preserve">
+    <value>Bruk på vert...</value>
+  </data>
+  <data name="Vault_ApplyToHost_Tooltip" xml:space="preserve">
+    <value>Lagre det valgte legitimasjonssettet i hvelvet for denne verten</value>
+  </data>
+  <data name="Vault_Column_Host" xml:space="preserve">
+    <value>VERT</value>
+  </data>
+  <data name="Vault_Column_Persistence" xml:space="preserve">
+    <value>LAGRING</value>
+  </data>
+  <data name="Vault_Column_Type" xml:space="preserve">
+    <value>TYPE</value>
+  </data>
+  <data name="Vault_Column_Username" xml:space="preserve">
+    <value>BRUKERNAVN</value>
+  </data>
+  <data name="Vault_Command_HostPlaceholder" xml:space="preserve">
+    <value>&lt;vert&gt;</value>
+  </data>
+  <data name="Vault_Command_PasswordPlaceholder" xml:space="preserve">
+    <value>&lt;passord&gt;</value>
+  </data>
+  <data name="Vault_Command_UserPlaceholder" xml:space="preserve">
+    <value>&lt;brukernavn&gt;</value>
+  </data>
+  <data name="Vault_Commands_Copy" xml:space="preserve">
+    <value>Kopier</value>
+  </data>
+  <data name="Vault_Commands_Copy_Tooltip" xml:space="preserve">
+    <value>Kopierer de tre linjene. Passordet er bare en plassholder.</value>
+  </data>
+  <data name="Vault_Commands_Toggle" xml:space="preserve">
+    <value>Tilsvarende kommandoer</value>
+  </data>
+  <data name="Vault_ConfirmRemove_Message" xml:space="preserve">
+    <value>Vil du fjerne den lagrede Windows-påloggingen for {0}? Neste gang du kobler til {1}, blir du bedt om passord.</value>
+  </data>
+  <data name="Vault_ConfirmRemove_Title" xml:space="preserve">
+    <value>Slett lagret pålogging</value>
+  </data>
+  <data name="Vault_Empty" xml:space="preserve">
+    <value>Det finnes ingen lagrede TERMSRV-oppføringer for kontoen din.</value>
+  </data>
+  <data name="Vault_Error_Clipboard" xml:space="preserve">
+    <value>Utklippstavlen er ikke tilgjengelig akkurat nå.</value>
+  </data>
+  <data name="Vault_Error_NoPassword" xml:space="preserve">
+    <value>Det valgte settet har ikke noe lagret passord. Legg inn et passord og lagre først.</value>
+  </data>
+  <data name="Vault_Error_NoSelection" xml:space="preserve">
+    <value>Velg et legitimasjonssett først.</value>
+  </data>
+  <data name="Vault_Error_NoUsername" xml:space="preserve">
+    <value>Det valgte settet har ikke noe brukernavn.</value>
+  </data>
+  <data name="Vault_Error_Read" xml:space="preserve">
+    <value>Windows-legitimasjonshvelvet kunne ikke leses. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Vault_Error_Remove" xml:space="preserve">
+    <value>Den lagrede påloggingen kunne ikke fjernes. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Vault_Error_SaveFirst" xml:space="preserve">
+    <value>Lagre legitimasjonssettet før du bruker det på en vert.</value>
+  </data>
+  <data name="Vault_Error_Write" xml:space="preserve">
+    <value>Påloggingen kunne ikke lagres i hvelvet. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Vault_Error_WriteFailed" xml:space="preserve">
+    <value>TERMSRV/{0} kunne ikke lagres. Se loggen for mer informasjon.</value>
+  </data>
+  <data name="Vault_Header" xml:space="preserve">
+    <value>WINDOWS-LEGITIMASJONSHVELVET – TERMSRV-OPPFØRINGER</value>
+  </data>
+  <data name="Vault_Host" xml:space="preserve">
+    <value>Vert</value>
+  </data>
+  <data name="Vault_Host_Tooltip" xml:space="preserve">
+    <value>Vertsnavnet nøyaktig slik tilkoblingen bruker det</value>
+  </data>
+  <data name="Vault_Intro" xml:space="preserve">
+    <value>Windows lagrer pålogginger for eksternt skrivebord per vert under målnavnet TERMSRV/&lt;vert&gt;. Dette er det samme hvelvet som cmdkey-kommandoen bruker. Appen skriver direkte via legitimasjons-API-et i Windows. Det er tryggere enn cmdkey fordi passordet aldri havner på en kommandolinje.</value>
+  </data>
+  <data name="Vault_Persist_Enterprise" xml:space="preserve">
+    <value>Virksomhet</value>
+  </data>
+  <data name="Vault_Persist_LocalMachine" xml:space="preserve">
+    <value>Lokal maskin</value>
+  </data>
+  <data name="Vault_Persist_Session" xml:space="preserve">
+    <value>Påloggingsøkt</value>
+  </data>
+  <data name="Vault_Persist_Unknown" xml:space="preserve">
+    <value>Ukjent</value>
+  </data>
+  <data name="Vault_Refresh" xml:space="preserve">
+    <value>Oppdater</value>
+  </data>
+  <data name="Vault_Refresh_Tooltip" xml:space="preserve">
+    <value>Les hvelvet på nytt (F5)</value>
+  </data>
+  <data name="Vault_RemoveEntry_Tooltip" xml:space="preserve">
+    <value>Fjern denne lagrede påloggingen</value>
+  </data>
+  <data name="Vault_Status_Copied" xml:space="preserve">
+    <value>Kommandoene er kopiert. Passordet er bare en plassholder, så ingen hemmeligheter er kopiert.</value>
+  </data>
+  <data name="Vault_Status_NothingStored" xml:space="preserve">
+    <value>Det var ikke lagret noe for {0}.</value>
+  </data>
+  <data name="Vault_Status_Removed" xml:space="preserve">
+    <value>{0} er fjernet.</value>
+  </data>
+  <data name="Vault_Status_Stored" xml:space="preserve">
+    <value>TERMSRV/{0} er lagret for {1}.</value>
+  </data>
+  <data name="Vault_Summary_Many" xml:space="preserve">
+    <value>{0} verter med lagret pålogging.</value>
+  </data>
+  <data name="Vault_Summary_None" xml:space="preserve">
+    <value>Fant ingen lagrede pålogginger for eksternt skrivebord.</value>
+  </data>
+  <data name="Vault_Summary_One" xml:space="preserve">
+    <value>{0} vert med lagret pålogging.</value>
+  </data>
+  <data name="Vault_Type_DomainCertificate" xml:space="preserve">
+    <value>Domenesertifikat</value>
+  </data>
+  <data name="Vault_Type_DomainExtended" xml:space="preserve">
+    <value>Domene (utvidet)</value>
+  </data>
+  <data name="Vault_Type_DomainPassword" xml:space="preserve">
+    <value>Domenepassord</value>
+  </data>
+  <data name="Vault_Type_DomainVisiblePassword" xml:space="preserve">
+    <value>Synlig domenepassord</value>
+  </data>
+  <data name="Vault_Type_Generic" xml:space="preserve">
+    <value>Generisk</value>
+  </data>
+  <data name="Vault_Type_GenericCertificate" xml:space="preserve">
+    <value>Generisk sertifikat</value>
+  </data>
+  <data name="Vault_Type_Other" xml:space="preserve">
+    <value>Type {0}</value>
+  </data>
+  <data name="Vault_UseCmdKey" xml:space="preserve">
+    <value>Bruk cmdkey.exe i stedet for legitimasjons-API-et i Windows</value>
+  </data>
+  <data name="Vault_WriteMethod_Api_Hint" xml:space="preserve">
+    <value>Legitimasjons-API-et i Windows skriver direkte fra appen, så passordet havner aldri på en kommandolinje.</value>
+  </data>
+  <data name="Vault_WriteMethod_CmdKey_Hint" xml:space="preserve">
+    <value>cmdkey.exe er den dokumenterte manuelle metoden, men passordet er synlig på kommandolinjen så lenge programmet kjører.</value>
+  </data>
+  <data name="Main_Error_Move" xml:space="preserve">
+    <value>Kunne ikke flytte elementet: {0}</value>
+    <comment>Notification when a drag-and-drop move in the library could not be saved; {0} = error message</comment>
+  </data>
+  <data name="Main_History_Header" xml:space="preserve">
+    <value>HISTORIKK</value>
+    <comment>Header of the history card in the connection detail</comment>
+  </data>
+  <data name="Main_History_TotalTime_Header" xml:space="preserve">
+    <value>TID TILKOBLET</value>
+    <comment>Field header in the history card: the listed sessions' connected time added up</comment>
+  </data>
+  <data name="Main_History_Column_Started" xml:space="preserve">
+    <value>Startet</value>
+    <comment>History table column: when the session was started</comment>
+  </data>
+  <data name="Main_History_Column_Ended" xml:space="preserve">
+    <value>Avsluttet</value>
+    <comment>History table column: when the session ended</comment>
+  </data>
+  <data name="Main_History_Column_Duration" xml:space="preserve">
+    <value>Varighet</value>
+    <comment>History table column: how long the session was connected</comment>
+  </data>
+  <data name="Main_History_Column_Outcome" xml:space="preserve">
+    <value>Resultat</value>
+    <comment>History table column: how the session ended</comment>
+  </data>
+  <data name="Main_History_Empty" xml:space="preserve">
+    <value>Ingen økter registrert ennå.</value>
+    <comment>History card text when the connection has no logged sessions</comment>
+  </data>
+  <data name="Main_History_Outcome_Open" xml:space="preserve">
+    <value>Kjører</value>
+    <comment>History result: the session is still running</comment>
+  </data>
+  <data name="Main_History_Outcome_Ended" xml:space="preserve">
+    <value>Avsluttet</value>
+    <comment>History result: the session was closed normally</comment>
+  </data>
+  <data name="Main_History_Outcome_Dropped" xml:space="preserve">
+    <value>Brutt</value>
+    <comment>History result: the session was connected, then dropped and could not be brought back</comment>
+  </data>
+  <data name="Main_History_Outcome_Failed" xml:space="preserve">
+    <value>Kunne ikke koble til</value>
+    <comment>History result: the session never connected</comment>
+  </data>
+  <data name="Main_History_Outcome_AppClosed" xml:space="preserve">
+    <value>Kjørte da appen ble lukket</value>
+    <comment>History result: the session was still running when the app exited, so its real end is unknown</comment>
+  </data>
+  <data name="Main_History_Outcome_Unknown" xml:space="preserve">
+    <value>Sluttid ikke registrert</value>
+    <comment>History result: the app stopped (crash, power loss) before the end was recorded</comment>
+  </data>
+  <data name="Main_History_Reconnects_One" xml:space="preserve">
+    <value>{0} gjenoppkobling</value>
+    <comment>History note, singular: how many times the watchdog brought the session back; {0} = count</comment>
+  </data>
+  <data name="Main_History_Reconnects_Many" xml:space="preserve">
+    <value>{0} gjenoppkoblinger</value>
+    <comment>History note, plural; {0} = count</comment>
+  </data>
+  <data name="Main_History_ViaMultiConfig" xml:space="preserve">
+    <value>via «{0}»</value>
+    <comment>History note: the multi-config the session was started from; {0} = multi-config name</comment>
+  </data>
+  <data name="Main_History_Duration_Seconds" xml:space="preserve">
+    <value>{0} s</value>
+    <comment>Duration under a minute; {0} = seconds</comment>
+  </data>
+  <data name="Main_History_Duration_Minutes" xml:space="preserve">
+    <value>{0} min</value>
+    <comment>Duration under an hour; {0} = minutes</comment>
+  </data>
+  <data name="Main_History_Duration_Hours" xml:space="preserve">
+    <value>{0} t {1} min</value>
+    <comment>Duration under a day; {0} = hours, {1} = minutes</comment>
+  </data>
+  <data name="Main_History_Duration_Days" xml:space="preserve">
+    <value>{0} d {1} t</value>
+    <comment>Duration of a day or more; {0} = days, {1} = hours</comment>
+  </data>
+  <data name="Main_Window_Minimize" xml:space="preserve">
+    <value>Minimer</value>
+    <comment>Tooltip and accessible name of the main window's minimize button</comment>
+  </data>
+  <data name="Main_Window_Maximize" xml:space="preserve">
+    <value>Maksimer</value>
+    <comment>Tooltip and accessible name of the main window's maximize button</comment>
+  </data>
+  <data name="Main_Window_Restore" xml:space="preserve">
+    <value>Gjenopprett ned</value>
+    <comment>Tooltip of the maximize button while the window is maximized</comment>
+  </data>
+  <data name="Main_Window_Close" xml:space="preserve">
+    <value>Lukk</value>
+    <comment>Tooltip and accessible name of the main window's close button</comment>
+  </data>
+  <data name="Main_Toolbar_More" xml:space="preserve">
+    <value>Mer</value>
+    <comment>Tooltip and accessible name of the toolbar button that lists the buttons the header has no room for</comment>
+  </data>
+  <data name="Main_Detail_Snapshot_Header" xml:space="preserve">
+    <value>SISTE SKJERMBILDE</value>
+    <comment>Header above the connection's last captured screen in the detail pane</comment>
+  </data>
+  <data name="Settings_About_Publisher" xml:space="preserve">
+    <value>Utgiver</value>
+    <comment>Label before the publisher name (DYNATEC) in the About section</comment>
+  </data>
+  <data name="Reach_Responds" xml:space="preserve">
+    <value>Svarer</value>
+    <comment>Quick launch: the host answers on its Remote Desktop port</comment>
+  </data>
+  <data name="Reach_NoAnswer" xml:space="preserve">
+    <value>Svarer ikke</value>
+    <comment>Quick launch: nothing answered on the host's Remote Desktop port</comment>
+  </data>
+  <data name="Reach_Responds_Detail" xml:space="preserve">
+    <value>Svarer på port {0} · sjekket {1}</value>
+    <comment>Reachability line; {0} = port, {1} = relative time such as 'just now' or '2 min ago'</comment>
+  </data>
+  <data name="Reach_NoAnswer_Detail" xml:space="preserve">
+    <value>Ingen svar på port {0} · sjekket {1}</value>
+    <comment>Reachability line; {0} = port, {1} = relative time</comment>
+  </data>
+  <data name="Reach_NoAnswer_Hint" xml:space="preserve">
+    <value>Maskinen kan være slått av eller utenfor rekkevidde herfra, eller Eksternt skrivebord er ikke slått på.</value>
+    <comment>Explains an unanswered reachability check</comment>
+  </data>
+  <data name="Reach_Checking" xml:space="preserve">
+    <value>Sjekker...</value>
+    <comment>Shown while the host is being checked</comment>
+  </data>
+  <data name="Reach_CheckNow" xml:space="preserve">
+    <value>Sjekk nå</value>
+    <comment>Button: check again whether the host answers</comment>
+  </data>
+</root>

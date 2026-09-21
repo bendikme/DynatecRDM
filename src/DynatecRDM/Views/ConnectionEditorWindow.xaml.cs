@@ -6,8 +6,8 @@ namespace DynatecRDM.Views;
 
 /// <summary>
 /// Shell for the connection editor. Everything here is wiring: the view model owns the
-/// behaviour, the window only turns its close request into a dialog result and feeds the
-/// monitor map the size it has to draw into.
+/// behaviour, and the window only turns its close request into a dialog result. The Display
+/// tab's map and form are <see cref="MonitorMapView"/> and <see cref="DisplaySettingsView"/>.
 /// </summary>
 public partial class ConnectionEditorWindow : Window
 {
@@ -45,19 +45,6 @@ public partial class ConnectionEditorWindow : Window
         catch (Exception ex)
         {
             AppLog.Error("Closing the connection editor failed.", ex);
-        }
-    }
-
-    /// <summary>The map scales to fit, so the view model needs the host's live size.</summary>
-    private void OnMonitorMapSizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        try
-        {
-            _vm.SetMapViewport(e.NewSize.Width, e.NewSize.Height);
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn("Resizing the monitor map failed.", ex);
         }
     }
 

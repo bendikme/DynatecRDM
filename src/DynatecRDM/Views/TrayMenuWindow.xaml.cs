@@ -194,6 +194,12 @@ public partial class TrayMenuWindow : Window
                     e.Handled = true;
                     _viewModel.ActivateSelected();
                     break;
+
+                // Delete ends the highlighted session, the way it closes a window in Alt+Tab - but
+                // only when the search box would do nothing with it, so editing the query still works.
+                case Key.Delete when Keyboard.Modifiers == ModifierKeys.None && !SearchWantsDelete():
+                    if (_viewModel.DisconnectSelected()) e.Handled = true;
+                    break;
             }
         }
         catch (Exception ex)
@@ -201,6 +207,11 @@ public partial class TrayMenuWindow : Window
             AppLog.Error("The quick-launch menu could not handle that key.", ex);
         }
     }
+
+    /// <summary>True when Delete would remove text from the search box: a selection, or text after the caret.</summary>
+    private bool SearchWantsDelete() =>
+        SearchBox.IsKeyboardFocusWithin
+        && (SearchBox.SelectionLength > 0 || SearchBox.CaretIndex < SearchBox.Text.Length);
 
     private void OnRowMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {

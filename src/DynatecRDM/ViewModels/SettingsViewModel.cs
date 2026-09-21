@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 
 namespace DynatecRDM.ViewModels;
@@ -36,7 +37,7 @@ public sealed class SettingsViewModel : ObservableObject
     private int _snapshotIntervalSeconds;
     private int _snapshotMaxEdge;
     private int _snapshotQuality;
-    private string _snapshotFolderText = "Measuring...";
+    private string _snapshotFolderText = Strings.Settings_Snapshots_Measuring;
 
     private bool _watchdogEnabled;
     private int _watchdogPollSeconds;
@@ -48,6 +49,8 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _signRdpFiles;
     private string _signingThumbprint = string.Empty;
 
+    private bool _useEmbeddedClient;
+
     private bool _updateCheckEnabled;
     private string _updateRepository = string.Empty;
     private bool _updateIncludePrereleases;
@@ -55,8 +58,10 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _updateInstallAutomatically;
     private string _updateAccessToken = string.Empty;
 
+    private string _language;
     private string _accentColor = "#2A94FF";
     private bool _confirmSessionClose;
+    private bool _sessionBarEnabled;
 
     private bool _isBusy;
     private string _status = string.Empty;
@@ -93,6 +98,7 @@ public sealed class SettingsViewModel : ObservableObject
 
         _signRdpFiles = settings.SignRdpFiles;
         _signingThumbprint = settings.SigningCertificateThumbprint ?? string.Empty;
+        _useEmbeddedClient = settings.UseEmbeddedClient;
 
         _updateCheckEnabled = settings.UpdateCheckEnabled;
         _updateRepository = settings.UpdateRepository ?? string.Empty;
@@ -101,8 +107,10 @@ public sealed class SettingsViewModel : ObservableObject
         _updateInstallAutomatically = settings.UpdateInstallAutomatically;
         _updateAccessToken = settings.UpdateAccessToken ?? string.Empty;
 
+        _language = settings.Language ?? string.Empty;
         _accentColor = string.IsNullOrWhiteSpace(settings.AccentColor) ? "#2A94FF" : settings.AccentColor;
         _confirmSessionClose = settings.ConfirmSessionClose;
+        _sessionBarEnabled = settings.SessionBarEnabled;
 
         VersionText = ResolveVersion();
 
@@ -252,8 +260,8 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     public string VaultWriteMethodExplanation => _vaultWriteMethodIndex == 1
-        ? "cmdkey.exe is the documented manual route, but the password is visible on its command line while it runs."
-        : "The Windows credential API writes in-process, so the password never reaches a command line.";
+        ? Strings.Settings_Security_VaultMethod_CmdKey_Hint
+        : Strings.Settings_Security_VaultMethod_Api_Hint;
 
     public bool ShredRdpFiles
     {
@@ -279,6 +287,27 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Host the Remote Desktop control in-process instead of launching an external client. This is
+    /// the only way, after the April-2026 update, to get both a silent connection and dynamic
+    /// resolution. Takes effect on the next launch of the app. Supersedes the signing options,
+    /// which exist only for the external launch path.
+    /// </summary>
+    public bool UseEmbeddedClient
+    {
+        get => _useEmbeddedClient;
+        set
+        {
+            if (!SetProperty(ref _useEmbeddedClient, value)) return;
+            OnPropertyChanged(nameof(EmbeddedClientStateText));
+        }
+    }
+
+    /// <summary>One line describing the in-process client option and that it needs a restart.</summary>
+    public string EmbeddedClientStateText => UseEmbeddedClient
+        ? Strings.Settings_EmbeddedClient_On
+        : Strings.Settings_EmbeddedClient_Off;
+
     /// <summary>Thumbprint of the certificate to sign with; empty uses a self-signed one.</summary>
     public string SigningThumbprint
     {
@@ -294,10 +323,10 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get
         {
-            if (!_signRdpFiles) return "Files are not signed, so Windows warns before every connection that needs one.";
+            if (!_signRdpFiles) return Strings.Settings_Files_Sign_Off;
             return string.IsNullOrWhiteSpace(_signingThumbprint)
-                ? "A self-signed certificate will be used. Windows accepts the signature but cannot name the publisher, so it still asks each time."
-                : "Signed with the certificate above. If it comes from an authority this machine trusts, Windows can remember your answer.";
+                ? Strings.Settings_Files_Sign_SelfSigned
+                : Strings.Settings_Files_Sign_Certificate;
         }
     }
 
@@ -332,12 +361,12 @@ public sealed class SettingsViewModel : ObservableObject
 
             var parts = text.Split('/', StringSplitOptions.TrimEntries);
             if (parts.Length != 2 || parts[0].Length == 0 || parts[1].Length == 0)
-                return "Use the owner/repo form, for example DYNATEC/DynatecRDM.";
+                return Strings.Settings_Updates_Repository_FormatError;
 
             foreach (var part in parts)
                 foreach (var c in part)
                     if (!char.IsLetterOrDigit(c) && c is not ('-' or '_' or '.'))
-                        return $"'{c}' cannot appear in a GitHub owner or repository name.";
+                        return UiLanguage.Format(Strings.Settings_Updates_Repository_CharError, c);
 
             return null;
         }
@@ -372,10 +401,10 @@ public sealed class SettingsViewModel : ObservableObject
 
     public string UpdateStateText =>
         string.IsNullOrWhiteSpace(_updateRepository)
-            ? "No repository set, so update checking is off."
-            : $"Checking {_updateRepository.Trim()} for new releases.";
+            ? Strings.Settings_Updates_State_NoRepository
+            : UiLanguage.Format(Strings.Settings_Updates_State_Checking, _updateRepository.Trim());
 
-    public string CurrentVersionText => $"Installed version {UpdateService.CurrentVersion}";
+    public string CurrentVersionText => UiLanguage.Format(Strings.Settings_Updates_InstalledVersion, UpdateService.CurrentVersion);
 
     public string LastUpdateCheckText
     {
@@ -383,9 +412,32 @@ public sealed class SettingsViewModel : ObservableObject
         {
             var at = _services.Settings.LastUpdateCheckUtc;
             return at is null
-                ? "Not checked yet."
-                : $"Last checked {at.Value.ToLocalTime():yyyy-MM-dd HH:mm}.";
+                ? Strings.Settings_Updates_NeverChecked
+                : UiLanguage.Format(Strings.Settings_Updates_LastChecked, at.Value.ToLocalTime());
         }
+    }
+
+    // ---------------------------------------------------------------- language
+
+    /// <summary>One entry in the language drop-down; an empty code follows Windows.</summary>
+    public sealed record LanguageOption(string Code, string Label);
+
+    /// <summary>
+    /// Each language is named in itself, so it can be found whatever language the dialog is in
+    /// when someone is looking for it.
+    /// </summary>
+    public IReadOnlyList<LanguageOption> LanguageOptions { get; } = new[]
+    {
+        new LanguageOption(string.Empty, Strings.Language_System),
+        new LanguageOption(UiLanguage.English, "English"),
+        new LanguageOption(UiLanguage.Norwegian, "Norsk bokmål"),
+    };
+
+    /// <summary>"en", "nb", or empty to follow Windows. The app switches to it when the settings are saved.</summary>
+    public string Language
+    {
+        get => _language;
+        set => SetProperty(ref _language, value ?? string.Empty);
     }
 
     // -------------------------------------------------------------- appearance
@@ -408,9 +460,20 @@ public sealed class SettingsViewModel : ObservableObject
         set => SetProperty(ref _confirmSessionClose, value);
     }
 
+    // -------------------------------------------------------------- full screen
+
+    /// <summary>The session bar on the top edge of full-screen sessions.</summary>
+    public bool SessionBarEnabled
+    {
+        get => _sessionBarEnabled;
+        set => SetProperty(ref _sessionBarEnabled, value);
+    }
+
     // ------------------------------------------------------------------- about
 
-    public string ProductName => "DYNATEC Remote Desktop Manager";
+    public string ProductName => AppIdentity.Name;
+
+    public string Publisher => AppIdentity.Publisher;
 
     public string VersionText { get; }
 
@@ -515,6 +578,7 @@ public sealed class SettingsViewModel : ObservableObject
             settings.ShredRdpFiles = ShredRdpFiles;
 
             settings.SignRdpFiles = SignRdpFiles;
+            settings.UseEmbeddedClient = UseEmbeddedClient;
             settings.SigningCertificateThumbprint = string.IsNullOrWhiteSpace(SigningThumbprint)
                 ? null
                 : SigningThumbprint.Replace(" ", string.Empty).Trim();
@@ -528,12 +592,15 @@ public sealed class SettingsViewModel : ObservableObject
                 ? null
                 : UpdateAccessToken.Trim();
 
+            settings.Language = Language.Length == 0 ? null : Language;
             settings.AccentColor = AccentColor;
             settings.ConfirmSessionClose = ConfirmSessionClose;
+            settings.SessionBarEnabled = SessionBarEnabled;
 
             _services.Settings = settings;
             await _services.SaveSettingsAsync().ConfigureAwait(true);
 
+            await ApplySigningAsync(settings).ConfigureAwait(true);
             await ApplyStartupAsync(settings.LaunchAtLogon).ConfigureAwait(true);
             ApplyAccent(settings.AccentColor);
             ApplyHotkey(settings.QuickLaunchHotkey);
@@ -544,11 +611,33 @@ public sealed class SettingsViewModel : ObservableObject
         catch (Exception ex)
         {
             AppLog.Error("Saving the settings failed.", ex);
-            SetStatus("The settings could not be saved. See the log for details.", true);
+            SetStatus(Strings.Settings_Error_Save, true);
         }
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Creates and trusts the signing certificate when signing is on, so signed .rdp files name
+    /// this application as the publisher and its security prompt is asked once, not every launch.
+    /// Signing is what makes the modern client (which always uses a file) as quiet as the built-in
+    /// one, so enabling either is enough reason to set it up.
+    /// </summary>
+    private static async Task ApplySigningAsync(AppSettings settings)
+    {
+        try
+        {
+            RdpSigning.PreferredThumbprint = settings.SigningCertificateThumbprint;
+            if (!settings.SignRdpFiles) return;
+
+            var ok = await Task.Run(RdpSigning.EnableSigning).ConfigureAwait(true);
+            if (!ok) AppLog.Warn("Could not set up .rdp signing; the security prompt may appear on every launch.");
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("Setting up .rdp signing failed.", ex);
         }
     }
 
@@ -561,8 +650,8 @@ public sealed class SettingsViewModel : ObservableObject
 
             AppLog.Warn("The Windows startup entry could not be updated.");
             _shell.Notify(
-                "DYNATEC RDM",
-                "Launch at logon could not be changed. See the log for details.",
+                AppIdentity.Name,
+                Strings.Settings_Startup_LaunchAtLogon_Error,
                 true);
         }
         catch (Exception ex)
@@ -585,8 +674,8 @@ public sealed class SettingsViewModel : ObservableObject
 
             AppLog.Warn($"The quick-launch hotkey '{gesture}' could not be registered.");
             _shell.Notify(
-                "DYNATEC RDM",
-                $"The shortcut {gesture} is already taken by another application.",
+                AppIdentity.Name,
+                UiLanguage.Format(Strings.Settings_QuickLaunch_Hotkey_Taken, gesture),
                 true);
         }
         catch (Exception ex)
@@ -602,12 +691,12 @@ public sealed class SettingsViewModel : ObservableObject
         {
             await Task.Run(SnapshotService.PurgeAll).ConfigureAwait(true);
             await MeasureSnapshotsAsync().ConfigureAwait(true);
-            SetStatus("Stored snapshots cleared.", false);
+            SetStatus(Strings.Settings_Snapshots_Cleared, false);
         }
         catch (Exception ex)
         {
             AppLog.Warn("Clearing the snapshots failed.", ex);
-            SetStatus("The snapshots could not be cleared. See the log for details.", true);
+            SetStatus(Strings.Settings_Snapshots_Clear_Error, true);
         }
         finally
         {
@@ -622,8 +711,11 @@ public sealed class SettingsViewModel : ObservableObject
         var measured = await Task.Run(() => Measure(folder)).ConfigureAwait(true);
 
         SnapshotFolderText = measured.Count == 0
-            ? "No snapshots stored."
-            : $"{measured.Count} file{(measured.Count == 1 ? string.Empty : "s")}, {FormatSize(measured.Bytes)} on disk.";
+            ? Strings.Settings_Snapshots_Stored_None
+            : UiLanguage.Format(
+                measured.Count == 1 ? Strings.Settings_Snapshots_Stored_One : Strings.Settings_Snapshots_Stored_Many,
+                measured.Count,
+                FormatSize(measured.Bytes));
     }
 
     private static (int Count, long Bytes) Measure(string folder)
@@ -635,7 +727,8 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (!Directory.Exists(folder)) return (0, 0L);
 
-            foreach (var file in Directory.EnumerateFiles(folder))
+            // The last-known snapshot of each connection lives in a subfolder; it counts too.
+            foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
             {
                 try
                 {
@@ -658,9 +751,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     private static string FormatSize(long bytes)
     {
-        if (bytes < 1024) return $"{bytes} B";
-        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:0.#} KB";
-        return $"{bytes / (1024.0 * 1024.0):0.#} MB";
+        if (bytes < 1024) return UiLanguage.Format("{0} B", bytes);
+        if (bytes < 1024 * 1024) return UiLanguage.Format("{0:0.#} KB", bytes / 1024.0);
+        return UiLanguage.Format("{0:0.#} MB", bytes / (1024.0 * 1024.0));
     }
 
     private static void OpenPath(string path, bool isFolder)
@@ -723,57 +816,19 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Re-tints the accent brushes in place. They are left thawed in Theme.xaml precisely so
-    /// this costs one colour assignment instead of a resource-dictionary rebuild.
+    /// Hands the new accent to the theme, which derives the hover, pressed and tint colours for
+    /// the current light or dark palette and adjusts them until text on and in them stays readable.
     /// </summary>
     private static void ApplyAccent(string hex)
     {
         try
         {
-            var app = System.Windows.Application.Current;
-            if (app is null) return;
-
-            var source = DynatecRDM.Converters.HexToBrushConverter.GetBrush(hex);
-            if (source is null) return;
-
-            var accent = source.Color;
-            var background = System.Windows.Media.Color.FromRgb(0x16, 0x18, 0x1D);
-
-            SetAccent(app, "AccentBrush", accent);
-            SetAccent(app, "AccentHoverBrush", Mix(accent, System.Windows.Media.Colors.White, 0.18));
-            SetAccent(app, "AccentPressedBrush", Mix(accent, System.Windows.Media.Colors.Black, 0.18));
-            SetAccent(app, "AccentSubtleBrush", Mix(accent, background, 0.78));
+            ThemeService.Current?.SetAccent(hex);
         }
         catch (Exception ex)
         {
             AppLog.Warn("Applying the accent colour failed.", ex);
         }
-    }
-
-    private static void SetAccent(System.Windows.Application app, string key, System.Windows.Media.Color color)
-    {
-        try
-        {
-            if (app.TryFindResource(key) is not System.Windows.Media.SolidColorBrush brush) return;
-            if (brush.IsFrozen) return;
-            brush.Color = color;
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn($"Re-tinting '{key}' failed.", ex);
-        }
-    }
-
-    private static System.Windows.Media.Color Mix(
-        System.Windows.Media.Color from,
-        System.Windows.Media.Color to,
-        double amount)
-    {
-        var t = Math.Clamp(amount, 0d, 1d);
-        return System.Windows.Media.Color.FromRgb(
-            (byte)Math.Round(from.R + ((to.R - from.R) * t)),
-            (byte)Math.Round(from.G + ((to.G - from.G) * t)),
-            (byte)Math.Round(from.B + ((to.B - from.B) * t)));
     }
 
     private static int IndexOfDelivery(CredentialDelivery delivery) => delivery switch

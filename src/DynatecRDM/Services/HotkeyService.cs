@@ -1,6 +1,7 @@
 using System.Windows.Interop;
 using System.Windows.Threading;
 using DynatecRDM.Interop;
+using DynatecRDM.Resources;
 
 namespace DynatecRDM.Services;
 
@@ -68,7 +69,7 @@ public sealed class HotkeyService : IDisposable
     public static string? Validate(string? gesture)
     {
         if (string.IsNullOrWhiteSpace(gesture))
-            return "Enter a shortcut, for example Ctrl+Alt+R.";
+            return Strings.Hotkey_Error_Empty;
 
         var parts = gesture.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         uint modifiers = 0;
@@ -87,15 +88,15 @@ public sealed class HotkeyService : IDisposable
             }
 
             if (key is not null)
-                return "Use one key only, plus modifiers.";
+                return Strings.Hotkey_Error_OneKey;
 
             key = token;
             if (!TryParseKey(token, out _))
-                return $"'{part.Trim()}' is not a key this shortcut supports.";
+                return UiLanguage.Format(Strings.Hotkey_Error_UnsupportedKey, part.Trim());
         }
 
-        if (key is null) return "Add a key, for example R or F12.";
-        if (modifiers == 0) return "Add at least one modifier: Ctrl, Alt, Shift or Win.";
+        if (key is null) return Strings.Hotkey_Error_NoKey;
+        if (modifiers == 0) return Strings.Hotkey_Error_NoModifier;
         return null;
     }
 

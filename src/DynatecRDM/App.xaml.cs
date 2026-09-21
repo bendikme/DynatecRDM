@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 using DynatecRDM.Tray;
 using DynatecRDM.ViewModels;
@@ -19,13 +20,18 @@ public partial class App : Application, IAppShell
 
     private AppServices? _services;
     private TrayIconManager? _tray;
+    private SessionBarService? _sessionBar;
     private MainWindow? _main;
     private MainViewModel? _mainViewModel;
     private bool _shuttingDown;
+    private bool _reopeningMain;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Windows' language until the settings are read, so even a startup failure speaks it.
+        UiLanguage.Apply(null);
 
         if (!ClaimSingleInstance())
         {
@@ -35,12 +41,12 @@ public partial class App : Application, IAppShell
         }
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;
+        // Modeless WinForms session windows need their input preprocessor in WPF's message loop.
+        System.Windows.Forms.Integration.WindowsFormsHost.EnableWindowsFormsInterop();
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
-        AppLog.Info($"DYNATEC RDM starting (data: {AppLog.DataDirectory})");
-
-        DarkTitleBar.ApplyToAllWindows();
+        AppLog.Info($"{AppIdentity.Name} starting (data: {AppLog.DataDirectory})");
 
         // If a previous run was killed mid-launch, Default.rdp may still hold our settings.
         DefaultRdpLaunch.RecoverIfInterrupted();
@@ -53,13 +59,27 @@ public partial class App : Application, IAppShell
         {
             AppLog.Error("Startup failed", ex);
             MessageBox.Show(
-                $"DYNATEC Remote Desktop Manager could not start.\n\n{ex.Message}\n\nLog: {AppLog.LogPath}",
-                "DYNATEC RDM", MessageBoxButton.OK, MessageBoxImage.Error);
+                UiLanguage.Format(Strings.App_StartupFailed, ex.Message, AppLog.LogPath),
+                AppIdentity.Name, MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
         }
 
+        // Before any window or the tray menu exists, so nothing is ever drawn in the wrong theme
+        // or the wrong language.
+        UiLanguage.Apply(_services.Settings.Language);
+        ThemeService.Start(this, _services.Settings.AccentColor);
+
         _tray = new TrayIconManager(_services, this);
+
+        try
+        {
+            _sessionBar = new SessionBarService(_services, this);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("The session bar could not be started.", ex);
+        }
 
         if (_services.Settings.QuickLaunchHotkey is { Length: > 0 } gesture)
         {
@@ -158,7 +178,7 @@ public partial class App : Application, IAppShell
             _main = new MainWindow(_mainViewModel);
             _main.Closing += (_, args) =>
             {
-                if (_shuttingDown || !_services.Settings.CloseToTray) return;
+                if (_shuttingDown || _reopeningMain || !_services.Settings.CloseToTray) return;
                 args.Cancel = true;
                 _main.Hide();
             };
@@ -199,6 +219,55 @@ public partial class App : Application, IAppShell
     {
         if (_services is null) return;
         ShowDialog(new SettingsWindow(new SettingsViewModel(_services, this)));
+
+        if (UiLanguage.Apply(_services.Settings.Language)) ShowNewLanguage();
+    }
+
+    /// <summary>
+    /// Puts a language chosen in Settings on screen straight away. Dialogs are built each time they
+    /// open, so they pick it up by themselves; what lives on - the main window, the tray and the
+    /// session bar - is rebuilt.
+    /// </summary>
+    private void ShowNewLanguage()
+    {
+        AppLog.Info($"Switched the UI language to {UiLanguage.Current}.");
+        _tray?.ReloadText();
+        _sessionBar?.ReloadText();
+        ReopenMain();
+    }
+
+    /// <summary>
+    /// Closes the main window and opens a fresh one in the same place, with the same selection.
+    /// While a dialog it owns is still open - Settings can be reached from the update window - it
+    /// waits for that dialog, since closing an owner takes its dialogs with it.
+    /// </summary>
+    private void ReopenMain()
+    {
+        if (_main is null || _shuttingDown) return;
+
+        var dialog = _main.OwnedWindows.OfType<Window>().FirstOrDefault(w => w.IsVisible);
+        if (dialog is not null)
+        {
+            dialog.Closed += (_, _) => Dispatcher.BeginInvoke(ReopenMain);
+            return;
+        }
+
+        var wasVisible = _main.IsVisible;
+        var selected = _mainViewModel?.SelectedNode?.Id;
+
+        _reopeningMain = true;
+        try
+        {
+            _main.Close();
+        }
+        finally
+        {
+            _reopeningMain = false;
+        }
+
+        if (!wasVisible) return;
+        if (selected is { } id) ShowMain(id);
+        else ShowMain();
     }
 
     public void ShowUpdates()
@@ -234,8 +303,10 @@ public partial class App : Application, IAppShell
         try
         {
             _activateCts?.Cancel();
+            _sessionBar?.Dispose();
             _tray?.Dispose();
             _main?.Close();
+            ThemeService.Current?.Dispose();
             _services?.Dispose();
         }
         catch (Exception ex)
@@ -272,8 +343,8 @@ public partial class App : Application, IAppShell
         {
             if (_shuttingDown) return;
             Notify(
-                "Update available",
-                $"Version {update.Version} is ready to install. Open the manager to update.");
+                Strings.App_UpdateAvailable_Title,
+                UiLanguage.Format(Strings.App_UpdateAvailable_Message, update.Version));
         });
     }
 
@@ -282,8 +353,8 @@ public partial class App : Application, IAppShell
         AppLog.Error("Unhandled UI exception", e.Exception);
         e.Handled = true;
         MessageBox.Show(
-            $"Something went wrong.\n\n{e.Exception.Message}\n\nThe log is at {AppLog.LogPath}",
-            "DYNATEC RDM", MessageBoxButton.OK, MessageBoxImage.Warning);
+            UiLanguage.Format(Strings.App_UnhandledError, e.Exception.Message, AppLog.LogPath),
+            AppIdentity.Name, MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     private static void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e) =>

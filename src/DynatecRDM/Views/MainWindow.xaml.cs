@@ -24,6 +24,7 @@ public partial class MainWindow : Window
 
         DataContext = _viewModel;
         _viewModel.FocusSearchRequested += OnFocusSearchRequested;
+        _viewModel.PropertyChanged += OnHistoryViewModelChanged;
 
         try
         {
@@ -33,6 +34,12 @@ public partial class MainWindow : Window
         {
             AppLog.Warn("The main window could not be attached to its view model.", ex);
         }
+    }
+
+    protected override void OnActivated(EventArgs e)
+    {
+        base.OnActivated(e);
+        _viewModel.RefreshSnapshotsIfStale();
     }
 
     protected override void OnClosing(CancelEventArgs e)
@@ -59,6 +66,7 @@ public partial class MainWindow : Window
         try
         {
             _viewModel.FocusSearchRequested -= OnFocusSearchRequested;
+            _viewModel.PropertyChanged -= OnHistoryViewModelChanged;
             _viewModel.Detach();
         }
         catch (Exception ex)

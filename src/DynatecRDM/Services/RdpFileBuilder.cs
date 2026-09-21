@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 
 namespace DynatecRDM.Services;
 
@@ -34,7 +35,7 @@ public sealed class RdpFileBuilder : IRdpFileBuilder
         "compression", "keyboardhook",
         "audiocapturemode", "audiomode", "videoplaybackmode",
         "connection type", "networkautodetect", "bandwidthautodetect",
-        "displayconnectionbar", "enableworkspacereconnect",
+        "displayconnectionbar", "pinconnectionbar", "enableworkspacereconnect",
         "disable wallpaper", "allow font smoothing", "allow desktop composition",
         "disable full window drag", "disable menu anims", "disable themes", "disable cursor setting",
         "bitmapcachepersistenable",
@@ -74,30 +75,23 @@ public sealed class RdpFileBuilder : IRdpFileBuilder
 
         var lines = new LineSet();
 
-        var screenMode = ResolveScreenMode(display);
+        // Which combination of screen mode, placement and monitors this really is - including why a
+        // single chosen monitor is never written as multimon - is decided in one place.
+        var layout = DisplayLayout.Resolve(display, context.Monitors);
 
-        // mstsc only honours multimon in a full-screen session; the two flags must agree or
-        // the session silently opens on one monitor.
-        var multimon = screenMode == ScreenMode.Fullscreen
-            && (display.UseAllMonitors
-                || display.Placement == WindowPlacementMode.SpanAllMonitors
-                || (display.Placement == WindowPlacementMode.SelectedMonitors && display.SelectedMonitors.Count > 0));
-
-        var monitorIds = multimon ? JoinMonitorIds(display.SelectedMonitors) : string.Empty;
-        ResolveDesktopSize(display, context.Monitors, out var desktopWidth, out var desktopHeight);
-
-        lines.Int("screen mode id", (int)screenMode);
-        lines.Bool("use multimon", multimon);
+        lines.Int("screen mode id", layout.IsFullScreen ? (int)ScreenMode.Fullscreen : (int)ScreenMode.Windowed);
+        lines.Bool("use multimon", layout.UsesMultimon);
         lines.Int("span monitors", 0);
-        if (monitorIds.Length != 0) lines.Text("selectedmonitors", monitorIds);
+        if (layout.UsesMultimon && layout.MstscIds.Count > 0)
+            lines.Text("selectedmonitors", JoinMonitorIds(layout.MstscIds));
 
-        lines.Int("desktopwidth", desktopWidth);
-        lines.Int("desktopheight", desktopHeight);
+        lines.Int("desktopwidth", layout.DesktopWidth);
+        lines.Int("desktopheight", layout.DesktopHeight);
         lines.Int("session bpp", NormalizeColorDepth(display.ColorDepth));
-        lines.Bool("smart sizing", display.SmartSizing);
         // The two are mutually exclusive; asking for smart sizing is always a deliberate choice,
         // while dynamic resolution is merely the default.
-        lines.Bool("dynamic resolution", display.DynamicResolution && !display.SmartSizing);
+        lines.Bool("smart sizing", layout.Resize == ResizeBehavior.Scale);
+        lines.Bool("dynamic resolution", layout.Resize == ResizeBehavior.FollowWindow);
 
         var desktopScale = NormalizeDesktopScale(display.DesktopScaleFactor);
         var deviceScale = NormalizeDeviceScale(display.DeviceScaleFactor);
@@ -108,7 +102,7 @@ public sealed class RdpFileBuilder : IRdpFileBuilder
             lines.Int("devicescalefactor", deviceScale);
         }
 
-        lines.Text("winposstr", BuildWindowPosition(display, context.Monitors, screenMode, desktopWidth, desktopHeight));
+        lines.Text("winposstr", FormatWindowPosition(layout));
 
         lines.Bool("compression", exp.Compression);
         lines.Int("keyboardhook", Math.Clamp(red.KeyboardHook, 0, 2));
@@ -122,7 +116,10 @@ public sealed class RdpFileBuilder : IRdpFileBuilder
         lines.Bool("networkautodetect", exp.NetworkAutoDetect && quality == ConnectionQuality.AutoDetect);
         lines.Bool("bandwidthautodetect", exp.BandwidthAutoDetect);
 
-        lines.Int("displayconnectionbar", 1);
+        lines.Bool("displayconnectionbar", !context.HideConnectionBar);
+        // Remote Desktop pins the bar unless told otherwise; unpinned it hides and slides back
+        // in when the pointer reaches the top edge.
+        lines.Int("pinconnectionbar", 0);
         lines.Int("enableworkspacereconnect", 0);
 
         lines.Bool("disable wallpaper", !exp.ShowWallpaper);
@@ -273,7 +270,7 @@ public sealed class RdpFileBuilder : IRdpFileBuilder
         var named = !string.IsNullOrWhiteSpace(fallbackName);
         var conn = new RdpConnection
         {
-            Name = named ? fallbackName.Trim() : "Imported connection",
+            Name = named ? fallbackName.Trim() : Strings.Rdp_ImportedConnection_Name,
             Port = DefaultPort,
         };
         if (string.IsNullOrWhiteSpace(rdpFileContent)) return conn;
@@ -501,6 +498,9 @@ public sealed class RdpFileBuilder : IRdpFileBuilder
                     case "kdcproxyname":
                         if (value.Length != 0) conn.CustomProperties["kdcproxyname:s"] = value;
                         break;
+                    case "pinconnectionbar":
+                        if (ToBool(value)) conn.CustomProperties["pinconnectionbar:i"] = "1";
+                        break;
                     case "remoteapplicationmode":
                         conn.Security.RemoteAppMode = ToBool(value);
                         break;
@@ -567,51 +567,6 @@ public sealed class RdpFileBuilder : IRdpFileBuilder
         return conn;
     }
 
-    private static ScreenMode ResolveScreenMode(DisplaySettings display) => display.Placement switch
-    {
-        WindowPlacementMode.SpecificMonitorFullscreen => ScreenMode.Fullscreen,
-        WindowPlacementMode.SpanAllMonitors => ScreenMode.Fullscreen,
-        WindowPlacementMode.SelectedMonitors => ScreenMode.Fullscreen,
-        WindowPlacementMode.SpecificMonitorMaximized => ScreenMode.Windowed,
-        WindowPlacementMode.CustomRectangle => ScreenMode.Windowed,
-        _ => display.ScreenMode == ScreenMode.Windowed && !display.UseAllMonitors
-            ? ScreenMode.Windowed
-            : ScreenMode.Fullscreen,
-    };
-
-    /// <summary>
-    /// The session resolution to request. An explicit placement decides it: a custom rectangle
-    /// is the window, a monitor placement is that monitor - otherwise the stored size wins.
-    /// </summary>
-    private static void ResolveDesktopSize(
-        DisplaySettings display, IReadOnlyList<MonitorInfo>? monitors, out int width, out int height)
-    {
-        if (display.Placement == WindowPlacementMode.CustomRectangle)
-        {
-            width = Clamp(display.CustomWidth, MinDesktopEdge, MaxDesktopEdge, 1280);
-            height = Clamp(display.CustomHeight, MinDesktopEdge, MaxDesktopEdge, 800);
-            return;
-        }
-
-        if (display.Placement is WindowPlacementMode.SpecificMonitorFullscreen
-            or WindowPlacementMode.SpecificMonitorMaximized)
-        {
-            var monitor = PickMonitor(monitors, display);
-            if (monitor is not null)
-            {
-                var full = display.Placement == WindowPlacementMode.SpecificMonitorFullscreen;
-                var w = full || monitor.WorkWidth <= 0 ? monitor.Width : monitor.WorkWidth;
-                var h = full || monitor.WorkHeight <= 0 ? monitor.Height : monitor.WorkHeight;
-                width = Clamp(w, MinDesktopEdge, MaxDesktopEdge, 1920);
-                height = Clamp(h, MinDesktopEdge, MaxDesktopEdge, 1080);
-                return;
-            }
-        }
-
-        width = Clamp(display.DesktopWidth, MinDesktopEdge, MaxDesktopEdge, 1920);
-        height = Clamp(display.DesktopHeight, MinDesktopEdge, MaxDesktopEdge, 1080);
-    }
-
     /// <summary>
     /// Host names get a stricter scrub than ordinary text. Stripping CR/LF alone still lets a
     /// pasted or imported value carry trailing text into the line, so only the first whitespace
@@ -674,89 +629,22 @@ public sealed class RdpFileBuilder : IRdpFileBuilder
         || name.Equals("domain", StringComparison.OrdinalIgnoreCase)
         || name.Equals("password 51", StringComparison.OrdinalIgnoreCase);
 
-    private static string BuildWindowPosition(
-        DisplaySettings display,
-        IReadOnlyList<MonitorInfo>? monitors,
-        ScreenMode screenMode,
-        int desktopWidth,
-        int desktopHeight)
+    /// <summary>
+    /// winposstr is a WINDOWPLACEMENT: flags, show command, then the restored window's edges. It is
+    /// "0,1,..." even for a full-screen session - which is what Remote Desktop itself saves - because
+    /// the rectangle is both the monitor the session goes full screen on and the window it returns
+    /// to when it leaves full screen.
+    /// </summary>
+    private static string FormatWindowPosition(DisplayLayout layout)
     {
-        var showCmd = display.Placement switch
-        {
-            WindowPlacementMode.SpecificMonitorMaximized => 3,
-            WindowPlacementMode.SpecificMonitorFullscreen => 3,
-            WindowPlacementMode.CustomRectangle => 1,
-            _ => screenMode == ScreenMode.Fullscreen ? 3 : 1,
-        };
-
-        int left, top, right, bottom;
-
-        if (display.Placement == WindowPlacementMode.CustomRectangle)
-        {
-            left = display.CustomLeft;
-            top = display.CustomTop;
-            right = left + desktopWidth;
-            bottom = top + desktopHeight;
-        }
-        else
-        {
-            var monitor = PickMonitor(monitors, display);
-            if (monitor is null)
-            {
-                left = 0;
-                top = 0;
-                right = desktopWidth;
-                bottom = desktopHeight;
-            }
-            else if (display.Placement == WindowPlacementMode.SpecificMonitorFullscreen)
-            {
-                left = monitor.Left;
-                top = monitor.Top;
-                right = monitor.Right;
-                bottom = monitor.Bottom;
-            }
-            else
-            {
-                var workWidth = monitor.WorkWidth > 0 ? monitor.WorkWidth : monitor.Width;
-                var workHeight = monitor.WorkHeight > 0 ? monitor.WorkHeight : monitor.Height;
-                var width = desktopWidth;
-                var height = desktopHeight;
-                if (workWidth > 0 && width > workWidth) width = workWidth;
-                if (workHeight > 0 && height > workHeight) height = workHeight;
-
-                left = monitor.WorkLeft + Math.Max(0, (workWidth - width) / 2);
-                top = monitor.WorkTop + Math.Max(0, (workHeight - height) / 2);
-                right = left + width;
-                bottom = top + height;
-            }
-        }
-
+        var rect = layout.WindowRect;
         var sb = new StringBuilder(48);
-        sb.Append('0').Append(',').Append(IntString(showCmd)).Append(',')
-          .Append(left.ToString(CultureInfo.InvariantCulture)).Append(',')
-          .Append(top.ToString(CultureInfo.InvariantCulture)).Append(',')
-          .Append(right.ToString(CultureInfo.InvariantCulture)).Append(',')
-          .Append(bottom.ToString(CultureInfo.InvariantCulture));
+        sb.Append('0').Append(',').Append(IntString(layout.ShowCommand)).Append(',')
+          .Append(rect.Left.ToString(CultureInfo.InvariantCulture)).Append(',')
+          .Append(rect.Top.ToString(CultureInfo.InvariantCulture)).Append(',')
+          .Append(rect.Right.ToString(CultureInfo.InvariantCulture)).Append(',')
+          .Append(rect.Bottom.ToString(CultureInfo.InvariantCulture));
         return sb.ToString();
-    }
-
-    private static MonitorInfo? PickMonitor(IReadOnlyList<MonitorInfo>? monitors, DisplaySettings display)
-    {
-        if (monitors is null || monitors.Count == 0) return null;
-
-        if (display.Placement is WindowPlacementMode.SpecificMonitorFullscreen
-            or WindowPlacementMode.SpecificMonitorMaximized)
-        {
-            var index = display.TargetMonitorIndex;
-            if (index >= 0 && index < monitors.Count) return monitors[index];
-            for (var i = 0; i < monitors.Count; i++)
-                if (monitors[i].Index == index) return monitors[i];
-        }
-
-        for (var i = 0; i < monitors.Count; i++)
-            if (monitors[i].IsPrimary) return monitors[i];
-
-        return monitors[0];
     }
 
     private static void ApplyWindowPosition(DisplaySettings display, string value)
@@ -796,7 +684,7 @@ public sealed class RdpFileBuilder : IRdpFileBuilder
         }
     }
 
-    private static string JoinMonitorIds(List<int> ids)
+    private static string JoinMonitorIds(IReadOnlyList<int> ids)
     {
         var sb = new StringBuilder(ids.Count * 3);
         for (var i = 0; i < ids.Count; i++)

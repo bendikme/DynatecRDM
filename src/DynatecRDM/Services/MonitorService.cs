@@ -2,6 +2,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using DynatecRDM.Interop;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 
 namespace DynatecRDM.Services;
 
@@ -209,17 +210,34 @@ public sealed class MonitorService : IMonitorService, IDisposable
 
         if (primaryIndex < 0) primaryIndex = 0;
 
-        // mstsc numbers the displays reported by "mstsc /l" starting at the primary (always id 0),
-        // with the remaining displays keeping their enumeration order. MonitorApi hands us that
-        // enumeration sorted left-to-right then top-to-bottom, so a monitor's mstsc id is its
-        // position in that same list once the primary has been pulled to the front.
+        // The id Remote Desktop knows a display by - what "mstsc /l" prints, what selectedmonitors:s:
+        // holds, and what the hosted control's "SelectedMonitors" setting takes - is the display's
+        // ordinal in the raw EnumDisplayDevices walk. It is NOT its position in this list, which is
+        // sorted left to right, and it is not "primary first". Numbering by position here produced
+        // wrong ids whenever the primary was not the leftmost display, or an adapter was detached
+        // (detached adapters consume an ordinal, so real ids are gapped, e.g. 0, 3, 4).
         var mstscIds = new int[count];
-        mstscIds[primaryIndex] = 0;
-        var nextId = 1;
+        var missingOrdinal = false;
         for (var i = 0; i < count; i++)
         {
-            if (i != primaryIndex) mstscIds[i] = nextId++;
+            mstscIds[i] = native[i].AdapterOrdinal;
+            if (mstscIds[i] < 0) missingOrdinal = true;
         }
+
+        // Only if the walk told us nothing: fall back to the old positional numbering, which is at
+        // least stable, rather than handing out -1.
+        if (missingOrdinal)
+        {
+            AppLog.Warn("Display ordinals were unavailable; falling back to positional monitor ids.");
+            mstscIds[primaryIndex] = 0;
+            var nextId = 1;
+            for (var i = 0; i < count; i++)
+            {
+                if (i != primaryIndex) mstscIds[i] = nextId++;
+            }
+        }
+
+        for (var i = 0; i < count; i++) monitors[i] = monitors[i] with { MstscId = mstscIds[i] };
 
         return new Snapshot(monitors, handles, mstscIds, monitors[primaryIndex]);
     }
@@ -249,8 +267,8 @@ public sealed class MonitorService : IMonitorService, IDisposable
             AppLog.Warn("Screen fallback failed; assuming a 1920x1080 primary monitor.", ex);
         }
 
-        var info = new MonitorInfo(0, device, "Primary display", 0, 0, width, height,
-            0, 0, workWidth, workHeight, true, 96, 96);
+        var info = new MonitorInfo(0, device, Strings.Monitor_PrimaryDisplay, 0, 0, width, height,
+            0, 0, workWidth, workHeight, true, 96, 96) { MstscId = 0 };
 
         return new Snapshot(new[] { info }, new[] { IntPtr.Zero }, new[] { 0 }, info);
     }

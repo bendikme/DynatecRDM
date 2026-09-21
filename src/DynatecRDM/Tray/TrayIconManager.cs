@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows.Threading;
 using DynatecRDM.Models;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 using DynatecRDM.ViewModels;
 using DynatecRDM.Views;
@@ -14,7 +15,7 @@ namespace DynatecRDM.Tray;
 /// </summary>
 public sealed class TrayIconManager : IDisposable
 {
-    private const string ProductName = "DYNATEC Remote Desktop Manager";
+    private const string ProductName = AppIdentity.Name;
     private const int TooltipLimit = 63;
     private const int BalloonTitleLimit = 63;
     private const int BalloonTextLimit = 255;
@@ -29,6 +30,7 @@ public sealed class TrayIconManager : IDisposable
     private readonly System.Windows.Forms.NotifyIcon _notifyIcon;
     private readonly System.Windows.Forms.ContextMenuStrip _menu;
     private readonly System.Windows.Forms.ToolStripMenuItem _closeAllItem;
+    private readonly List<(System.Windows.Forms.ToolStripMenuItem Item, Func<string> Text)> _labels = new();
 
     private System.Drawing.Icon? _icon;
     private bool _ownsIcon;
@@ -49,24 +51,20 @@ public sealed class TrayIconManager : IDisposable
         {
             ShowImageMargin = false,
             RenderMode = System.Windows.Forms.ToolStripRenderMode.Professional,
-            Renderer = new System.Windows.Forms.ToolStripProfessionalRenderer(new TrayColorTable())
-            {
-                RoundedEdges = false,
-            },
-            BackColor = Surface,
-            ForeColor = TextPrimary,
+            Renderer = new TrayMenuRenderer(),
             DropShadowEnabled = false,
             Padding = new System.Windows.Forms.Padding(0, 4, 0, 4),
         };
 
-        AddItem("Open manager", () => _shell.ShowMain());
-        AddItem("Quick launch", () => ToggleQuickLaunch(_menuAnchor));
-        AddItem("Credentials", () => _shell.ShowCredentials());
-        AddItem("Settings", () => _shell.ShowSettings());
+        AddItem(() => Strings.Tray_OpenManager, () => _shell.ShowMain());
+        AddItem(() => Strings.Tray_QuickLaunch, () => ToggleQuickLaunch(_menuAnchor));
+        AddItem(() => Strings.Tray_Credentials, () => _shell.ShowCredentials());
+        AddItem(() => Strings.Tray_Settings, () => _shell.ShowSettings());
         AddSeparator();
-        _closeAllItem = AddItem("Close all sessions", CloseAllSessions);
+        _closeAllItem = AddItem(() => Strings.Tray_CloseAllSessions, CloseAllSessions);
         AddSeparator();
-        AddItem("Exit", () => _shell.ExitApplication());
+        AddItem(() => Strings.Tray_Exit, () => _shell.ExitApplication());
+        ApplyMenuColours();
 
         _menu.Opening += OnMenuOpening;
 
@@ -150,6 +148,34 @@ public sealed class TrayIconManager : IDisposable
 
         viewModel.PrepareForShow();
         window.ShowAt(monitor, anchor.X, anchor.Y, fromTray: trayAnchor.HasValue);
+    }
+
+    /// <summary>
+    /// Puts a new UI language on screen. The menu is relabelled in place, which keeps the icon
+    /// where it is in the tray; the popup and its view model are built again, because their text
+    /// is fixed when they are created.
+    /// </summary>
+    public void ReloadText()
+    {
+        if (_disposed) return;
+
+        try
+        {
+            foreach (var (item, text) in _labels) item.Text = text();
+            UpdateTooltip();
+
+            _window?.ForceClose();
+            _window = null;
+            _viewModel?.Dispose();
+
+            _viewModel = new TrayMenuViewModel(_services, _shell);
+            _ = _viewModel.LoadAsync();
+            _ = _dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() => EnsureWindow()));
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("The tray could not switch language.", ex);
+        }
     }
 
     /// <summary>Shows a balloon from the tray icon.</summary>
@@ -276,7 +302,9 @@ public sealed class TrayIconManager : IDisposable
             var path = Path.Combine(AppContext.BaseDirectory, "Assets", "dynatec.ico");
             if (File.Exists(path))
             {
-                _icon = new System.Drawing.Icon(path, new System.Drawing.Size(16, 16));
+                // The size the notification area really draws at this scaling (16 at 100%, 24 at 150%,
+                // 32 at 200%), so Windows shows a frame drawn for it instead of stretching the 16.
+                _icon = new System.Drawing.Icon(path, System.Windows.Forms.SystemInformation.SmallIconSize);
                 _ownsIcon = true;
                 return;
             }
@@ -311,28 +339,37 @@ public sealed class TrayIconManager : IDisposable
 
     // ------------------------------------------------------------------ menu
 
-    private System.Windows.Forms.ToolStripMenuItem AddItem(string text, Action action)
+    /// <summary>The label comes from a function so <see cref="ReloadText"/> can relabel the item.</summary>
+    private System.Windows.Forms.ToolStripMenuItem AddItem(Func<string> text, Action action)
     {
-        var item = new System.Windows.Forms.ToolStripMenuItem(text)
-        {
-            ForeColor = TextPrimary,
-            BackColor = Surface,
-        };
+        var item = new System.Windows.Forms.ToolStripMenuItem(text());
 
         // Let the menu finish closing before the action opens a window.
         item.Click += (_, _) => Post(action);
 
         _menu.Items.Add(item);
+        _labels.Add((item, text));
         return item;
     }
 
     private void AddSeparator()
     {
-        _menu.Items.Add(new System.Windows.Forms.ToolStripSeparator
+        _menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+    }
+
+    /// <summary>
+    /// Colours the menu from the current palette. Run each time it opens, which is the only time
+    /// it is drawn, so it is always in the theme Windows is in at that moment.
+    /// </summary>
+    private void ApplyMenuColours()
+    {
+        _menu.BackColor = Surface;
+        _menu.ForeColor = TextPrimary;
+        foreach (System.Windows.Forms.ToolStripItem item in _menu.Items)
         {
-            BackColor = Surface,
-            ForeColor = BorderStrong,
-        });
+            item.BackColor = Surface;
+            item.ForeColor = TextPrimary;
+        }
     }
 
     private void OnMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -343,6 +380,7 @@ public sealed class TrayIconManager : IDisposable
             // time "Quick launch" is chosen.
             _menuAnchor = System.Windows.Forms.Cursor.Position;
             _closeAllItem.Enabled = ActiveSessionCount() > 0;
+            ApplyMenuColours();
         }
         catch (Exception ex)
         {
@@ -450,12 +488,12 @@ public sealed class TrayIconManager : IDisposable
         try
         {
             var count = ActiveSessionCount();
-            var text = count switch
-            {
-                0 => ProductName,
-                1 => ProductName + " - 1 session",
-                _ => $"{ProductName} - {count} sessions",
-            };
+            var text = count == 0
+                ? ProductName
+                : UiLanguage.Format(
+                    Strings.Tray_Tooltip,
+                    ProductName,
+                    UiLanguage.Plural(count, Strings.Tray_Tooltip_Sessions_One, Strings.Tray_Tooltip_Sessions_Many));
 
             _notifyIcon.Text = Truncate(text, TooltipLimit);
         }
@@ -524,14 +562,44 @@ public sealed class TrayIconManager : IDisposable
 
     // ---------------------------------------------------------------- colours
 
-    private static readonly System.Drawing.Color Surface = System.Drawing.Color.FromArgb(0x1D, 0x20, 0x26);
-    private static readonly System.Drawing.Color SurfaceHover = System.Drawing.Color.FromArgb(0x2A, 0x2F, 0x38);
-    private static readonly System.Drawing.Color SurfacePressed = System.Drawing.Color.FromArgb(0x2E, 0x39, 0x47);
-    private static readonly System.Drawing.Color BorderStrong = System.Drawing.Color.FromArgb(0x3A, 0x41, 0x4D);
-    private static readonly System.Drawing.Color TextPrimary = System.Drawing.Color.FromArgb(0xE9, 0xEC, 0xF1);
+    // Read from the live palette each time, so the menu follows the theme. The fallbacks are the
+    // dark palette, for the moment before ThemeService has started.
+    private static System.Drawing.Color Surface => Palette("SurfaceColor", 0x1D, 0x20, 0x26);
+    private static System.Drawing.Color SurfaceHover => Palette("SurfaceHoverColor", 0x2A, 0x2F, 0x38);
+    private static System.Drawing.Color SurfacePressed => Palette("SurfaceSelectedColor", 0x2A, 0x34, 0x43);
+    private static System.Drawing.Color BorderSoft => Palette("BorderSoftColor", 0x2C, 0x31, 0x3A);
+    private static System.Drawing.Color BorderStrong => Palette("BorderStrongColor", 0x6B, 0x74, 0x82);
+    private static System.Drawing.Color TextPrimary => Palette("TextPrimaryColor", 0xED, 0xEF, 0xF3);
+    private static System.Drawing.Color TextMuted => Palette("TextMutedColor", 0x94, 0x9D, 0xAB);
+
+    private static System.Drawing.Color Palette(string key, byte r, byte g, byte b)
+    {
+        var fallback = System.Windows.Media.Color.FromRgb(r, g, b);
+        var colour = ThemeService.Current?.GetColor(key, fallback) ?? fallback;
+        return System.Drawing.Color.FromArgb(colour.R, colour.G, colour.B);
+    }
 
     /// <summary>
-    /// A flat dark palette for the WinForms menu so it does not look alien beside the WPF shell.
+    /// The professional renderer with the palette's colours. Disabled items would otherwise be
+    /// drawn in the system grey, which is too faint to read on the dark surface.
+    /// </summary>
+    private sealed class TrayMenuRenderer : System.Windows.Forms.ToolStripProfessionalRenderer
+    {
+        public TrayMenuRenderer()
+            : base(new TrayColorTable())
+        {
+            RoundedEdges = false;
+        }
+
+        protected override void OnRenderItemText(System.Windows.Forms.ToolStripItemTextRenderEventArgs e)
+        {
+            e.TextColor = e.Item.Enabled ? TextPrimary : TextMuted;
+            base.OnRenderItemText(e);
+        }
+    }
+
+    /// <summary>
+    /// A flat palette for the WinForms menu so it does not look alien beside the WPF shell.
     /// Deliberately plain: this menu has to be reliable more than it has to be clever.
     /// </summary>
     private sealed class TrayColorTable : System.Windows.Forms.ProfessionalColorTable
@@ -560,8 +628,8 @@ public sealed class TrayIconManager : IDisposable
 
         public override System.Drawing.Color ImageMarginGradientEnd => Surface;
 
-        public override System.Drawing.Color SeparatorDark => BorderStrong;
+        public override System.Drawing.Color SeparatorDark => BorderSoft;
 
-        public override System.Drawing.Color SeparatorLight => BorderStrong;
+        public override System.Drawing.Color SeparatorLight => BorderSoft;
     }
 }

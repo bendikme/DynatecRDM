@@ -1,126 +1,79 @@
-using System.Collections.ObjectModel;
 using System.Globalization;
 using DynatecRDM.Models;
-using PlacementKind = DynatecRDM.Models.WindowPlacementMode;
-using ScreenModeKind = DynatecRDM.Models.ScreenMode;
+using DynatecRDM.Resources;
+using DynatecRDM.Services;
 
 namespace DynatecRDM.ViewModels;
-
-/// <summary>
-/// One monitor check box inside the "Selected monitors" field. The stored value is the mstsc
-/// monitor id (what the .rdp file carries), not our own list position, so both are kept.
-/// </summary>
-public sealed class MultiConfigItemMonitorToggle : ObservableObject
-{
-    private readonly Action<MultiConfigItemMonitorToggle>? _changed;
-    private bool _isSelected;
-
-    public MultiConfigItemMonitorToggle(
-        int index, int mstscId, string label, bool isSelected, Action<MultiConfigItemMonitorToggle>? changed)
-    {
-        Index = index;
-        MstscId = mstscId;
-        Label = label;
-        _isSelected = isSelected;
-        _changed = changed;
-    }
-
-    /// <summary>Our own zero-based monitor index.</summary>
-    public int Index { get; }
-
-    /// <summary>The id mstsc uses for this monitor.</summary>
-    public int MstscId { get; }
-
-    public string Label { get; }
-
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set
-        {
-            if (SetProperty(ref _isSelected, value)) _changed?.Invoke(this);
-        }
-    }
-}
 
 /// <summary>
 /// One connection inside the multi-config being edited: the <see cref="MultiConfigItem"/>
 /// together with the <see cref="RdpConnection"/> it points at.
 ///
-/// Every display field follows the same shape: an <c>Inherit*</c> flag that mirrors
-/// "the override is null", and a value property that reads the override when there is one and
-/// the connection's own setting when there is not. The editor disables the value control while
-/// the inherit flag is set, so the inherited value stays visible but read-only.
+/// Its display settings are edited with the same <see cref="DisplayEditorViewModel"/> as the
+/// connection editor's Display tab, over the settings the item will actually launch with. The item
+/// either follows the connection's display settings or has its own; changing anything gives it its
+/// own, and only what differs from the connection is stored, so the rest keeps following it.
 /// </summary>
-public sealed class MultiConfigItemViewModel : ObservableObject
+public sealed class MultiConfigItemViewModel : ObservableObject, IDisposable
 {
-    private static readonly int[] NoMonitors = Array.Empty<int>();
-
     private readonly MultiConfigItem _model;
-
-    /// <summary>Stand-in defaults used while the connection is missing or still loading.</summary>
-    private readonly DisplaySettings _fallback = new();
+    private readonly Action? _changed;
 
     private RdpConnection? _connection;
-    private IReadOnlyList<MonitorInfo> _monitors = Array.Empty<MonitorInfo>();
-    private IReadOnlyList<int> _mstscIds = Array.Empty<int>();
+    private bool _useOwnDisplay;
+    private bool _reloading;
+    private bool _isSelected;
     private string _displayNameText;
-    private bool _rebuilding;
 
-    public MultiConfigItemViewModel(MultiConfigItem model, RdpConnection? connection)
+    public MultiConfigItemViewModel(AppServices services, MultiConfigItem model, RdpConnection? connection, Action? changed)
     {
+        ArgumentNullException.ThrowIfNull(services);
         _model = model ?? throw new ArgumentNullException(nameof(model));
         _connection = connection;
+        _changed = changed;
         _displayNameText = model.DisplayNameOverride ?? string.Empty;
-        MonitorToggles = new ObservableCollection<MultiConfigItemMonitorToggle>();
+        _useOwnDisplay = model.Display.HasAny;
+
+        AutoReconnectOptions = new[]
+        {
+            new Option(AutoReconnectInherit, connection?.AutoReconnect ?? true
+                ? Strings.Multi_AutoReconnect_Inherit_On
+                : Strings.Multi_AutoReconnect_Inherit_Off),
+            new Option(true, Strings.Multi_AutoReconnect_On),
+            new Option(false, Strings.Multi_AutoReconnect_Off),
+        };
+
+        Display = new DisplayEditorViewModel(services, model.Display.ApplyTo(ConnectionDisplay), OnDisplayChanged);
     }
 
     /// <summary>The item this view model edits in place.</summary>
     public MultiConfigItem Model => _model;
 
+    /// <summary>The display settings this item launches with.</summary>
+    public DisplayEditorViewModel Display { get; }
+
     public Guid ConnectionId => _model.ConnectionId;
 
-    public ObservableCollection<MultiConfigItemMonitorToggle> MonitorToggles { get; }
-
-    private DisplayOverride Over => _model.Display;
-
-    private DisplaySettings Baseline => _connection?.Display ?? _fallback;
+    private DisplaySettings ConnectionDisplay => _connection?.Display ?? new DisplaySettings();
 
     // ------------------------------------------------------------------ identity
 
-    public RdpConnection? Connection
-    {
-        get => _connection;
-        set
-        {
-            _connection = value;
-            RebuildMonitorToggles();
-            Raise(
-                nameof(Connection), nameof(IsMissing), nameof(DisplayName), nameof(Host),
-                nameof(ColorHex), nameof(ConnectionName), nameof(AutoReconnect),
-                nameof(ScreenMode), nameof(Placement), nameof(TargetMonitorIndex),
-                nameof(UseAllMonitors), nameof(DesktopWidth), nameof(DesktopHeight),
-                nameof(ColorDepth), nameof(SmartSizing), nameof(DynamicResolution),
-                nameof(DesktopScaleFactor), nameof(CustomLeft), nameof(CustomTop),
-                nameof(CustomWidth), nameof(CustomHeight), nameof(AlwaysOnTop));
-            Touch();
-        }
-    }
+    public RdpConnection? Connection => _connection;
 
     public bool IsMissing => _connection is null;
 
-    public string ConnectionName => _connection?.Name ?? "Missing connection";
+    public string ConnectionName => _connection?.Name ?? Strings.Multi_Item_MissingConnection;
 
     public string DisplayName =>
         string.IsNullOrWhiteSpace(_model.DisplayNameOverride) ? ConnectionName : _model.DisplayNameOverride!;
 
-    public string Host => _connection?.FullAddress ?? "This connection no longer exists";
+    public string Host => _connection?.FullAddress ?? Strings.Multi_Item_ConnectionGone;
 
     public string? ColorHex => _connection?.Color;
 
     public int Order => _model.Order;
 
-    /// <summary>One-based position shown in the list.</summary>
+    /// <summary>One-based position shown in the list and on the map.</summary>
     public int Position => _model.Order + 1;
 
     /// <summary>Rewrites the stored order; the list renumbers 0..n-1 after every change.</summary>
@@ -129,6 +82,17 @@ public sealed class MultiConfigItemViewModel : ObservableObject
         if (_model.Order == order) return;
         _model.Order = order;
         Raise(nameof(Order), nameof(Position));
+    }
+
+    /// <summary>
+    /// The item being edited. Each item has a properties panel of its own and only the selected one
+    /// is shown, so no form is ever re-pointed from one item to another - which would let radio
+    /// groups and combo boxes write one item's values into the next.
+    /// </summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetProperty(ref _isSelected, value);
     }
 
     public bool Enabled
@@ -167,24 +131,12 @@ public sealed class MultiConfigItemViewModel : ObservableObject
             if (_model.DelayMs == clamped) return;
             _model.DelayMs = clamped;
             Raise(nameof(DelayMs));
-        }
-    }
-
-    /// <summary>Credential set used instead of the connection's own; null means inherit.</summary>
-    public Guid? CredentialSetIdOverride
-    {
-        get => _model.CredentialSetIdOverride;
-        set
-        {
-            if (_model.CredentialSetIdOverride == value) return;
-            _model.CredentialSetIdOverride = value;
-            Raise(nameof(CredentialSetIdOverride), nameof(CredentialSelection));
             Touch();
         }
     }
 
     /// <summary>
-    /// What the credential combo binds to. <see cref="Guid.Empty"/> stands for "inherit",
+    /// What the credential combo binds to. <see cref="Guid.Empty"/> stands for "the connection's own",
     /// because a selector cannot select an item whose value is null.
     ///
     /// Nullable so that a combo box which momentarily has no matching item cannot push an
@@ -197,421 +149,117 @@ public sealed class MultiConfigItemViewModel : ObservableObject
         set
         {
             if (value is null) return;
-            CredentialSetIdOverride = value.Value == Guid.Empty ? null : value;
-        }
-    }
-
-    public bool InheritAutoReconnect
-    {
-        get => _model.AutoReconnectOverride is null;
-        set
-        {
-            if (value == InheritAutoReconnect) return;
-            _model.AutoReconnectOverride = value ? null : _connection?.AutoReconnect ?? true;
-            Raise(nameof(InheritAutoReconnect), nameof(AutoReconnect));
+            var chosen = value.Value == Guid.Empty ? (Guid?)null : value.Value;
+            if (_model.CredentialSetIdOverride == chosen) return;
+            _model.CredentialSetIdOverride = chosen;
+            Raise(nameof(CredentialSelection));
             Touch();
         }
     }
 
-    public bool AutoReconnect
+    /// <summary>The value that stands for "like the connection" in the auto-reconnect combo.</summary>
+    public const string AutoReconnectInherit = "inherit";
+
+    /// <summary>The auto-reconnect combo's entries; the first says what the connection does.</summary>
+    public IReadOnlyList<Option> AutoReconnectOptions { get; }
+
+    /// <summary>
+    /// Automatic reconnect as the combo shows it: <see cref="AutoReconnectInherit"/> follows the
+    /// connection, true and false are this item's own. Anything else - a combo that momentarily
+    /// has no selection - is ignored.
+    /// </summary>
+    public object AutoReconnectChoice
     {
-        get => _model.AutoReconnectOverride ?? _connection?.AutoReconnect ?? true;
+        get => _model.AutoReconnectOverride.HasValue ? _model.AutoReconnectOverride.Value : AutoReconnectInherit;
         set
         {
-            if (_model.AutoReconnectOverride == value) return;
-            _model.AutoReconnectOverride = value;
-            Raise(nameof(AutoReconnect));
+            bool? chosen;
+            switch (value)
+            {
+                case bool own:
+                    chosen = own;
+                    break;
+                case string text when text == AutoReconnectInherit:
+                    chosen = null;
+                    break;
+                default:
+                    return;
+            }
+
+            if (_model.AutoReconnectOverride == chosen) return;
+            _model.AutoReconnectOverride = chosen;
+            Raise(nameof(AutoReconnectChoice));
             Touch();
         }
     }
 
-    // ------------------------------------------------------------------ screen mode
+    // ------------------------------------------------------------------ display
 
-    public bool InheritScreenMode
+    /// <summary>
+    /// True when the item has display settings of its own. Setting it back to false drops them and
+    /// shows the connection's again; setting it to true keeps what is shown, ready to be changed.
+    /// </summary>
+    public bool UseOwnDisplay
     {
-        get => Over.ScreenMode is null;
+        get => _useOwnDisplay;
         set
         {
-            if (value == InheritScreenMode) return;
-            Over.ScreenMode = value ? null : Baseline.ScreenMode;
-            Raise(nameof(InheritScreenMode), nameof(ScreenMode));
+            if (value == _useOwnDisplay) return;
+            _useOwnDisplay = value;
+
+            if (!value)
+            {
+                _model.Display = new DisplayOverride();
+                _reloading = true;
+                try
+                {
+                    Display.Load(ConnectionDisplay.Clone());
+                }
+                finally
+                {
+                    _reloading = false;
+                }
+            }
+
+            Raise(nameof(UseOwnDisplay), nameof(UseConnectionDisplay));
             Touch();
         }
     }
 
-    public ScreenModeKind? ScreenMode
+    public bool UseConnectionDisplay
     {
-        get => Over.ScreenMode ?? Baseline.ScreenMode;
-        set
-        {
-            if (value is null || Over.ScreenMode == value) return;
-            Over.ScreenMode = value;
-            Raise(nameof(ScreenMode));
-            Touch();
-        }
-    }
-
-    // ------------------------------------------------------------------ placement
-
-    public bool InheritPlacement
-    {
-        get => Over.Placement is null;
-        set
-        {
-            if (value == InheritPlacement) return;
-            Over.Placement = value ? null : Baseline.Placement;
-            Raise(nameof(InheritPlacement), nameof(Placement));
-            Touch();
-        }
-    }
-
-    public PlacementKind? Placement
-    {
-        get => Over.Placement ?? Baseline.Placement;
-        set
-        {
-            if (value is null || Over.Placement == value) return;
-            Over.Placement = value;
-            Raise(nameof(Placement));
-            Touch();
-        }
-    }
-
-    public bool InheritTargetMonitor
-    {
-        get => Over.TargetMonitorIndex is null;
-        set
-        {
-            if (value == InheritTargetMonitor) return;
-            Over.TargetMonitorIndex = value ? null : Baseline.TargetMonitorIndex;
-            Raise(nameof(InheritTargetMonitor), nameof(TargetMonitorIndex));
-            Touch();
-        }
+        get => !_useOwnDisplay;
+        set => UseOwnDisplay = !value;
     }
 
     /// <summary>
-    /// Nullable so a combo box that momentarily has no selection cannot push an unconvertible
-    /// null at the model. The getter never returns null.
+    /// The display editor changed something. Only what differs from the connection is kept; and
+    /// anything that differs means the item now has its own settings. The comparison is with the
+    /// connection's settings as the editor would show them, so merely opening an item - or the
+    /// monitors arriving - never counts as a change.
     /// </summary>
-    public int? TargetMonitorIndex
+    private void OnDisplayChanged()
     {
-        get => Over.TargetMonitorIndex ?? Baseline.TargetMonitorIndex;
-        set
+        if (_reloading) return;
+
+        var baseline = ConnectionDisplay.Clone();
+        DisplayEditorViewModel.Normalize(baseline, Display.KnownMonitors());
+        var over = DisplayOverride.Between(baseline, Display.Settings);
+
+        if (over.HasAny && !_useOwnDisplay)
         {
-            if (value is null || Over.TargetMonitorIndex == value) return;
-            Over.TargetMonitorIndex = value;
-            Raise(nameof(TargetMonitorIndex));
-            Touch();
+            _useOwnDisplay = true;
+            Raise(nameof(UseOwnDisplay), nameof(UseConnectionDisplay));
         }
-    }
 
-    public bool InheritSelectedMonitors
-    {
-        get => Over.SelectedMonitors is not { Count: > 0 };
-        set
-        {
-            if (value == InheritSelectedMonitors) return;
-
-            if (value)
-            {
-                Over.SelectedMonitors = null;
-            }
-            else
-            {
-                var seed = new List<int>(Baseline.SelectedMonitors);
-                if (seed.Count == 0) seed.Add(MstscIdForIndex(TargetMonitorIndex ?? 0));
-                Over.SelectedMonitors = seed;
-            }
-
-            RebuildMonitorToggles();
-            Raise(nameof(InheritSelectedMonitors));
-            Touch();
-        }
-    }
-
-    public bool InheritUseAllMonitors
-    {
-        get => Over.UseAllMonitors is null;
-        set
-        {
-            if (value == InheritUseAllMonitors) return;
-            Over.UseAllMonitors = value ? null : Baseline.UseAllMonitors;
-            Raise(nameof(InheritUseAllMonitors), nameof(UseAllMonitors));
-            Touch();
-        }
-    }
-
-    public bool UseAllMonitors
-    {
-        get => Over.UseAllMonitors ?? Baseline.UseAllMonitors;
-        set
-        {
-            if (Over.UseAllMonitors == value) return;
-            Over.UseAllMonitors = value;
-            Raise(nameof(UseAllMonitors));
-            Touch();
-        }
-    }
-
-    // ------------------------------------------------------------------ desktop size and quality
-
-    public bool InheritDesktopSize
-    {
-        get => Over.DesktopWidth is null && Over.DesktopHeight is null;
-        set
-        {
-            if (value == InheritDesktopSize) return;
-
-            if (value)
-            {
-                Over.DesktopWidth = null;
-                Over.DesktopHeight = null;
-            }
-            else
-            {
-                Over.DesktopWidth = Baseline.DesktopWidth;
-                Over.DesktopHeight = Baseline.DesktopHeight;
-            }
-
-            Raise(nameof(InheritDesktopSize), nameof(DesktopWidth), nameof(DesktopHeight));
-            Touch();
-        }
-    }
-
-    public int DesktopWidth
-    {
-        get => Over.DesktopWidth ?? Baseline.DesktopWidth;
-        set
-        {
-            var clamped = Math.Clamp(value, 0, 32767);
-            if (Over.DesktopWidth == clamped) return;
-            Over.DesktopWidth = clamped;
-            Raise(nameof(DesktopWidth));
-            Touch();
-        }
-    }
-
-    public int DesktopHeight
-    {
-        get => Over.DesktopHeight ?? Baseline.DesktopHeight;
-        set
-        {
-            var clamped = Math.Clamp(value, 0, 32767);
-            if (Over.DesktopHeight == clamped) return;
-            Over.DesktopHeight = clamped;
-            Raise(nameof(DesktopHeight));
-            Touch();
-        }
-    }
-
-    public bool InheritColorDepth
-    {
-        get => Over.ColorDepth is null;
-        set
-        {
-            if (value == InheritColorDepth) return;
-            Over.ColorDepth = value ? null : Baseline.ColorDepth;
-            Raise(nameof(InheritColorDepth), nameof(ColorDepth));
-            Touch();
-        }
-    }
-
-    public int? ColorDepth
-    {
-        get => Over.ColorDepth ?? Baseline.ColorDepth;
-        set
-        {
-            if (value is null || Over.ColorDepth == value) return;
-            Over.ColorDepth = value;
-            Raise(nameof(ColorDepth));
-            Touch();
-        }
-    }
-
-    public bool InheritSmartSizing
-    {
-        get => Over.SmartSizing is null;
-        set
-        {
-            if (value == InheritSmartSizing) return;
-            Over.SmartSizing = value ? null : Baseline.SmartSizing;
-            Raise(nameof(InheritSmartSizing), nameof(SmartSizing));
-            Touch();
-        }
-    }
-
-    public bool SmartSizing
-    {
-        get => Over.SmartSizing ?? Baseline.SmartSizing;
-        set
-        {
-            if (Over.SmartSizing == value) return;
-            Over.SmartSizing = value;
-            Raise(nameof(SmartSizing));
-            Touch();
-        }
-    }
-
-    public bool InheritDynamicResolution
-    {
-        get => Over.DynamicResolution is null;
-        set
-        {
-            if (value == InheritDynamicResolution) return;
-            Over.DynamicResolution = value ? null : Baseline.DynamicResolution;
-            Raise(nameof(InheritDynamicResolution), nameof(DynamicResolution));
-            Touch();
-        }
-    }
-
-    public bool DynamicResolution
-    {
-        get => Over.DynamicResolution ?? Baseline.DynamicResolution;
-        set
-        {
-            if (Over.DynamicResolution == value) return;
-            Over.DynamicResolution = value;
-            Raise(nameof(DynamicResolution));
-            Touch();
-        }
-    }
-
-    public bool InheritScaleFactor
-    {
-        get => Over.DesktopScaleFactor is null;
-        set
-        {
-            if (value == InheritScaleFactor) return;
-            Over.DesktopScaleFactor = value ? null : Baseline.DesktopScaleFactor;
-            Raise(nameof(InheritScaleFactor), nameof(DesktopScaleFactor));
-            Touch();
-        }
-    }
-
-    public int? DesktopScaleFactor
-    {
-        get => Over.DesktopScaleFactor ?? Baseline.DesktopScaleFactor;
-        set
-        {
-            if (value is null || Over.DesktopScaleFactor == value) return;
-            Over.DesktopScaleFactor = value;
-            Raise(nameof(DesktopScaleFactor));
-            Touch();
-        }
-    }
-
-    // ------------------------------------------------------------------ custom rectangle
-
-    public bool InheritCustomRect
-    {
-        get => Over.CustomLeft is null && Over.CustomTop is null
-               && Over.CustomWidth is null && Over.CustomHeight is null;
-        set
-        {
-            if (value == InheritCustomRect) return;
-
-            if (value)
-            {
-                Over.CustomLeft = null;
-                Over.CustomTop = null;
-                Over.CustomWidth = null;
-                Over.CustomHeight = null;
-            }
-            else
-            {
-                Over.CustomLeft = Baseline.CustomLeft;
-                Over.CustomTop = Baseline.CustomTop;
-                Over.CustomWidth = Baseline.CustomWidth;
-                Over.CustomHeight = Baseline.CustomHeight;
-            }
-
-            Raise(
-                nameof(InheritCustomRect), nameof(CustomLeft), nameof(CustomTop),
-                nameof(CustomWidth), nameof(CustomHeight));
-            Touch();
-        }
-    }
-
-    public int CustomLeft
-    {
-        get => Over.CustomLeft ?? Baseline.CustomLeft;
-        set
-        {
-            var clamped = Math.Clamp(value, -32768, 32767);
-            if (Over.CustomLeft == clamped) return;
-            Over.CustomLeft = clamped;
-            Raise(nameof(CustomLeft));
-            Touch();
-        }
-    }
-
-    public int CustomTop
-    {
-        get => Over.CustomTop ?? Baseline.CustomTop;
-        set
-        {
-            var clamped = Math.Clamp(value, -32768, 32767);
-            if (Over.CustomTop == clamped) return;
-            Over.CustomTop = clamped;
-            Raise(nameof(CustomTop));
-            Touch();
-        }
-    }
-
-    public int CustomWidth
-    {
-        get => Over.CustomWidth ?? Baseline.CustomWidth;
-        set
-        {
-            var clamped = Math.Clamp(value, 0, 32767);
-            if (Over.CustomWidth == clamped) return;
-            Over.CustomWidth = clamped;
-            Raise(nameof(CustomWidth));
-            Touch();
-        }
-    }
-
-    public int CustomHeight
-    {
-        get => Over.CustomHeight ?? Baseline.CustomHeight;
-        set
-        {
-            var clamped = Math.Clamp(value, 0, 32767);
-            if (Over.CustomHeight == clamped) return;
-            Over.CustomHeight = clamped;
-            Raise(nameof(CustomHeight));
-            Touch();
-        }
-    }
-
-    public bool InheritAlwaysOnTop
-    {
-        get => Over.AlwaysOnTop is null;
-        set
-        {
-            if (value == InheritAlwaysOnTop) return;
-            Over.AlwaysOnTop = value ? null : Baseline.AlwaysOnTop;
-            Raise(nameof(InheritAlwaysOnTop), nameof(AlwaysOnTop));
-            Touch();
-        }
-    }
-
-    public bool AlwaysOnTop
-    {
-        get => Over.AlwaysOnTop ?? Baseline.AlwaysOnTop;
-        set
-        {
-            if (Over.AlwaysOnTop == value) return;
-            Over.AlwaysOnTop = value;
-            Raise(nameof(AlwaysOnTop));
-            Touch();
-        }
+        if (_useOwnDisplay) _model.Display = over;
+        Touch();
     }
 
     // ------------------------------------------------------------------ derived
 
     public bool HasOverrides =>
-        Over.HasAny || _model.CredentialSetIdOverride.HasValue
+        _useOwnDisplay || _model.CredentialSetIdOverride.HasValue
         || _model.AutoReconnectOverride.HasValue
         || !string.IsNullOrWhiteSpace(_model.DisplayNameOverride);
 
@@ -620,223 +268,86 @@ public sealed class MultiConfigItemViewModel : ObservableObject
     {
         get
         {
-            if (IsMissing) return "This connection no longer exists";
+            if (IsMissing) return Strings.Multi_Item_ConnectionGone;
 
-            var text = (Placement ?? PlacementKind.Default) switch
+            var layout = Display.Layout;
+            var text = layout.Kind switch
             {
-                PlacementKind.SpecificMonitorFullscreen =>
-                    $"Full screen on monitor {(TargetMonitorIndex ?? 0) + 1}",
-                PlacementKind.SpecificMonitorMaximized =>
-                    $"Maximized on monitor {(TargetMonitorIndex ?? 0) + 1}",
-                PlacementKind.SpanAllMonitors => "Spanning every monitor",
-                PlacementKind.SelectedMonitors => DescribeSelectedMonitors(),
-                PlacementKind.CustomRectangle =>
-                    $"Window {CustomWidth} x {CustomHeight} at {CustomLeft}, {CustomTop}",
-                _ => (ScreenMode ?? ScreenModeKind.Fullscreen) == ScreenModeKind.Fullscreen
-                    ? "Full screen, wherever the connection puts it"
-                    : $"Windowed {DesktopWidth} x {DesktopHeight}",
+                DisplayLayoutKind.FullScreen => layout.Monitor is { } monitor
+                    ? UiLanguage.Format(Strings.Multi_Summary_FullScreenOnMonitor, monitor.Index + 1)
+                    : Strings.Multi_Summary_FullScreenDefault,
+                DisplayLayoutKind.FullScreenMultiMonitor => layout.MstscIds.Count == 0
+                    ? Strings.Multi_Summary_SpanAll
+                    : UiLanguage.Format(Strings.Multi_Summary_AcrossMonitors, MonitorNumbers(layout.Monitors)),
+                DisplayLayoutKind.MaximizedWindow => UiLanguage.Format(
+                    Strings.Multi_Summary_MaximizedOnMonitor, (layout.Monitor?.Index ?? 0) + 1),
+                DisplayLayoutKind.WindowAtRectangle => UiLanguage.Format(
+                    Strings.Multi_Summary_CustomRect,
+                    layout.WindowRect.Width, layout.WindowRect.Height, layout.WindowRect.Left, layout.WindowRect.Top),
+                _ => UiLanguage.Format(Strings.Multi_Summary_Windowed, layout.DesktopWidth, layout.DesktopHeight),
             };
 
-            if (AlwaysOnTop) text += ", always on top";
+            if (Display.AlwaysOnTop) text = UiLanguage.Format(Strings.Multi_Summary_AlwaysOnTop, text);
             return text;
         }
     }
 
-    /// <summary>Monitors this item lands on, for the layout map. Empty means "not placed".</summary>
-    public IReadOnlyList<int> MapMonitors
+    /// <summary>The monitor this item takes over completely, or null when it does not.</summary>
+    public int? FullscreenMonitor
     {
         get
         {
-            switch (Placement ?? PlacementKind.Default)
-            {
-                case PlacementKind.SpecificMonitorFullscreen:
-                case PlacementKind.SpecificMonitorMaximized:
-                    return new[] { TargetMonitorIndex ?? 0 };
-
-                case PlacementKind.SpanAllMonitors:
-                {
-                    var all = new int[_monitors.Count];
-                    for (var i = 0; i < all.Length; i++) all[i] = _monitors[i].Index;
-                    return all;
-                }
-
-                case PlacementKind.SelectedMonitors:
-                    return EffectiveSelectedIndexes();
-
-                case PlacementKind.CustomRectangle:
-                {
-                    var index = MonitorContaining(
-                        CustomLeft + (CustomWidth / 2), CustomTop + (CustomHeight / 2));
-                    return index >= 0 ? new[] { index } : NoMonitors;
-                }
-
-                default:
-                    return NoMonitors;
-            }
+            var layout = Display.Layout;
+            return layout.Kind == DisplayLayoutKind.FullScreen ? layout.Monitor?.Index : null;
         }
     }
 
-    /// <summary>The monitor this item takes over completely, or null when it does not.</summary>
-    public int? FullscreenMonitor =>
-        (Placement ?? PlacementKind.Default) == PlacementKind.SpecificMonitorFullscreen
-            ? TargetMonitorIndex ?? 0
-            : null;
-
-    /// <summary>Puts this item full screen on one monitor; used by the layout map.</summary>
-    public void AssignToMonitor(int index)
+    /// <summary>
+    /// Where the session will be on the desktop, in desktop pixels: the monitors it fills, or its
+    /// window. Null when there is nothing to draw it on.
+    /// </summary>
+    public PixelRect? Footprint
     {
-        Over.Placement = PlacementKind.SpecificMonitorFullscreen;
-        Over.TargetMonitorIndex = index;
-        Raise(
-            nameof(InheritPlacement), nameof(Placement),
-            nameof(InheritTargetMonitor), nameof(TargetMonitorIndex));
-        Touch();
+        get
+        {
+            var layout = Display.Layout;
+            return layout.Kind switch
+            {
+                DisplayLayoutKind.FullScreen or DisplayLayoutKind.FullScreenMultiMonitor => layout.FullScreenArea,
+                DisplayLayoutKind.MaximizedWindow => layout.Monitor?.WorkArea,
+                _ => layout.Monitors.Count == 0 && layout.Monitor is null ? null : layout.WindowRect,
+            };
+        }
     }
 
     /// <summary>Drops every override and goes back to the connection's own settings.</summary>
     public void ClearOverrides()
     {
-        _model.Display = new DisplayOverride();
         _model.CredentialSetIdOverride = null;
         _model.AutoReconnectOverride = null;
         _model.DisplayNameOverride = null;
         _displayNameText = string.Empty;
-        RebuildMonitorToggles();
+        Raise(nameof(DisplayNameText), nameof(DisplayName), nameof(CredentialSelection), nameof(AutoReconnectChoice));
 
-        Raise(
-            nameof(DisplayNameText), nameof(DisplayName),
-            nameof(CredentialSetIdOverride), nameof(CredentialSelection),
-            nameof(InheritAutoReconnect), nameof(AutoReconnect),
-            nameof(InheritScreenMode), nameof(ScreenMode),
-            nameof(InheritPlacement), nameof(Placement),
-            nameof(InheritTargetMonitor), nameof(TargetMonitorIndex),
-            nameof(InheritSelectedMonitors), nameof(InheritUseAllMonitors), nameof(UseAllMonitors),
-            nameof(InheritDesktopSize), nameof(DesktopWidth), nameof(DesktopHeight),
-            nameof(InheritColorDepth), nameof(ColorDepth),
-            nameof(InheritSmartSizing), nameof(SmartSizing),
-            nameof(InheritDynamicResolution), nameof(DynamicResolution),
-            nameof(InheritScaleFactor), nameof(DesktopScaleFactor),
-            nameof(InheritCustomRect), nameof(CustomLeft), nameof(CustomTop),
-            nameof(CustomWidth), nameof(CustomHeight),
-            nameof(InheritAlwaysOnTop), nameof(AlwaysOnTop));
-        Touch();
+        if (_useOwnDisplay) UseOwnDisplay = false;
+        else Touch();
     }
 
-    /// <summary>Hands the item the current displays; called on load and on MonitorsChanged.</summary>
-    public void SetMonitors(IReadOnlyList<MonitorInfo>? monitors, IReadOnlyList<int>? mstscIds)
-    {
-        _monitors = monitors ?? (IReadOnlyList<MonitorInfo>)Array.Empty<MonitorInfo>();
-        _mstscIds = mstscIds ?? (IReadOnlyList<int>)Array.Empty<int>();
-        RebuildMonitorToggles();
-
-        // The monitor combo's item list was just rebuilt underneath it, which drops its
-        // selection. Re-announcing the value makes it pick the right row again instead of
-        // sitting blank while the model still holds the index.
-        Raise(nameof(TargetMonitorIndex), nameof(InheritSelectedMonitors));
-        Touch();
-    }
+    public void Dispose() => Display.Dispose();
 
     // ------------------------------------------------------------------ internals
 
-    private void Touch(params string[] names)
+    private void Touch()
     {
-        if (names.Length > 0) Raise(names);
-        Raise(nameof(Summary), nameof(MapMonitors), nameof(HasOverrides));
+        Raise(nameof(Summary), nameof(HasOverrides));
+        _changed?.Invoke();
     }
 
-    private void RebuildMonitorToggles()
+    private static string MonitorNumbers(IReadOnlyList<MonitorInfo> monitors)
     {
-        _rebuilding = true;
-        try
-        {
-            MonitorToggles.Clear();
-
-            var ids = Over.SelectedMonitors is { Count: > 0 } chosen ? chosen : Baseline.SelectedMonitors;
-
-            foreach (var monitor in _monitors)
-            {
-                var id = MstscIdForIndex(monitor.Index);
-                MonitorToggles.Add(new MultiConfigItemMonitorToggle(
-                    monitor.Index,
-                    id,
-                    (monitor.Index + 1).ToString(CultureInfo.InvariantCulture),
-                    ids.Contains(id),
-                    OnMonitorToggled));
-            }
-        }
-        finally
-        {
-            _rebuilding = false;
-        }
-    }
-
-    private void OnMonitorToggled(MultiConfigItemMonitorToggle toggle)
-    {
-        if (_rebuilding) return;
-
-        var ids = new List<int>(MonitorToggles.Count);
-        foreach (var candidate in MonitorToggles)
-            if (candidate.IsSelected) ids.Add(candidate.MstscId);
-
-        Over.SelectedMonitors = ids.Count > 0 ? ids : null;
-        Raise(nameof(InheritSelectedMonitors));
-        Touch();
-    }
-
-    private int MstscIdForIndex(int index)
-    {
-        for (var i = 0; i < _monitors.Count; i++)
-        {
-            if (_monitors[i].Index != index) continue;
-            return i < _mstscIds.Count ? _mstscIds[i] : index + 1;
-        }
-        return index + 1;
-    }
-
-    private int IndexForMstscId(int id)
-    {
-        for (var i = 0; i < _mstscIds.Count && i < _monitors.Count; i++)
-            if (_mstscIds[i] == id) return _monitors[i].Index;
-
-        // No map handed over yet: mstsc numbers displays from one.
-        return _mstscIds.Count == 0 && id > 0 ? id - 1 : -1;
-    }
-
-    private List<int> EffectiveSelectedIndexes()
-    {
-        var ids = Over.SelectedMonitors is { Count: > 0 } chosen ? chosen : Baseline.SelectedMonitors;
-        var result = new List<int>(ids.Count);
-
-        foreach (var id in ids)
-        {
-            var index = IndexForMstscId(id);
-            if (index >= 0 && !result.Contains(index)) result.Add(index);
-        }
-
-        result.Sort();
-        return result;
-    }
-
-    private string DescribeSelectedMonitors()
-    {
-        var indexes = EffectiveSelectedIndexes();
-        if (indexes.Count == 0) return "Across the monitors the connection selects";
-
-        var labels = new string[indexes.Count];
-        for (var i = 0; i < indexes.Count; i++)
-            labels[i] = (indexes[i] + 1).ToString(CultureInfo.InvariantCulture);
-
-        var joined = string.Join(", ", labels);
-        return indexes.Count == 1 ? $"Full screen on monitor {joined}" : $"Across monitors {joined}";
-    }
-
-    private int MonitorContaining(int x, int y)
-    {
-        foreach (var monitor in _monitors)
-        {
-            if (x >= monitor.Left && x < monitor.Right && y >= monitor.Top && y < monitor.Bottom)
-                return monitor.Index;
-        }
-        return -1;
+        var numbers = new string[monitors.Count];
+        for (var i = 0; i < numbers.Length; i++)
+            numbers[i] = (monitors[i].Index + 1).ToString(CultureInfo.InvariantCulture);
+        return string.Join(", ", numbers);
     }
 }

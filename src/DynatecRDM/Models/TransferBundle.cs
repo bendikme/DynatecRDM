@@ -9,7 +9,7 @@ public sealed class TransferBundle
 {
     public int FormatVersion { get; set; } = 1;
 
-    public string Application { get; set; } = "DYNATEC Remote Desktop Manager";
+    public string Application { get; set; } = DynatecRDM.Services.AppIdentity.Name;
 
     /// <summary>Machine the file was written on, for provenance.</summary>
     public string? ExportedBy { get; set; }

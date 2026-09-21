@@ -24,6 +24,20 @@ public enum WindowPlacementMode
     CustomRectangle = 5,
 }
 
+/// <summary>
+/// What happens to the remote desktop when the window around it changes size - including the
+/// switch between full screen and a window. Stored as the two .rdp flags it stands for.
+/// </summary>
+public enum ResizeBehavior
+{
+    /// <summary>dynamic resolution:i:1 - the remote resolution follows the window.</summary>
+    FollowWindow = 0,
+    /// <summary>smart sizing:i:1 - the picture is scaled; the resolution stays as it was.</summary>
+    Scale = 1,
+    /// <summary>Neither - the resolution stays fixed and a smaller window scrolls.</summary>
+    Fixed = 2,
+}
+
 public enum AudioMode
 {
     PlayOnThisComputer = 0,

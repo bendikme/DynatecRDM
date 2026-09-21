@@ -33,6 +33,30 @@ public interface IDataStore
     /// <summary>Records a successful launch (increments counters, stamps last-connected).</summary>
     Task RecordLaunchAsync(Guid connectionId, CancellationToken ct = default);
     Task RecordMultiConfigLaunchAsync(Guid multiConfigId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Moves library items: the group that holds each one and its position among its siblings,
+    /// all in one transaction. Nothing else about the items is written.
+    /// </summary>
+    Task UpdateLayoutAsync(IReadOnlyList<LayoutChange> changes, CancellationToken ct = default);
+
+    /// <summary>Adds a session to the connection history, or updates it as the session goes on.</summary>
+    Task SaveLogEntryAsync(ConnectionLogEntry entry, CancellationToken ct = default);
+
+    /// <summary>A connection's most recent sessions, newest first.</summary>
+    Task<IReadOnlyList<ConnectionLogEntry>> GetConnectionLogAsync(Guid connectionId, int limit, CancellationToken ct = default);
+
+    /// <summary>
+    /// Marks sessions a previous run never saw end as <see cref="SessionOutcome.Unknown"/>.
+    /// Returns how many there were.
+    /// </summary>
+    Task<int> CloseAbandonedLogEntriesAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes a connection's finished sessions from its history. A session still running stays,
+    /// so its end can still be recorded. Returns how many were removed.
+    /// </summary>
+    Task<int> ClearConnectionLogAsync(Guid connectionId, CancellationToken ct = default);
 }
 
 /// <summary>Protects secrets at rest with DPAPI (CurrentUser scope).</summary>
@@ -116,6 +140,12 @@ public sealed class RdpBuildContext
 
     /// <summary>Monitors known to the app, for resolving placement-driven geometry.</summary>
     public IReadOnlyList<MonitorInfo>? Monitors { get; set; }
+
+    /// <summary>
+    /// Leave out Remote Desktop's full-screen connection bar because the session bar replaces it.
+    /// Only a launch sets this; an exported file keeps the bar for use outside the app.
+    /// </summary>
+    public bool HideConnectionBar { get; set; }
 }
 
 /// <summary>Enumerates physical displays.</summary>

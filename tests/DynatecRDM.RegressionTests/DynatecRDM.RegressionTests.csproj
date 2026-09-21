@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>../../src/DynatecRDM/app.manifest</ApplicationManifest>
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <ProjectReference Include="../../src/DynatecRDM/DynatecRDM.csproj" />
+    <Reference Include="MSTSCLib"><HintPath>../../src/DynatecRDM/lib/RdpInterop/MSTSCLib.dll</HintPath></Reference>
+    <Reference Include="AxMSTSCLib"><HintPath>../../src/DynatecRDM/lib/RdpInterop/AxMSTSCLib.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

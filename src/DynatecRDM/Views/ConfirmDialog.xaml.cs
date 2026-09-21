@@ -1,4 +1,5 @@
 using System.Windows;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 
 namespace DynatecRDM.Views;
@@ -9,14 +10,16 @@ namespace DynatecRDM.Views;
 /// </summary>
 public partial class ConfirmDialog : Window
 {
-    public ConfirmDialog(string title, string message, string confirmText = "Delete", bool destructive = true)
+    public ConfirmDialog(string title, string message, string? confirmText = null, bool destructive = true)
     {
         InitializeComponent();
 
-        Title = string.IsNullOrWhiteSpace(title) ? "Confirm" : title;
+        Title = string.IsNullOrWhiteSpace(title) ? Strings.Dialog_Confirm_Title : title;
         HeadingText.Text = Title;
         MessageText.Text = message ?? string.Empty;
-        ConfirmButton.Content = string.IsNullOrWhiteSpace(confirmText) ? "OK" : confirmText;
+        ConfirmButton.Content = confirmText is null
+            ? Strings.Common_Delete
+            : string.IsNullOrWhiteSpace(confirmText) ? Strings.Common_OK : confirmText;
 
         if (destructive) return;
 
@@ -26,7 +29,8 @@ public partial class ConfirmDialog : Window
             // so only this branch makes the confirm button the default.
             ConfirmButton.IsDefault = true;
             if (TryFindResource("PrimaryButtonStyle") is Style style) ConfirmButton.Style = style;
-            if (TryFindResource("AccentBrush") is System.Windows.Media.Brush brush) AlertIcon.Stroke = brush;
+            // A reference rather than the brush itself, so the icon follows a theme change.
+            AlertIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "AccentBrush");
         }
         catch (Exception ex)
         {

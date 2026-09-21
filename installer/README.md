@@ -10,6 +10,25 @@ menu shortcut under `DYNATEC` and, only when asked, a `HKCU\...\Run` entry.
 There is no wizard: the package has no UI authoring, so double-clicking it shows a progress
 window, installs, and starts the app.
 
+## Publisher trust (removes the Remote Desktop security warning)
+
+An interactive install also runs `setup-trust.ps1`, which asks for elevation **once** through UAC
+and sets up machine-wide trust for the connection files the app signs. Remote Desktop only silences
+its "publisher cannot be identified" warning when the signing certificate's thumbprint is in the
+machine policy (`HKLM\...\Terminal Services\TrustedCertThumbprints`), which needs administrator
+rights - so this is the one place it can be done for the user. The script creates a single
+machine-level signing certificate, trusts it, grants every account read access to its key so the
+app can sign as any user, and lists its thumbprint in the policy. After that, both `mstsc` and the
+modern `msrdc` client open the app's connections without a prompt.
+
+It is deliberately best-effort: the custom action uses `Return="ignore"`, so declining the UAC
+prompt (or having no rights) never fails the install - the app then signs with a per-user
+certificate and Remote Desktop keeps warning until trust is set up. The script is idempotent and
+exits without prompting when trust is already in place, so it does not nag on every upgrade, and
+the **silent** in-app updater (`UILevel <= 3`) never triggers it. To undo the trust, run
+`setup-trust.ps1 -Remove` as an administrator; uninstall leaves it in place rather than raising
+another prompt.
+
 ## User data is never touched
 
 Connections, credentials, snapshots and logs live in **`%LOCALAPPDATA%\DynatecRDM`**, a different

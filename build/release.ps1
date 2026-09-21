@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Builds every release artifact for DYNATEC Remote Desktop Manager locally.
+    Builds every release artifact for Remote Desktop Manager locally.
 
 .DESCRIPTION
     Runs publish.ps1, packages the per-user MSI with the WiX command line tool, zips the same

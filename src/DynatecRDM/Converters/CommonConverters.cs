@@ -1,14 +1,14 @@
 using System.Globalization;
 using System.IO;
-using DynatecRDM.Models;
+using DynatecRDM.Resources;
 using DynatecRDM.Services;
 using Binding = System.Windows.Data.Binding;
 using BitmapCacheOption = System.Windows.Media.Imaging.BitmapCacheOption;
-using BitmapCreateOptions = System.Windows.Media.Imaging.BitmapCreateOptions;
 using BitmapImage = System.Windows.Media.Imaging.BitmapImage;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 using ColorConverter = System.Windows.Media.ColorConverter;
+using IMultiValueConverter = System.Windows.Data.IMultiValueConverter;
 using IValueConverter = System.Windows.Data.IValueConverter;
 using SolidColorBrush = System.Windows.Media.SolidColorBrush;
 using Visibility = System.Windows.Visibility;
@@ -182,32 +182,41 @@ public sealed class EnumToBoolConverter : IValueConverter
     }
 }
 
-/// <summary>Session state to the dot colour used across the shell and the tray menu.</summary>
-public sealed class SessionStateToBrushConverter : IValueConverter
+/// <summary>
+/// True when the value is a colour <see cref="HexToBrushConverter"/> can read. Lets a style fall
+/// back to a theme brush for "no colour", which a ConverterParameter could not do: it is fixed at
+/// load time and would keep the old theme's colour after a theme change.
+/// </summary>
+public sealed class IsColorConverter : IValueConverter
 {
-    public static readonly SessionStateToBrushConverter Instance = new();
+    public static readonly IsColorConverter Instance = new();
 
-    private static readonly SolidColorBrush ConnectedBrush = ConverterUtil.Frozen(0x3D, 0xD6, 0x8C);
-    private static readonly SolidColorBrush BusyBrush = ConverterUtil.Frozen(0xF5, 0xA5, 0x24);
-    private static readonly SolidColorBrush IdleBrush = ConverterUtil.Frozen(0x6F, 0x7A, 0x8A);
-    private static readonly SolidColorBrush FailedBrush = ConverterUtil.Frozen(0xF4, 0x5B, 0x5B);
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        HexToBrushConverter.GetBrush(value as string ?? value?.ToString()) is not null;
 
-    public static SolidColorBrush BrushFor(SessionState state) => state switch
-    {
-        SessionState.Connected => ConnectedBrush,
-        SessionState.Connecting or SessionState.Launching or SessionState.Reconnecting => BusyBrush,
-        SessionState.Failed => FailedBrush,
-        _ => IdleBrush,
-    };
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        Binding.DoNothing;
+}
+
+/// <summary>
+/// Text colour for writing on a user-chosen colour: near-black or white, whichever contrasts more.
+/// Every background has at least 4.5:1 against one of the two.
+/// </summary>
+public sealed class ContrastForegroundConverter : IValueConverter
+{
+    public static readonly ContrastForegroundConverter Instance = new();
+
+    private static readonly SolidColorBrush Dark = ConverterUtil.Frozen(0x0E, 0x11, 0x16);
+    private static readonly SolidColorBrush Light = ConverterUtil.Frozen(0xFF, 0xFF, 0xFF);
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is SessionState state) return BrushFor(state);
+        var background = HexToBrushConverter.GetBrush(value as string ?? value?.ToString());
+        if (background is null) return System.Windows.DependencyProperty.UnsetValue;
 
-        if (value is string text && Enum.TryParse<SessionState>(text, ignoreCase: true, out var parsed))
-            return BrushFor(parsed);
-
-        return IdleBrush;
+        return ColorContrast.Ratio(Dark.Color, background.Color) >= ColorContrast.Ratio(Light.Color, background.Color)
+            ? Dark
+            : Light;
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
@@ -310,8 +319,10 @@ public sealed class HexToBrushConverter : IValueConverter
 /// <summary>
 /// File path to an image. The file is read through a stream and cached on load so the snapshot
 /// writer can keep overwriting it, and a refreshed file is always picked up.
+/// As a multi-value converter the first value is the path and the rest only exist to make the
+/// binding re-run: a snapshot is rewritten under the same name, so the path alone never changes.
 /// </summary>
-public sealed class FileToImageConverter : IValueConverter
+public sealed class FileToImageConverter : IValueConverter, IMultiValueConverter
 {
     public static readonly FileToImageConverter Instance = new();
 
@@ -365,7 +376,8 @@ public sealed class FileToImageConverter : IValueConverter
         {
             image.BeginInit();
             image.CacheOption = BitmapCacheOption.OnLoad;
-            image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+            // No IgnoreImageCache: WPF's image cache is keyed by UriSource, and with only a stream
+            // set that flag makes EndInit evict a null key and throw on every single load.
             if (decodeWidth > 0) image.DecodePixelWidth = decodeWidth;
             image.StreamSource = stream;
             image.EndInit();
@@ -377,6 +389,12 @@ public sealed class FileToImageConverter : IValueConverter
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         Binding.DoNothing;
+
+    public object? Convert(object?[] values, Type targetType, object? parameter, CultureInfo culture) =>
+        values is { Length: > 0 } ? Convert(values[0], targetType, parameter, culture) : null;
+
+    public object?[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) =>
+        Array.Empty<object?>();
 
     private static int DecodeWidth(object? parameter) => parameter switch
     {
@@ -396,15 +414,17 @@ public sealed class RelativeTimeConverter : IValueConverter
     {
         var effective = culture ?? CultureInfo.CurrentCulture;
 
+        // The binding culture only reads the input. The text speaks the UI language, which the
+        // binding culture (en-US unless a Language is set on the element) does not follow.
         switch (value)
         {
             case DateTime dt:
-                return Describe(Normalize(dt), effective);
+                return Describe(Normalize(dt));
             case DateTimeOffset dto:
-                return Describe(dto.UtcDateTime, effective);
+                return Describe(dto.UtcDateTime);
             case string s when DateTime.TryParse(
                 s, effective, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var parsed):
-                return Describe(parsed, effective);
+                return Describe(parsed);
             default:
                 return string.Empty;
         }
@@ -417,21 +437,21 @@ public sealed class RelativeTimeConverter : IValueConverter
     {
         if (utc == default) return string.Empty;
 
-        var effective = culture ?? CultureInfo.CurrentCulture;
+        var effective = culture ?? UiLanguage.Culture;
         var delta = DateTime.UtcNow - utc;
         if (delta.Ticks < 0) delta = TimeSpan.Zero;
 
-        if (delta.TotalSeconds < 60) return "just now";
-        if (delta.TotalMinutes < 60) return $"{(int)delta.TotalMinutes} min ago";
-        if (delta.TotalHours < 24) return $"{(int)delta.TotalHours} h ago";
+        if (delta.TotalSeconds < 60) return Strings.Time_JustNow;
+        if (delta.TotalMinutes < 60) return UiLanguage.Format(Strings.Time_MinutesAgo, (int)delta.TotalMinutes);
+        if (delta.TotalHours < 24) return UiLanguage.Format(Strings.Time_HoursAgo, (int)delta.TotalHours);
 
         var local = utc.ToLocalTime();
         var today = DateTime.Today;
-        if (local.Date == today.AddDays(-1)) return "yesterday";
+        if (local.Date == today.AddDays(-1)) return Strings.Time_Yesterday;
 
         return local.Year == today.Year
-            ? local.ToString("d MMM", effective)
-            : local.ToString("d MMM yyyy", effective);
+            ? local.ToString(Strings.Time_DateThisYear, effective)
+            : local.ToString(Strings.Time_DateOtherYear, effective);
     }
 
     private static DateTime Normalize(DateTime value) => value.Kind switch
