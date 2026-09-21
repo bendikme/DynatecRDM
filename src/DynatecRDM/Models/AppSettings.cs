@@ -62,6 +62,16 @@ public sealed class AppSettings
     public double MainWindowTop { get; set; } = double.NaN;
     public bool MainWindowMaximized { get; set; }
 
+    /// <summary>
+    /// Start Remote Desktop without an .rdp file when the connection does not need one.
+    ///
+    /// Windows shows an "unknown publisher" security warning for every unsigned .rdp file, on
+    /// every launch, and it cannot be switched off per user. Connections that only use settings
+    /// the command line can express are started as "mstsc /v:host" instead, which shows no
+    /// warning. Anything richer still uses a file, so no configured setting is ever dropped.
+    /// </summary>
+    public bool AvoidRdpFilePrompt { get; set; } = true;
+
     /// <summary>Confirm before closing a running session from the UI.</summary>
     public bool ConfirmSessionClose { get; set; } = true;
 

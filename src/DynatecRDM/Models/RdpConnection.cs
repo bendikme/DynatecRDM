@@ -137,9 +137,32 @@ public sealed class CredentialSet
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
     public DateTime ModifiedUtc { get; set; } = DateTime.UtcNow;
 
-    /// <summary>DOMAIN\user, or just the user name when no domain is set.</summary>
-    public string QualifiedUsername =>
-        string.IsNullOrWhiteSpace(Domain) ? Username : $"{Domain}\\{Username}";
+    /// <summary>
+    /// The logon name Windows will actually accept.
+    ///
+    /// DOMAIN\user only works with the short NetBIOS domain name. People naturally type the DNS
+    /// name they know - "contoso.local" - and "contoso.local\user" is not a valid logon name at
+    /// all: the server rejects it and Remote Desktop falls back to asking for the password. A
+    /// dotted domain therefore becomes the user principal form, user@contoso.local, which is valid.
+    /// </summary>
+    public string QualifiedUsername
+    {
+        get
+        {
+            var user = (Username ?? string.Empty).Trim();
+            var domain = (Domain ?? string.Empty).Trim();
+
+            if (user.Length == 0) return string.Empty;
+            if (domain.Length == 0) return user;
+
+            // Already qualified by the user, either way round: leave it alone.
+            if (user.Contains('\\') || user.Contains('@')) return user;
+
+            return domain.Contains('.')
+                ? $"{user}@{domain.TrimStart('@')}"
+                : $"{domain}\\{user}";
+        }
+    }
 
     public bool HasPassword => ProtectedPassword is { Length: > 0 };
 

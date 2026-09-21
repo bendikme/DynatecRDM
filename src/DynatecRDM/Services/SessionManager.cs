@@ -129,6 +129,17 @@ public sealed class SessionManager : ISessionManager, IDisposable
             return null;
         }
 
+        // One session per configuration. A second window onto the same machine is almost always an
+        // accident - a double click, or the same connection listed twice in a multi-config - and two
+        // clients fighting over one session is worse than useless. Bring the existing one forward
+        // instead, which is what the user meant by clicking connect again.
+        if (FindByConnection(connection.Id) is { } running)
+        {
+            AppLog.Info($"'{connection.Name}' is already connected; focusing that session instead of opening a second one.");
+            Focus(running.Id);
+            return running;
+        }
+
         var display = (displayOverride ?? connection.Display).Clone();
 
         string? nameOverride = null;
@@ -465,17 +476,48 @@ public sealed class SessionManager : ISessionManager, IDisposable
             Monitors = _monitors.GetMonitors(),
         };
 
-        var rdpPath = await Task.Run(() => _builder.WriteToTempFile(connection, context), ct).ConfigureAwait(false);
-
         var startInfo = new ProcessStartInfo(MstscPath)
         {
             UseShellExecute = false,
             CreateNoWindow = false,
             WorkingDirectory = Environment.SystemDirectory,
         };
-        startInfo.ArgumentList.Add(rdpPath);
-        if (connection.Security.AdministrativeSession) startInfo.ArgumentList.Add("/admin");
-        if (connection.Security.PublicMode) startInfo.ArgumentList.Add("/public");
+
+        // Prefer starting without a file. Windows warns about every unsigned .rdp file on every
+        // launch, and that warning cannot be turned off for a single user, so a connection that
+        // needs nothing from a file is better off on the command line.
+        var rdpPath = string.Empty;
+        if (Cfg.AvoidRdpFilePrompt)
+        {
+            var args = MstscCommandLine.TryBuild(connection, display, delivery, out var requiredBy);
+            if (args is not null)
+            {
+                foreach (var a in args) startInfo.ArgumentList.Add(a);
+                AppLog.Info($"'{connection.Name}' starts without an .rdp file, so Windows will not warn about one.");
+            }
+            else
+            {
+                AppLog.Info($"'{connection.Name}' needs an .rdp file because of {requiredBy}; " +
+                            "Windows will show its unsigned-file warning.");
+            }
+        }
+
+        if (startInfo.ArgumentList.Count == 0)
+        {
+            rdpPath = await Task.Run(() => _builder.WriteToTempFile(connection, context), ct).ConfigureAwait(false);
+
+            // Signing only silences the warning once an administrator has listed our certificate as
+            // a trusted .rdp publisher, so there is no point paying for it until they have.
+            if (RdpSigning.IsTrustedByPolicy())
+            {
+                var signed = await Task.Run(() => RdpSigning.Sign(rdpPath), ct).ConfigureAwait(false);
+                if (!signed) AppLog.Warn($"Could not sign the .rdp file for '{connection.Name}'.");
+            }
+
+            startInfo.ArgumentList.Add(rdpPath);
+            if (connection.Security.AdministrativeSession) startInfo.ArgumentList.Add("/admin");
+            if (connection.Security.PublicMode) startInfo.ArgumentList.Add("/public");
+        }
 
         Process process;
         try
@@ -486,7 +528,7 @@ public sealed class SessionManager : ISessionManager, IDisposable
         catch
         {
             // Nothing will ever own this file, and it can hold an encrypted password.
-            if (Cfg.ShredRdpFiles) _ = Task.Run(() => ShredFile(rdpPath));
+            if (rdpPath.Length > 0 && Cfg.ShredRdpFiles) _ = Task.Run(() => ShredFile(rdpPath));
             throw;
         }
 
