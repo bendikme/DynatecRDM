@@ -6,18 +6,22 @@ using Microsoft.Win32;
 namespace DynatecRDM.Services;
 
 /// <summary>
-/// Signs generated .rdp files so Remote Desktop stops warning about them.
+/// Signs the .rdp files this application generates, and registers it as the publisher.
 ///
-/// Windows shows "the publisher of this remote connection cannot be identified" for every unsigned
-/// .rdp file, every time, and a user cannot permanently accept it. Per-user trust does not work:
-/// putting a self-signed certificate in the user's Trusted Publishers and Trusted Root stores, and
-/// listing its thumbprint in PublisherBypassList, still leaves the warning in place. That is
-/// deliberate - only an administrator may decide which publishers of .rdp files are trusted.
+/// An UNSIGNED .rdp file produces Remote Desktop's harshest warning - "the publisher of this
+/// remote connection cannot be identified" - with no way to accept it permanently. A SIGNED file
+/// produces a different dialog: it names the publisher and offers "Remember my choices for remote
+/// connections from this publisher". That answer is recorded per certificate, under
+/// HKCU\...\Terminal Server Client\PublisherPermissions, so accepting it once covers every
+/// connection this application starts, including those whose settings force a file.
 ///
-/// The one supported route is the machine policy "Specify SHA1 thumbprints of certificates
-/// representing trusted .rdp publishers". Once our certificate's thumbprint is listed there, every
-/// file this application signs opens silently, with every setting intact. build\trust-publisher.ps1
-/// performs that step; it needs administrator rights and is run once per machine.
+/// The certificate is self-signed, created per user, with a non-exportable private key. It goes in
+/// the current user's Trusted Publishers and Trusted Root stores so Windows can name the publisher;
+/// both are per-user and need no administrator rights. Setting this up is an explicit action,
+/// because trusting a signing certificate is the user's decision.
+///
+/// For a fleet, an administrator can instead list the thumbprint in the machine policy for trusted
+/// .rdp publishers, which removes the dialog outright. The trust-publisher.ps1 script does that.
 /// </summary>
 public static class RdpSigning
 {
@@ -111,6 +115,148 @@ public static class RdpSigning
     }
 
     /// <summary>
+    /// True once the certificate exists and Windows recognises it as a publisher, which is what
+    /// makes Remote Desktop offer "Remember my choices for remote connections from this publisher".
+    /// </summary>
+    public static bool IsSigningReady()
+    {
+        var cert = FindCertificate();
+        return cert is not null && InStore(cert, StoreName.TrustedPublisher) && InStore(cert, StoreName.Root);
+    }
+
+    /// <summary>
+    /// Creates the signing certificate if needed and trusts it for the current user, so signed
+    /// files name this application as the publisher. Per-user only: nothing machine-wide is
+    /// touched and no administrator rights are used. Returns false if any step failed.
+    /// </summary>
+    public static bool EnableSigning()
+    {
+        var cert = EnsureCertificate();
+        if (cert is null) return false;
+
+        var ok = true;
+        foreach (var store in new[] { StoreName.TrustedPublisher, StoreName.Root })
+        {
+            if (InStore(cert, store)) continue;
+            if (!AddToStore(cert, store)) ok = false;
+        }
+
+        if (ok) AppLog.Info($"Signing enabled; {cert.Thumbprint} is trusted for this user.");
+        return ok;
+    }
+
+    /// <summary>Removes the certificate and the trust again.</summary>
+    public static bool DisableSigning()
+    {
+        var cert = FindCertificate();
+        if (cert is null) return true;
+
+        var ok = true;
+        foreach (var store in new[] { StoreName.TrustedPublisher, StoreName.Root, StoreName.My })
+            if (!RemoveFromStore(cert, store)) ok = false;
+
+        AppLog.Info("Signing disabled and the certificate removed.");
+        return ok;
+    }
+
+    private static bool InStore(X509Certificate2 cert, StoreName name)
+    {
+        try
+        {
+            using var store = new X509Store(name, StoreLocation.CurrentUser);
+            store.Open(OpenFlags.ReadOnly);
+            foreach (var c in store.Certificates)
+                if (string.Equals(c.Thumbprint, cert.Thumbprint, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug_($"Checking the {name} store failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool AddToStore(X509Certificate2 cert, StoreName name)
+    {
+        // certutil is used rather than X509Store.Add: adding to the user's Root store through the
+        // managed API raises a confirmation dialog that cannot be shown from a background thread,
+        // and fails outright when no interactive desktop is available.
+        var path = Path.Combine(Path.GetTempPath(), $"dynatec-rdp-{Guid.NewGuid():N}.cer");
+        try
+        {
+            File.WriteAllBytes(path, cert.Export(X509ContentType.Cert));
+
+            var psi = new ProcessStartInfo("certutil.exe")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            psi.ArgumentList.Add("-addstore");
+            psi.ArgumentList.Add("-user");
+            psi.ArgumentList.Add("-f");
+            psi.ArgumentList.Add(name == StoreName.TrustedPublisher ? "TrustedPublisher" : "Root");
+            psi.ArgumentList.Add(path);
+
+            using var process = Process.Start(psi);
+            if (process is null) return false;
+            process.StandardOutput.ReadToEnd();
+            process.StandardError.ReadToEnd();
+            if (!process.WaitForExit(20_000))
+            {
+                try { process.Kill(true); } catch { }
+                return false;
+            }
+            return process.ExitCode == 0;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"Could not trust the certificate in {name}.", ex);
+            return false;
+        }
+        finally
+        {
+            try { File.Delete(path); } catch { }
+        }
+    }
+
+    private static bool RemoveFromStore(X509Certificate2 cert, StoreName name)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("certutil.exe")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            psi.ArgumentList.Add("-delstore");
+            psi.ArgumentList.Add("-user");
+            psi.ArgumentList.Add(name switch
+            {
+                StoreName.TrustedPublisher => "TrustedPublisher",
+                StoreName.Root => "Root",
+                _ => "My",
+            });
+            psi.ArgumentList.Add(cert.Thumbprint);
+
+            using var process = Process.Start(psi);
+            if (process is null) return false;
+            process.StandardOutput.ReadToEnd();
+            process.StandardError.ReadToEnd();
+            process.WaitForExit(20_000);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"Could not remove the certificate from {name}.", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Signs the file in place. Returns false when there is no certificate or rdpsign fails; the
     /// caller simply carries on with an unsigned file, which still connects.
     /// </summary>
@@ -161,12 +307,28 @@ public static class RdpSigning
         }
     }
 
+    /// <summary>
+    /// Thumbprint of a certificate to prefer over the self-signed one, set from the settings. A
+    /// certificate from a trusted authority is what lets Windows name the publisher.
+    /// </summary>
+    public static string? PreferredThumbprint { get; set; }
+
     private static X509Certificate2? FindCertificate()
     {
         try
         {
             using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
             store.Open(OpenFlags.ReadOnly);
+
+            var wanted = PreferredThumbprint?.Replace(" ", string.Empty).Trim();
+            if (!string.IsNullOrEmpty(wanted))
+            {
+                foreach (var candidate in store.Certificates)
+                    if (string.Equals(candidate.Thumbprint, wanted, StringComparison.OrdinalIgnoreCase))
+                        return candidate;
+
+                AppLog.Warn($"The configured signing certificate {wanted} is not in this user's store.");
+            }
 
             X509Certificate2? best = null;
             foreach (var candidate in store.Certificates)

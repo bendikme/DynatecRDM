@@ -289,6 +289,32 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ========================================= connection files -->
+                <Border Style="{StaticResource SetCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="CONNECTION FILES" />
+
+                        <TextBlock Style="{StaticResource SetHintStyle}"
+                                   Text="Connections that only use settings the command line can express are started without an .rdp file, and Windows never warns about those. The rest need a file, and Windows warns about every unsigned one." />
+
+                        <CheckBox Style="{StaticResource AppToggleStyle}"
+                                  Margin="0,12,0,0"
+                                  Content="Sign the connection files this app generates"
+                                  IsChecked="{Binding SignRdpFiles, Mode=TwoWay}" />
+                        <TextBlock Style="{StaticResource SetToggleHintStyle}"
+                                   Text="{Binding SigningStateText}" />
+
+                        <StackPanel Margin="0,14,0,0">
+                            <TextBlock Style="{StaticResource SetLabelStyle}" Text="Signing certificate thumbprint" />
+                            <TextBlock Style="{StaticResource SetHintStyle}"
+                                       Text="Leave empty to use a self-signed certificate. A certificate issued by an authority this machine trusts, such as your internal CA, is what lets Windows name the publisher and remember your answer." />
+                            <TextBox Style="{StaticResource AppTextBoxStyle}"
+                                     Margin="0,6,0,0"
+                                     Text="{Binding SigningThumbprint, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- ================================================== updates -->
                 <Border Style="{StaticResource SetCardStyle}">
                     <StackPanel>

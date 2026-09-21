@@ -72,6 +72,24 @@ public sealed class AppSettings
     /// </summary>
     public bool AvoidRdpFilePrompt { get; set; } = true;
 
+    /// <summary>
+    /// Sign the generated .rdp files with a per-user certificate. Windows then names this
+    /// application as the publisher and offers "Remember my choices for remote connections from
+    /// this publisher", so the warning can be accepted once instead of on every launch.
+    /// </summary>
+    public bool SignRdpFiles { get; set; }
+
+    /// <summary>
+    /// Thumbprint of the certificate used to sign generated .rdp files. Leave empty to use the
+    /// self-signed one the application creates.
+    ///
+    /// A self-signed certificate makes Windows treat the file as signed, but it cannot name the
+    /// publisher, and with no publisher identity the "remember my choices" answer is not kept. A
+    /// certificate issued by a certification authority the machine trusts - an internal AD CS is
+    /// the usual source - does name the publisher, and then the choice sticks.
+    /// </summary>
+    public string? SigningCertificateThumbprint { get; set; }
+
     /// <summary>Confirm before closing a running session from the UI.</summary>
     public bool ConfirmSessionClose { get; set; } = true;
 

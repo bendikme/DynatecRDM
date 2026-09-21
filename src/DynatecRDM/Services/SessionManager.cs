@@ -506,9 +506,10 @@ public sealed class SessionManager : ISessionManager, IDisposable
         {
             rdpPath = await Task.Run(() => _builder.WriteToTempFile(connection, context), ct).ConfigureAwait(false);
 
-            // Signing only silences the warning once an administrator has listed our certificate as
-            // a trusted .rdp publisher, so there is no point paying for it until they have.
-            if (RdpSigning.IsTrustedByPolicy())
+            // A signed file gets the friendlier dialog, the one that offers "remember my choices
+            // for connections from this publisher" - which is the only way a user can accept this
+            // once and be done. An unsigned file never offers it.
+            if (RdpSigning.IsSigningReady() || RdpSigning.IsTrustedByPolicy())
             {
                 var signed = await Task.Run(() => RdpSigning.Sign(rdpPath), ct).ConfigureAwait(false);
                 if (!signed) AppLog.Warn($"Could not sign the .rdp file for '{connection.Name}'.");

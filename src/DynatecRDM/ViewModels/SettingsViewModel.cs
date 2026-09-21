@@ -45,6 +45,9 @@ public sealed class SettingsViewModel : ObservableObject
     private int _vaultWriteMethodIndex;
     private bool _shredRdpFiles;
 
+    private bool _signRdpFiles;
+    private string _signingThumbprint = string.Empty;
+
     private bool _updateCheckEnabled;
     private string _updateRepository = string.Empty;
     private bool _updateIncludePrereleases;
@@ -87,6 +90,9 @@ public sealed class SettingsViewModel : ObservableObject
         _credentialDeliveryIndex = IndexOfDelivery(settings.DefaultCredentialDelivery);
         _vaultWriteMethodIndex = settings.VaultWriteMethod == VaultWriteMethod.CmdKey ? 1 : 0;
         _shredRdpFiles = settings.ShredRdpFiles;
+
+        _signRdpFiles = settings.SignRdpFiles;
+        _signingThumbprint = settings.SigningCertificateThumbprint ?? string.Empty;
 
         _updateCheckEnabled = settings.UpdateCheckEnabled;
         _updateRepository = settings.UpdateRepository ?? string.Empty;
@@ -253,6 +259,46 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get => _shredRdpFiles;
         set => SetProperty(ref _shredRdpFiles, value);
+    }
+
+    // --------------------------------------------------- connection file signing
+
+    /// <summary>
+    /// Sign generated .rdp files. Windows treats a signed file differently: instead of the blunt
+    /// "publisher cannot be identified" warning it offers to remember the answer for this
+    /// publisher. That only sticks when the certificate actually names a publisher, which means one
+    /// issued by a certification authority the machine trusts, not a self-signed one.
+    /// </summary>
+    public bool SignRdpFiles
+    {
+        get => _signRdpFiles;
+        set
+        {
+            if (!SetProperty(ref _signRdpFiles, value)) return;
+            OnPropertyChanged(nameof(SigningStateText));
+        }
+    }
+
+    /// <summary>Thumbprint of the certificate to sign with; empty uses a self-signed one.</summary>
+    public string SigningThumbprint
+    {
+        get => _signingThumbprint;
+        set
+        {
+            if (!SetProperty(ref _signingThumbprint, value ?? string.Empty)) return;
+            OnPropertyChanged(nameof(SigningStateText));
+        }
+    }
+
+    public string SigningStateText
+    {
+        get
+        {
+            if (!_signRdpFiles) return "Files are not signed, so Windows warns before every connection that needs one.";
+            return string.IsNullOrWhiteSpace(_signingThumbprint)
+                ? "A self-signed certificate will be used. Windows accepts the signature but cannot name the publisher, so it still asks each time."
+                : "Signed with the certificate above. If it comes from an authority this machine trusts, Windows can remember your answer.";
+        }
     }
 
     // ----------------------------------------------------------------- updates
@@ -467,6 +513,11 @@ public sealed class SettingsViewModel : ObservableObject
                 ? VaultWriteMethod.CmdKey
                 : VaultWriteMethod.NativeCredentialApi;
             settings.ShredRdpFiles = ShredRdpFiles;
+
+            settings.SignRdpFiles = SignRdpFiles;
+            settings.SigningCertificateThumbprint = string.IsNullOrWhiteSpace(SigningThumbprint)
+                ? null
+                : SigningThumbprint.Replace(" ", string.Empty).Trim();
 
             settings.UpdateCheckEnabled = UpdateCheckEnabled;
             settings.UpdateRepository = (UpdateRepository ?? string.Empty).Trim();
