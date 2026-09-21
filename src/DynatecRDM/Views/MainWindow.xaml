@@ -42,7 +42,18 @@
              Local styles - built only from the shared palette and metrics.
              ================================================================ -->
 
-        <Style x:Key="ToolbarIconStyle" TargetType="Path">
+        <!-- The icons are drawn on a 24-unit grid around (12,12): a 20-unit live area inside 2 units
+             of padding. Left to itself a Path measures from (0,0) to the far edge of its figure, so
+             a Viewbox would scale the empty space above and left of the icon but not below and right
+             of it, and every icon would sit low and to the right. Fixing the frame to the live area
+             centres each icon in its box and gives them all the same scale. -->
+        <Style x:Key="IconFrameStyle" TargetType="Path">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Margin" Value="-2" />
+        </Style>
+
+        <Style x:Key="ToolbarIconStyle" TargetType="Path" BasedOn="{StaticResource IconFrameStyle}">
             <Setter Property="StrokeThickness" Value="1.7" />
             <Setter Property="StrokeStartLineCap" Value="Round" />
             <Setter Property="StrokeEndLineCap" Value="Round" />
@@ -533,7 +544,7 @@
                                              Margin="8,0,0,0"
                                              VerticalAlignment="Center"
                                              Visibility="{Binding Favorite, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                                        <Path Data="{StaticResource GeoStar}" Fill="{StaticResource WarningBrush}" />
+                                        <Path Style="{StaticResource IconFrameStyle}" Data="{StaticResource GeoStar}" Fill="{StaticResource WarningBrush}" />
                                     </Viewbox>
 
                                     <Ellipse Grid.Column="5"
@@ -634,7 +645,7 @@
                                      Margin="10,0,0,0"
                                      VerticalAlignment="Center"
                                      Visibility="{Binding DetailFavorite, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                                <Path Data="{StaticResource GeoStar}" Fill="{StaticResource WarningBrush}" />
+                                <Path Style="{StaticResource IconFrameStyle}" Data="{StaticResource GeoStar}" Fill="{StaticResource WarningBrush}" />
                             </Viewbox>
                             <Border Style="{StaticResource StatusPillStyle}"
                                     Margin="12,0,0,0"
