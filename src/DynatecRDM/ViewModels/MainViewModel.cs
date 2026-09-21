@@ -1380,7 +1380,11 @@ public sealed partial class MainViewModel : ObservableObject
             var session = await _services.Sessions.LaunchAsync(connection).ConfigureAwait(true);
             if (session is null)
             {
-                Notify(UiLanguage.Format(Strings.Main_Error_StartNoSession, connection.Name), true);
+                // Something missing on this PC gets its full explanation, not "could not be started".
+                if (_services.Sessions.LastLaunchProblem is { } problem)
+                    _shell.ShowNotice(Strings.Dependency_Title, problem);
+                else
+                    Notify(UiLanguage.Format(Strings.Main_Error_StartNoSession, connection.Name), true);
                 return;
             }
 

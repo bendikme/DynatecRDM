@@ -93,6 +93,9 @@ public sealed class SessionManager : ISessionManager, IDisposable
     public event EventHandler<RdpSession>? SessionStateChanged;
     public event EventHandler<RdpSession>? SessionEnded;
 
+    /// <inheritdoc />
+    public string? LastLaunchProblem { get; private set; }
+
     public IReadOnlyList<RdpSession> Sessions
     {
         get
@@ -122,10 +125,19 @@ public sealed class SessionManager : ISessionManager, IDisposable
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(connection);
+        LastLaunchProblem = null;
 
         if (string.IsNullOrWhiteSpace(connection.Host))
         {
             AppLog.Error($"'{connection.Name}' has no host and cannot be launched.");
+            return null;
+        }
+
+        // Without Remote Desktop Connection nothing can start; say so before writing any files or
+        // vault entries for a launch that cannot happen.
+        if (DependencyCheck.CheckExternalClient() is { } missing)
+        {
+            LastLaunchProblem = missing.Message;
             return null;
         }
 
@@ -165,6 +177,8 @@ public sealed class SessionManager : ISessionManager, IDisposable
         catch (Exception ex)
         {
             AppLog.Error($"Could not start Remote Desktop for '{connection.Name}'.", ex);
+            // Missing, or blocked by a policy: something the user (or IT) can act on.
+            LastLaunchProblem = DependencyCheck.FromException(ex)?.Message;
             return null;
         }
 
@@ -1248,20 +1262,12 @@ public sealed class SessionManager : ISessionManager, IDisposable
         catch { return 0; }
     }
 
-    private static string ResolveMstsc()
-    {
-        try
-        {
-            // Always the system copy: a hijacked PATH must not be able to substitute a binary.
-            var path = Path.Combine(Environment.SystemDirectory, "mstsc.exe");
-            if (File.Exists(path)) return path;
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn("Could not resolve mstsc.exe from the system directory.", ex);
-        }
-        return "mstsc.exe";
-    }
+    /// <summary>
+    /// Always the system copy, even when it is missing: a bare "mstsc.exe" would let a file of that
+    /// name in the app or current folder win, and a missing system copy is reported by
+    /// <see cref="DependencyCheck.CheckExternalClient"/> rather than papered over.
+    /// </summary>
+    private static string ResolveMstsc() => Path.Combine(Environment.SystemDirectory, "mstsc.exe");
 
     private static void RaiseOnUi(Action action)
     {

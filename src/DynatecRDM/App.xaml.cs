@@ -1,3 +1,4 @@
+using System.IO;
 using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
@@ -26,6 +27,16 @@ public partial class App : Application, IAppShell
     private bool _shuttingDown;
     private bool _reopeningMain;
 
+    /// <summary>
+    /// Set once startup has finished. Before that an unhandled error means the app cannot run, and
+    /// it must exit - swallowing it would leave a process with no window holding the single-instance
+    /// lock, so every later start would just signal it and give up.
+    /// </summary>
+    private bool _startupComplete;
+
+    /// <summary>The oldest Windows the app supports: Windows 10 version 1809.</summary>
+    private const int MinimumWindowsBuild = 17763;
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -48,6 +59,8 @@ public partial class App : Application, IAppShell
 
         AppLog.Info($"{AppIdentity.Name} starting (data: {AppLog.DataDirectory})");
 
+        if (!CheckCanRun()) return;
+
         // If a previous run was killed mid-launch, Default.rdp may still hold our settings.
         DefaultRdpLaunch.RecoverIfInterrupted();
 
@@ -58,8 +71,11 @@ public partial class App : Application, IAppShell
         catch (Exception ex)
         {
             AppLog.Error("Startup failed", ex);
+            // A missing file of the app's own is something reinstalling fixes; say so, rather than
+            // passing on whatever the type loader happened to report.
             MessageBox.Show(
-                UiLanguage.Format(Strings.App_StartupFailed, ex.Message, AppLog.LogPath),
+                DependencyCheck.DescribeStartupFailure(ex)
+                    ?? UiLanguage.Format(Strings.App_StartupFailed, ex.Message, AppLog.LogPath),
                 AppIdentity.Name, MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
@@ -107,7 +123,78 @@ public partial class App : Application, IAppShell
                         $"left={_main?.Left}, top={_main?.Top}, w={_main?.ActualWidth}, h={_main?.ActualHeight}");
         }
 
+        _startupComplete = true;
         AppLog.Info("Startup complete");
+
+        // Once the window is up: can the client in use start a connection at all on this PC? Every
+        // connection would fail without it, so the user hears about it now, not at the first click.
+        var embedded = _services.Sessions is EmbeddedSessionManager;
+        _ = Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+        {
+            if (_shuttingDown) return;
+            if (DependencyCheck.CheckClient(embedded) is not { } problem) return;
+
+            AppLog.Warn($"Startup check: the {(embedded ? "in-app" : "external")} client cannot connect ({problem.Kind}).");
+            ShowNotice(Strings.Dependency_Title, problem.Message);
+        }));
+    }
+
+    /// <summary>
+    /// What has to be true before anything else runs: a supported Windows, and a data folder the
+    /// app can write to. Says what is wrong and exits when it is not.
+    /// </summary>
+    private bool CheckCanRun()
+    {
+        var build = Environment.OSVersion.Version.Build;
+        if (build < MinimumWindowsBuild)
+        {
+            AppLog.Error($"Windows build {build} is older than the supported {MinimumWindowsBuild}.");
+            MessageBox.Show(Strings.Dependency_OsTooOld, AppIdentity.Name, MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+            return false;
+        }
+
+        var folder = AppLog.DataDirectory;
+        try
+        {
+            Directory.CreateDirectory(folder);
+            var probe = Path.Combine(folder, $".write-check-{Environment.ProcessId}.tmp");
+            File.WriteAllText(probe, "ok");
+            File.Delete(probe);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error($"The data folder {folder} cannot be written to.", ex);
+            MessageBox.Show(UiLanguage.Format(Strings.Dependency_DataFolder, folder),
+                AppIdentity.Name, MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>A dialog for something the user has to act on; the tray is the fallback.</summary>
+    public void ShowNotice(string title, string message)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => ShowNotice(title, message));
+            return;
+        }
+
+        try
+        {
+            var dialog = new NoticeDialog(title, message);
+            if (_main is { IsVisible: true } owner) dialog.Owner = owner;
+            else dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("The notice could not be shown as a dialog.", ex);
+            Notify(title, message, true);
+        }
     }
 
     private bool ClaimSingleInstance()
@@ -352,6 +439,19 @@ public partial class App : Application, IAppShell
     {
         AppLog.Error("Unhandled UI exception", e.Exception);
         e.Handled = true;
+
+        if (!_startupComplete)
+        {
+            // Startup did not finish, so there is no working app to go back to: say why and exit,
+            // which also frees the single-instance lock for the next start.
+            MessageBox.Show(
+                DependencyCheck.DescribeStartupFailure(e.Exception)
+                    ?? UiLanguage.Format(Strings.App_StartupFailed, e.Exception.Message, AppLog.LogPath),
+                AppIdentity.Name, MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
+
         MessageBox.Show(
             UiLanguage.Format(Strings.App_UnhandledError, e.Exception.Message, AppLog.LogPath),
             AppIdentity.Name, MessageBoxButton.OK, MessageBoxImage.Warning);

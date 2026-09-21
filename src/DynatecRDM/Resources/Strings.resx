@@ -85,6 +85,130 @@ The log is at {1}</value>
     <value>Save</value>
     <comment>Button that saves a dialog's changes</comment>
   </data>
+  <data name="Connect_Attempt" xml:space="preserve">
+    <value>Attempt {0} of {1}</value>
+    <comment>Connecting screen; 2 placeholder(s)</comment>
+  </data>
+  <data name="Connect_AttemptUnlimited" xml:space="preserve">
+    <value>Attempt {0}</value>
+    <comment>Connecting screen; 1 placeholder(s)</comment>
+  </data>
+  <data name="Connect_Elapsed" xml:space="preserve">
+    <value>{0} s – gives up in {1} s</value>
+    <comment>Connecting screen; 2 placeholder(s)</comment>
+  </data>
+  <data name="Connect_Error_GaveUp" xml:space="preserve">
+    <value>Gave up after {0} attempts.</value>
+    <comment>Connecting screen; 1 placeholder(s)</comment>
+  </data>
+  <data name="Connect_Error_StillConnected" xml:space="preserve">
+    <value>The previous attempt did not stop in time. Close the window and connect again.</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Error_Unknown" xml:space="preserve">
+    <value>The connection ended without saying why.</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Heading_Connecting" xml:space="preserve">
+    <value>Connecting…</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Heading_Failed" xml:space="preserve">
+    <value>Could not connect</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Heading_Lost" xml:space="preserve">
+    <value>The connection was lost</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Heading_LostFailed" xml:space="preserve">
+    <value>The connection was lost and could not be restored</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Heading_Reconnecting" xml:space="preserve">
+    <value>Reconnecting…</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Now" xml:space="preserve">
+    <value>Connect now</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Paused" xml:space="preserve">
+    <value>The clock waits while you answer</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_PreviousError" xml:space="preserve">
+    <value>Last attempt: {0}</value>
+    <comment>Connecting screen; 1 placeholder(s)</comment>
+  </data>
+  <data name="Connect_Retry" xml:space="preserve">
+    <value>Try again</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_RetryIn" xml:space="preserve">
+    <value>Reconnecting in {0} s</value>
+    <comment>Connecting screen; 1 placeholder(s)</comment>
+  </data>
+  <data name="Connect_Step_Address" xml:space="preserve">
+    <value>Finding the address</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Step_Address_Failed" xml:space="preserve">
+    <value>The name could not be found</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Step_GatewayAddress" xml:space="preserve">
+    <value>Finding the gateway {0}</value>
+    <comment>Connecting screen; 1 placeholder(s)</comment>
+  </data>
+  <data name="Connect_Step_GatewayPort" xml:space="preserve">
+    <value>Reaching the gateway on port {0}</value>
+    <comment>Connecting screen; 1 placeholder(s)</comment>
+  </data>
+  <data name="Connect_Step_Port" xml:space="preserve">
+    <value>Reaching port {0}</value>
+    <comment>Connecting screen; 1 placeholder(s)</comment>
+  </data>
+  <data name="Connect_Step_Port_Done" xml:space="preserve">
+    <value>The port answers</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Step_Port_Failed" xml:space="preserve">
+    <value>No answer on the port yet</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Step_Reach" xml:space="preserve">
+    <value>Reaching the remote computer</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Step_Security" xml:space="preserve">
+    <value>Setting up a secure connection</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Step_SignIn" xml:space="preserve">
+    <value>Checking the sign-in</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_TimedOut" xml:space="preserve">
+    <value>No answer from {0} within {1} seconds.</value>
+    <comment>Connecting screen; 2 placeholder(s)</comment>
+  </data>
+  <data name="Connect_TimedOut_Stalled" xml:space="preserve">
+    <value>{0} answered, but the connection was not set up within {1} seconds.</value>
+    <comment>Connecting screen; 2 placeholder(s)</comment>
+  </data>
+  <data name="Connect_ViaGateway" xml:space="preserve">
+    <value>{0} via {1}</value>
+    <comment>Connecting screen; 2 placeholder(s)</comment>
+  </data>
+  <data name="Connect_Waiting_Certificate" xml:space="preserve">
+    <value>Waiting for you to accept the server's certificate</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Connect_Waiting_SignIn" xml:space="preserve">
+    <value>Waiting for you to sign in</value>
+    <comment>Connecting screen</comment>
+  </data>
   <data name="Creds_ChangePassword" xml:space="preserve">
     <value>Change</value>
     <comment>Button next to 'Password stored' that opens the password box to replace the stored password</comment>
@@ -252,6 +376,38 @@ The log is at {1}</value>
   <data name="Creds_Title" xml:space="preserve">
     <value>Credential manager</value>
     <comment>Title and heading of the credential manager window</comment>
+  </data>
+  <data name="Dependency_AppFilesMissing" xml:space="preserve">
+    <value>Remote Desktop Manager could not start because some of its own files are missing or damaged. Reinstall it: uninstall it under Settings &gt; Apps &gt; Installed apps and run the installer again, or, for the portable version, unpack the whole zip again into an empty folder. Your connections are kept. You do not need to install .NET or anything else.</value>
+    <comment>Missing dependency</comment>
+  </data>
+  <data name="Dependency_ControlMissing" xml:space="preserve">
+    <value>The Remote Desktop component that Remote Desktop Manager uses (mstscax.dll) is missing or too old on this PC, so this connection cannot be shown inside the app. It comes with Windows, so there is no separate download. Install the latest Windows updates, and check that “Remote Desktop Connection” opens from the Start menu. If it does not, ask your IT department to install it. Until then, turn off “Host the remote desktop inside this app” in Settings and restart the app to connect through the separate Remote Desktop Connection window.</value>
+    <comment>Missing dependency</comment>
+  </data>
+  <data name="Dependency_DataFolder" xml:space="preserve">
+    <value>Remote Desktop Manager cannot save its data in {0}. Make sure your user account can write to that folder (check that your profile is not full or read-only and that no security software blocks it), then start the app again. Do not run the portable version from a read-only location.</value>
+    <comment>Missing dependency; 1 placeholder(s)</comment>
+  </data>
+  <data name="Dependency_DatabaseMissing" xml:space="preserve">
+    <value>Remote Desktop Manager could not start because its database component (e_sqlite3.dll) is missing or was blocked. If your antivirus removed the file, restore it or add an exception. Then reinstall the app: uninstall it under Settings &gt; Apps &gt; Installed apps and run the installer again, or, for the portable version, unpack the whole zip again into an empty folder. Your connections are kept.</value>
+    <comment>Missing dependency</comment>
+  </data>
+  <data name="Dependency_InteropMissing" xml:space="preserve">
+    <value>Some of Remote Desktop Manager's own files are missing (MSTSCLib.dll or AxMSTSCLib.dll), so connections cannot be shown inside the app. Reinstall Remote Desktop Manager: uninstall it under Settings &gt; Apps &gt; Installed apps and run the installer again, or, for the portable version, unpack the whole zip again into an empty folder. Your connections are kept. If your antivirus removed the files, restore them or add an exception first. Until then, turn off “Host the remote desktop inside this app” in Settings and restart the app.</value>
+    <comment>Missing dependency</comment>
+  </data>
+  <data name="Dependency_MstscMissing" xml:space="preserve">
+    <value>Remote Desktop Connection (mstsc.exe) is missing or blocked on this PC, so no connection can be opened. It normally comes with Windows. Check that “Remote Desktop Connection” opens from the Start menu. If it is missing, or your organisation blocks it, ask your IT department to install or allow it, then try again.</value>
+    <comment>Missing dependency</comment>
+  </data>
+  <data name="Dependency_OsTooOld" xml:space="preserve">
+    <value>Remote Desktop Manager needs 64-bit Windows 10 (version 1809 or newer) or Windows 11, and this PC does not meet that. Install it on a supported PC, or ask your IT department to update Windows.</value>
+    <comment>Missing dependency</comment>
+  </data>
+  <data name="Dependency_Title" xml:space="preserve">
+    <value>Something Remote Desktop Manager needs is missing</value>
+    <comment>Missing dependency</comment>
   </data>
   <data name="Dialog_Confirm_Title" xml:space="preserve">
     <value>Confirm</value>
@@ -2329,6 +2485,14 @@ The log is at {1}</value>
     <value>APPEARANCE</value>
     <comment>Settings section header (all caps by design)</comment>
   </data>
+  <data name="Settings_ConnectTimeout" xml:space="preserve">
+    <value>Give up connecting after (seconds)</value>
+    <comment>Connecting screen</comment>
+  </data>
+  <data name="Settings_ConnectTimeout_Hint" xml:space="preserve">
+    <value>Time spent answering a sign-in or certificate prompt does not count. Connections through a Remote Desktop Gateway get at least 90 seconds, so a sign-in approved on a phone has time to finish.</value>
+    <comment>Connecting screen</comment>
+  </data>
   <data name="Settings_Error_Save" xml:space="preserve">
     <value>The settings could not be saved. See the log for details.</value>
     <comment>Settings status line (error) when saving failed</comment>
@@ -4072,10 +4236,6 @@ The log is at {1}</value>
   <data name="Main_Toolbar_More" xml:space="preserve">
     <value>More</value>
     <comment>Tooltip and accessible name of the toolbar button that lists the buttons the header has no room for</comment>
-  </data>
-  <data name="Main_Detail_Snapshot_Header" xml:space="preserve">
-    <value>LAST SCREENSHOT</value>
-    <comment>Header above the connection's last captured screen in the detail pane</comment>
   </data>
   <data name="Settings_About_Publisher" xml:space="preserve">
     <value>Publisher</value>

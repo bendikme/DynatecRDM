@@ -181,10 +181,24 @@ public sealed class ConnectionHistoryService : IDisposable
         _sessions.SessionEnded -= OnEnded;
 
         var now = DateTime.UtcNow;
-        foreach (var entry in _open.Values)
+        var failed = new Dictionary<Guid, RdpSession>();
+        try
+        {
+            foreach (var session in _sessions.Sessions)
+                if (session.State == SessionState.Failed) failed[session.Id] = session;
+        }
+        catch (Exception ex) { AppLog.Warn("Could not read the sessions still open at exit.", ex); }
+
+        foreach (var (id, entry) in _open)
         {
             entry.EndedUtc = now;
-            entry.Outcome = SessionOutcome.AppClosed;
+            // A window still saying why its connection failed ended in that failure, not with the app.
+            if (failed.TryGetValue(id, out var session))
+            {
+                entry.Outcome = entry.ConnectedUtc is null ? SessionOutcome.Failed : SessionOutcome.Dropped;
+                entry.Error = session.LastError;
+            }
+            else entry.Outcome = SessionOutcome.AppClosed;
             Save(entry);
         }
         _open.Clear();

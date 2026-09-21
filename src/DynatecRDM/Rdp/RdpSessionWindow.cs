@@ -23,6 +23,13 @@ public sealed class RdpSessionWindow : Form
 
     private readonly RdpControlHost _host = new();
     private readonly System.Windows.Forms.Timer _resizeSettle;
+
+    /// <summary>
+    /// Covers the control while there is nothing to show yet - connecting, waiting to reconnect, or
+    /// an error. It sits above the control rather than hiding it: the control only connects from a
+    /// window that is really shown, and a hidden one never gets past "connecting".
+    /// </summary>
+    private readonly System.Windows.Forms.Integration.ElementHost _overlay;
     private ResizeBehavior _resize = ResizeBehavior.FollowWindow;
     private int _desktopScaleFactor = 100;
     private int _deviceScaleFactor = 100;
@@ -51,9 +58,21 @@ public sealed class RdpSessionWindow : Form
 
         Controls.Add(_host.WinFormsControl);
 
+        _overlay = new System.Windows.Forms.Integration.ElementHost
+        {
+            Dock = DockStyle.Fill,
+            BackColor = BackColor,
+            Visible = false,
+        };
+        Controls.Add(_overlay);
+        _overlay.BringToFront();
+
         _resizeSettle = new System.Windows.Forms.Timer { Interval = ResizeSettleMs };
         _resizeSettle.Tick += (_, _) => { _resizeSettle.Stop(); PushResolution(); };
 
+        _host.Connecting += (_, _) => Connecting?.Invoke(this, EventArgs.Empty);
+        _host.ReceivedServerKey += (_, _) => ReceivedServerKey?.Invoke(this, EventArgs.Empty);
+        _host.AuthenticationWarning += (_, shown) => AuthenticationWarning?.Invoke(this, shown);
         _host.Connected += (_, _) => { _connected = true; Connected?.Invoke(this, EventArgs.Empty); };
         _host.LoginComplete += (_, _) =>
         {
@@ -181,6 +200,9 @@ public sealed class RdpSessionWindow : Form
         WindowState = FormWindowState.Minimized;
     }
 
+    public event EventHandler? Connecting;
+    public event EventHandler? ReceivedServerKey;
+    public event EventHandler<bool>? AuthenticationWarning;
     public event EventHandler? Connected;
     public event EventHandler? LoginComplete;
     public event EventHandler<RdpDisconnectInfo>? Disconnected;
@@ -190,6 +212,55 @@ public sealed class RdpSessionWindow : Form
     /// size. Moving the window does not raise it - only a real size change does.
     /// </summary>
     public event EventHandler<Size>? RemoteResolutionChanged;
+
+    /// <summary>
+    /// Shows <paramref name="content"/> over the whole window, in front of the session. The same
+    /// content object can be shown again later; it is only swapped when a different one is passed.
+    /// </summary>
+    public void ShowOverlay(System.Windows.UIElement content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        if (!ReferenceEquals(_overlay.Child, content)) _overlay.Child = content;
+        if (!_overlay.Visible)
+        {
+            _overlay.Visible = true;
+            _overlay.BringToFront();
+        }
+        if (ContainsFocus || !IsHandleCreated) _overlay.Focus();
+    }
+
+    /// <summary>Takes the overlay away and gives the session the keyboard.</summary>
+    public void HideOverlay()
+    {
+        if (!_overlay.Visible) return;
+        var hadFocus = _overlay.ContainsFocus;
+        var overlayWasActive = ReferenceEquals(ActiveControl, _overlay);
+        _overlay.Visible = false;
+        if (hadFocus) { try { _host.WinFormsControl.Focus(); } catch { } }
+        else if (overlayWasActive)
+        {
+            // The window is in the background, but still remembers the hidden overlay as the control
+            // to focus. Coming back, WinForms would then focus the window itself and typing would go
+            // nowhere. Pointing it at the session only records the choice - no focus is taken now.
+            try { ActiveControl = _host.WinFormsControl; } catch { }
+        }
+    }
+
+    /// <summary>True while the overlay covers the session - nothing of the remote desktop is showing.</summary>
+    public bool IsOverlayVisible => _overlay.Visible;
+
+    /// <summary>
+    /// True while one of the control's own modal prompts - the sign-in dialog or the certificate
+    /// warning - is up: the prompt disables the window it belongs to for as long as it waits for the
+    /// user. By default that is the control's own window, not this one, so both are looked at. One
+    /// of the app's own dialogs disables this window too; the caller tells those apart.
+    /// </summary>
+    public bool IsWaitingForUser =>
+        IsHandleCreated
+        && (!IsWindowEnabled(Handle)
+            || (_host.WinFormsControl.IsHandleCreated && !IsWindowEnabled(_host.WinFormsControl.Handle)));
+
+    [DllImport("user32.dll")] private static extern bool IsWindowEnabled(IntPtr hWnd);
 
     /// <summary>
     /// Configures and starts the session. The window must be shown first so the control has a live
@@ -346,6 +417,7 @@ public sealed class RdpSessionWindow : Form
         {
             _resizeSettle.Dispose();
             _host.Dispose();
+            try { _overlay.Child = null; _overlay.Dispose(); } catch { }
         }
         base.Dispose(disposing);
     }

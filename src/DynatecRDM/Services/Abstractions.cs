@@ -228,6 +228,12 @@ public interface ISessionManager
     /// <summary>Requests an immediate snapshot refresh for all live sessions.</summary>
     Task RefreshSnapshotsAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// Why the last <c>LaunchAsync</c> that returned null could not start anything, when it was
+    /// something the user can act on - a missing Remote Desktop component, say. Null otherwise.
+    /// </summary>
+    string? LastLaunchProblem => null;
+
     event EventHandler<RdpSession>? SessionStarted;
     event EventHandler<RdpSession>? SessionStateChanged;
     event EventHandler<RdpSession>? SessionEnded;

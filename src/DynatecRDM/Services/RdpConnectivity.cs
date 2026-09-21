@@ -91,7 +91,7 @@ public static class RdpConnectivity
     /// Splits "host:port" and "[v6]:port" addresses. An explicit, valid <paramref name="port"/>
     /// wins over an embedded one; a bare IPv6 literal (more than one colon) is left untouched.
     /// </summary>
-    private static (string Host, int Port) Normalize(string host, int port)
+    internal static (string Host, int Port) Normalize(string host, int port)
     {
         var target = host.Trim();
         var embedded = 0;

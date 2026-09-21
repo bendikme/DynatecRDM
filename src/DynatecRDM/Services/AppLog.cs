@@ -99,7 +99,9 @@ public static class AppLog
 
         var line = ex is null
             ? $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}"
-            : $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message} :: {ex.GetType().Name}: {ex.Message}{Environment.NewLine}{ex.StackTrace}";
+            // ToString, not Message and StackTrace: it includes every inner exception, which is where
+            // the real cause of a wrapped failure - a missing DLL behind a type initializer - lives.
+            : $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message} :: {ex}";
 
         Debug.WriteLine(line);
 

@@ -1033,10 +1033,16 @@ public sealed class TrayMenuViewModel : ObservableObject, IDisposable
             var session = await _services.Sessions.LaunchAsync(connection).ConfigureAwait(false);
             if (session is null)
             {
-                Post(() => _shell.Notify(
-                    Strings.Tray_LaunchFailed_Title,
-                    UiLanguage.Format(Strings.Tray_LaunchFailed_Message, connection.Name),
-                    true));
+                var problem = _services.Sessions.LastLaunchProblem;
+                Post(() =>
+                {
+                    // Something missing on this PC gets its full explanation, not a passing balloon.
+                    if (problem is not null) _shell.ShowNotice(Strings.Dependency_Title, problem);
+                    else _shell.Notify(
+                        Strings.Tray_LaunchFailed_Title,
+                        UiLanguage.Format(Strings.Tray_LaunchFailed_Message, connection.Name),
+                        true);
+                });
             }
         }, $"Launching '{connection.Name}' failed.");
     }

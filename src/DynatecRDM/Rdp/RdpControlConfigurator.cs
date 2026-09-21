@@ -308,6 +308,23 @@ public static class RdpControlConfigurator
         return gw.UsageMethod;
     }
 
+    /// <summary>
+    /// True when raw .rdp lines - the connection's own or a multi-config item's - set the gateway,
+    /// so the control's gateway is not the one the connection's settings describe.
+    /// </summary>
+    internal static bool OverridesGateway(
+        IReadOnlyDictionary<string, string>? custom, IReadOnlyDictionary<string, string>? extra)
+    {
+        static bool Sets(IReadOnlyDictionary<string, string>? lines)
+        {
+            if (lines is null) return false;
+            foreach (var key in lines.Keys)
+                if (NameOf(key) is "gatewayhostname" or "gatewayusagemethod") return true;
+            return false;
+        }
+        return Sets(custom) || Sets(extra);
+    }
+
     private static void ConfigureGateway(IMsRdpClientTransportSettings2 transport, GatewaySettings gw, SecuritySettings sec)
     {
         var method = EffectiveGatewayMethod(gw);
@@ -553,7 +570,7 @@ public static class RdpControlConfigurator
     private static object RequireOcx(AxMsRdpClient11NotSafeForScripting ax) =>
         ax.GetOcx() ?? throw new InvalidOperationException("The RDP control has not been created.");
 
-    private static void SplitHostPort(string? rawHost, int port, out string host, out int resolvedPort)
+    internal static void SplitHostPort(string? rawHost, int port, out string host, out int resolvedPort)
     {
         host = (rawHost ?? string.Empty).Trim();
         resolvedPort = port <= 0 ? DefaultPort : port;

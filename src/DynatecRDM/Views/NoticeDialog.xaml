@@ -1,0 +1,74 @@
+<Window x:Class="DynatecRDM.Views.NoticeDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:res="clr-namespace:DynatecRDM.Resources"
+        Style="{StaticResource AppWindowStyle}"
+        Width="500"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        WindowStartupLocation="CenterOwner"
+        UseLayoutRounding="True">
+
+    <!-- Something the user has to act on: what is missing and what to do about it. The text can be
+         selected, so it can be copied into a message to IT. -->
+
+    <Window.Resources>
+        <PathGeometry x:Key="NoticeIconAlert"
+                      Figures="M 12,3.6 L 22.2,20.4 L 1.8,20.4 Z M 12,9.6 L 12,14.8 M 12,17.5 L 12,17.6" />
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Path Grid.Column="0"
+                  Width="22" Height="22"
+                  Margin="0,2,12,0"
+                  VerticalAlignment="Top"
+                  Stretch="Uniform"
+                  Data="{StaticResource NoticeIconAlert}"
+                  Stroke="{DynamicResource WarningBrush}"
+                  StrokeThickness="1.6"
+                  StrokeStartLineCap="Round"
+                  StrokeEndLineCap="Round"
+                  StrokeLineJoin="Round" />
+
+            <StackPanel Grid.Column="1">
+                <TextBlock x:Name="HeadingText"
+                           FontSize="{StaticResource FontSizeMedium}"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           TextWrapping="Wrap" />
+                <TextBox x:Name="MessageText"
+                         Margin="-2,6,0,0"
+                         Padding="0"
+                         IsReadOnly="True"
+                         IsTabStop="False"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         FontSize="{StaticResource FontSizeNormal}"
+                         Foreground="{DynamicResource TextSecondaryBrush}"
+                         TextWrapping="Wrap" />
+            </StackPanel>
+        </Grid>
+
+        <Button Grid.Row="1"
+                Margin="0,20,0,0"
+                HorizontalAlignment="Right"
+                MinWidth="88"
+                Content="{x:Static res:Strings.Common_OK}"
+                Style="{StaticResource PrimaryButtonStyle}"
+                IsDefault="True"
+                IsCancel="True"
+                Click="OnOk" />
+    </Grid>
+</Window>

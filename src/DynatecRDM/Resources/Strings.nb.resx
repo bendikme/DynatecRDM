@@ -76,6 +76,99 @@ Loggen ligger her: {1}</value>
   <data name="Common_Save" xml:space="preserve">
     <value>Lagre</value>
   </data>
+  <data name="Connect_Attempt" xml:space="preserve">
+    <value>Forsøk {0} av {1}</value>
+  </data>
+  <data name="Connect_AttemptUnlimited" xml:space="preserve">
+    <value>Forsøk {0}</value>
+  </data>
+  <data name="Connect_Elapsed" xml:space="preserve">
+    <value>{0} s – gir opp om {1} s</value>
+  </data>
+  <data name="Connect_Error_GaveUp" xml:space="preserve">
+    <value>Ga opp etter {0} forsøk.</value>
+  </data>
+  <data name="Connect_Error_StillConnected" xml:space="preserve">
+    <value>Det forrige forsøket stoppet ikke i tide. Lukk vinduet og koble til på nytt.</value>
+  </data>
+  <data name="Connect_Error_Unknown" xml:space="preserve">
+    <value>Tilkoblingen ble avsluttet uten noen forklaring.</value>
+  </data>
+  <data name="Connect_Heading_Connecting" xml:space="preserve">
+    <value>Kobler til…</value>
+  </data>
+  <data name="Connect_Heading_Failed" xml:space="preserve">
+    <value>Kunne ikke koble til</value>
+  </data>
+  <data name="Connect_Heading_Lost" xml:space="preserve">
+    <value>Tilkoblingen ble brutt</value>
+  </data>
+  <data name="Connect_Heading_LostFailed" xml:space="preserve">
+    <value>Tilkoblingen ble brutt og kunne ikke gjenopprettes</value>
+  </data>
+  <data name="Connect_Heading_Reconnecting" xml:space="preserve">
+    <value>Kobler til på nytt…</value>
+  </data>
+  <data name="Connect_Now" xml:space="preserve">
+    <value>Koble til nå</value>
+  </data>
+  <data name="Connect_Paused" xml:space="preserve">
+    <value>Klokken står stille mens du svarer</value>
+  </data>
+  <data name="Connect_PreviousError" xml:space="preserve">
+    <value>Forrige forsøk: {0}</value>
+  </data>
+  <data name="Connect_Retry" xml:space="preserve">
+    <value>Prøv igjen</value>
+  </data>
+  <data name="Connect_RetryIn" xml:space="preserve">
+    <value>Kobler til på nytt om {0} s</value>
+  </data>
+  <data name="Connect_Step_Address" xml:space="preserve">
+    <value>Finner adressen</value>
+  </data>
+  <data name="Connect_Step_Address_Failed" xml:space="preserve">
+    <value>Fant ikke navnet</value>
+  </data>
+  <data name="Connect_Step_GatewayAddress" xml:space="preserve">
+    <value>Finner gatewayen {0}</value>
+  </data>
+  <data name="Connect_Step_GatewayPort" xml:space="preserve">
+    <value>Kontakter gatewayen på port {0}</value>
+  </data>
+  <data name="Connect_Step_Port" xml:space="preserve">
+    <value>Kontakter port {0}</value>
+  </data>
+  <data name="Connect_Step_Port_Done" xml:space="preserve">
+    <value>Porten svarer</value>
+  </data>
+  <data name="Connect_Step_Port_Failed" xml:space="preserve">
+    <value>Ingen svar på porten ennå</value>
+  </data>
+  <data name="Connect_Step_Reach" xml:space="preserve">
+    <value>Kontakter den eksterne datamaskinen</value>
+  </data>
+  <data name="Connect_Step_Security" xml:space="preserve">
+    <value>Setter opp en sikker forbindelse</value>
+  </data>
+  <data name="Connect_Step_SignIn" xml:space="preserve">
+    <value>Kontrollerer påloggingen</value>
+  </data>
+  <data name="Connect_TimedOut" xml:space="preserve">
+    <value>Fikk ikke svar fra {0} innen {1} sekunder.</value>
+  </data>
+  <data name="Connect_TimedOut_Stalled" xml:space="preserve">
+    <value>{0} svarte, men tilkoblingen ble ikke satt opp innen {1} sekunder.</value>
+  </data>
+  <data name="Connect_ViaGateway" xml:space="preserve">
+    <value>{0} via {1}</value>
+  </data>
+  <data name="Connect_Waiting_Certificate" xml:space="preserve">
+    <value>Venter på at du godtar sertifikatet til serveren</value>
+  </data>
+  <data name="Connect_Waiting_SignIn" xml:space="preserve">
+    <value>Venter på at du logger på</value>
+  </data>
   <data name="Creds_ChangePassword" xml:space="preserve">
     <value>Endre</value>
   </data>
@@ -201,6 +294,30 @@ Loggen ligger her: {1}</value>
   </data>
   <data name="Creds_Title" xml:space="preserve">
     <value>Legitimasjonsbehandling</value>
+  </data>
+  <data name="Dependency_AppFilesMissing" xml:space="preserve">
+    <value>Remote Desktop Manager kunne ikke starte fordi noen av appens egne filer mangler eller er skadet. Installer appen på nytt: avinstaller den under Innstillinger &gt; Apper &gt; Installerte apper og kjør installasjonsprogrammet igjen, eller pakk ut hele zip-filen på nytt i en tom mappe hvis du bruker den portable versjonen. Tilkoblingene dine blir beholdt. Du trenger ikke å installere .NET eller noe annet.</value>
+  </data>
+  <data name="Dependency_ControlMissing" xml:space="preserve">
+    <value>Komponenten for eksternt skrivebord som Remote Desktop Manager bruker (mstscax.dll), mangler eller er for gammel på denne PC-en, så denne tilkoblingen kan ikke vises inne i appen. Den følger med Windows og finnes ikke som egen nedlasting. Installer de nyeste Windows-oppdateringene, og kontroller at «Tilkobling til eksternt skrivebord» starter fra Start-menyen. Hvis den ikke gjør det, ber du IT-avdelingen om å installere den. Frem til da kan du slå av «Vis det eksterne skrivebordet inne i denne appen» under Innstillinger og starte appen på nytt, så kobles du til via det vanlige vinduet for Tilkobling til eksternt skrivebord.</value>
+  </data>
+  <data name="Dependency_DataFolder" xml:space="preserve">
+    <value>Remote Desktop Manager kan ikke lagre dataene sine i {0}. Kontroller at brukerkontoen din har skrivetilgang til mappen (at profilen ikke er full eller skrivebeskyttet, og at ingen sikkerhetsprogramvare blokkerer den), og start appen på nytt. Den portable versjonen må ikke kjøres fra en skrivebeskyttet plassering.</value>
+  </data>
+  <data name="Dependency_DatabaseMissing" xml:space="preserve">
+    <value>Remote Desktop Manager kunne ikke starte fordi databasekomponenten (e_sqlite3.dll) mangler eller ble blokkert. Hvis antivirusprogrammet fjernet filen, må du gjenopprette den eller legge inn et unntak. Installer deretter appen på nytt: avinstaller den under Innstillinger &gt; Apper &gt; Installerte apper og kjør installasjonsprogrammet igjen, eller pakk ut hele zip-filen på nytt i en tom mappe hvis du bruker den portable versjonen. Tilkoblingene dine blir beholdt.</value>
+  </data>
+  <data name="Dependency_InteropMissing" xml:space="preserve">
+    <value>Noen av Remote Desktop Managers egne filer mangler (MSTSCLib.dll eller AxMSTSCLib.dll), så tilkoblinger kan ikke vises inne i appen. Installer Remote Desktop Manager på nytt: avinstaller den under Innstillinger &gt; Apper &gt; Installerte apper og kjør installasjonsprogrammet igjen, eller pakk ut hele zip-filen på nytt i en tom mappe hvis du bruker den portable versjonen. Tilkoblingene dine blir beholdt. Hvis antivirusprogrammet fjernet filene, må du gjenopprette dem eller legge inn et unntak først. Frem til da kan du slå av «Vis det eksterne skrivebordet inne i denne appen» under Innstillinger og starte appen på nytt.</value>
+  </data>
+  <data name="Dependency_MstscMissing" xml:space="preserve">
+    <value>Tilkobling til eksternt skrivebord (mstsc.exe) mangler eller er blokkert på denne PC-en, så ingen tilkobling kan åpnes. Den følger vanligvis med Windows. Kontroller at «Tilkobling til eksternt skrivebord» starter fra Start-menyen. Hvis den mangler, eller virksomheten din blokkerer den, ber du IT-avdelingen om å installere eller tillate den, og så prøver du på nytt.</value>
+  </data>
+  <data name="Dependency_OsTooOld" xml:space="preserve">
+    <value>Remote Desktop Manager krever 64-biters Windows 10 (versjon 1809 eller nyere) eller Windows 11, og denne PC-en oppfyller ikke det. Installer appen på en PC som støttes, eller be IT-avdelingen om å oppdatere Windows.</value>
+  </data>
+  <data name="Dependency_Title" xml:space="preserve">
+    <value>Noe som Remote Desktop Manager trenger, mangler</value>
   </data>
   <data name="Dialog_Confirm_Title" xml:space="preserve">
     <value>Bekreft</value>
@@ -1759,6 +1876,12 @@ Loggen ligger her: {1}</value>
   <data name="Settings_Appearance_Header" xml:space="preserve">
     <value>UTSEENDE</value>
   </data>
+  <data name="Settings_ConnectTimeout" xml:space="preserve">
+    <value>Gi opp tilkoblingen etter (sekunder)</value>
+  </data>
+  <data name="Settings_ConnectTimeout_Hint" xml:space="preserve">
+    <value>Tid du bruker på å svare på en påloggings- eller sertifikatdialog telles ikke med. Tilkoblinger gjennom en gateway for eksternt skrivebord får minst 90 sekunder, slik at en pålogging som godkjennes på telefonen, rekker å bli ferdig.</value>
+  </data>
   <data name="Settings_Error_Save" xml:space="preserve">
     <value>Innstillingene kunne ikke lagres. Se loggen for mer informasjon.</value>
   </data>
@@ -3092,10 +3215,6 @@ Loggen ligger her: {1}</value>
   <data name="Main_Toolbar_More" xml:space="preserve">
     <value>Mer</value>
     <comment>Tooltip and accessible name of the toolbar button that lists the buttons the header has no room for</comment>
-  </data>
-  <data name="Main_Detail_Snapshot_Header" xml:space="preserve">
-    <value>SISTE SKJERMBILDE</value>
-    <comment>Header above the connection's last captured screen in the detail pane</comment>
   </data>
   <data name="Settings_About_Publisher" xml:space="preserve">
     <value>Utgiver</value>

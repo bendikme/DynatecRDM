@@ -105,6 +105,12 @@ public sealed class AppSettings
     /// </summary>
     public bool UseEmbeddedClient { get; set; }
 
+    /// <summary>
+    /// How long, in seconds, a session may take to connect before the attempt is given up. Time
+    /// spent in a sign-in or certificate prompt does not count. Only the in-process client uses it.
+    /// </summary>
+    public int ConnectTimeoutSeconds { get; set; } = 30;
+
     /// <summary>Confirm before closing a running session from the UI.</summary>
     public bool ConfirmSessionClose { get; set; } = true;
 

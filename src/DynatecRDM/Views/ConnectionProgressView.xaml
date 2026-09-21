@@ -1,0 +1,272 @@
+<UserControl x:Class="DynatecRDM.Views.ConnectionProgressView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:DynatecRDM.Converters"
+             xmlns:res="clr-namespace:DynatecRDM.Resources"
+             xmlns:views="clr-namespace:DynatecRDM.Views"
+             xmlns:vm="clr-namespace:DynatecRDM.ViewModels"
+             Background="#FF121212"
+             Focusable="False"
+             UseLayoutRounding="True"
+             TextOptions.TextFormattingMode="Ideal">
+
+    <!-- What a session window shows until the remote desktop is there: the negotiation step by
+         step, the time the attempt has left, the countdown to the next attempt after a drop, and
+         finally what went wrong. The DataContext is a ConnectionProgressViewModel. The surround is
+         the session window's own dark colour, so nothing flashes when the desktop replaces it. -->
+
+    <UserControl.InputBindings>
+        <KeyBinding Key="Escape" Command="{Binding CancelCommand}" />
+    </UserControl.InputBindings>
+
+    <UserControl.Resources>
+        <PathGeometry x:Key="StepCheck" Figures="M5,12.5 L10,17.5 L19,7" />
+        <PathGeometry x:Key="StepCross" Figures="M7,7 L17,17 M17,7 L7,17" />
+        <PathGeometry x:Key="StepPause" Figures="M9.5,7 L9.5,17 M14.5,7 L14.5,17" />
+
+        <Style x:Key="StepGlyph" TargetType="Path">
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="StrokeThickness" Value="2.2" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="Visibility" Value="Collapsed" />
+        </Style>
+
+        <!-- A thin bar; the track is the soft border colour and the fill the accent. -->
+        <Style x:Key="ConnectProgressBar" TargetType="ProgressBar">
+            <Setter Property="Height" Value="4" />
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="1" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid SnapsToDevicePixels="True">
+                            <Border x:Name="PART_Track" CornerRadius="2" Background="{DynamicResource BorderBrushSoft}" />
+                            <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="2" Background="{TemplateBinding Foreground}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsPaused}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Border Width="460"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Padding="24,22,24,20"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrushSoft}"
+                BorderThickness="1"
+                CornerRadius="10">
+            <StackPanel>
+
+                <!-- Which connection -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <views:AppIcon Width="36" Height="36" Margin="0,0,14,0" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="{Binding Target}"
+                                   Margin="0,2,0,0"
+                                   FontSize="{StaticResource FontSizeSmall}"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- What is happening, and which attempt this is -->
+                <Grid Margin="0,20,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Heading}"
+                               VerticalAlignment="Center"
+                               FontSize="{StaticResource FontSizeMedium}"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsFailed}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsWaitingToRetry}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <Border Grid.Column="1"
+                            Style="{StaticResource StatusPillStyle}"
+                            Margin="12,0,0,0"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding HasAttempt, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                        <TextBlock Text="{Binding AttemptText}"
+                                   FontSize="{StaticResource FontSizeSmall}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </Border>
+                </Grid>
+
+                <!-- The negotiation, step by step -->
+                <ItemsControl ItemsSource="{Binding Steps}"
+                              Margin="0,12,0,0"
+                              Focusable="False"
+                              Visibility="{Binding ShowsSteps, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:ConnectStep}">
+                            <Grid Margin="0,5">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Grid Width="16" Height="16" Margin="0,1,12,0" VerticalAlignment="Top">
+                                    <Ellipse x:Name="PendingGlyph"
+                                             Width="10" Height="10"
+                                             Stroke="{DynamicResource BorderBrushStrong}"
+                                             StrokeThickness="1.6" />
+                                    <!-- A ring with an arc on it. Both are circles in the same box and the
+                                         arc is a dash on a circle turning about its own centre, so at any
+                                         display scale it spins in place. -->
+                                    <Grid x:Name="Spinner" Width="14" Height="14" Visibility="Collapsed">
+                                        <Ellipse Stroke="{DynamicResource BorderBrushSoft}" StrokeThickness="2" />
+                                        <!-- The circle's length is pi x 12 = 37.7 px, 18.85 stroke widths;
+                                             a dash of 4.7 is a quarter of it. -->
+                                        <Ellipse Stroke="{DynamicResource AccentBrush}"
+                                                 StrokeThickness="2"
+                                                 StrokeDashArray="4.7 100"
+                                                 StrokeDashCap="Round"
+                                                 RenderTransformOrigin="0.5,0.5">
+                                            <Ellipse.RenderTransform>
+                                                <RotateTransform x:Name="Spin" />
+                                            </Ellipse.RenderTransform>
+                                        </Ellipse>
+                                    </Grid>
+                                    <Path x:Name="DoneGlyph" Style="{StaticResource StepGlyph}" Data="{StaticResource StepCheck}" Stroke="{DynamicResource SuccessBrush}" />
+                                    <Path x:Name="WaitingGlyph" Style="{StaticResource StepGlyph}" Data="{StaticResource StepPause}" Stroke="{DynamicResource WarningBrush}" />
+                                    <Path x:Name="FailedGlyph" Style="{StaticResource StepGlyph}" Data="{StaticResource StepCross}" Stroke="{DynamicResource DangerBrush}" />
+                                </Grid>
+
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock x:Name="StepLabel"
+                                               Text="{Binding Label}"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                    <TextBlock Text="{Binding Detail}"
+                                               Margin="0,1,0,0"
+                                               FontSize="{StaticResource FontSizeSmall}"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               Visibility="{Binding HasDetail, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding State}" Value="{x:Static vm:ConnectStepState.Active}">
+                                    <Setter TargetName="PendingGlyph" Property="Visibility" Value="Collapsed" />
+                                    <Setter TargetName="Spinner" Property="Visibility" Value="Visible" />
+                                    <Setter TargetName="StepLabel" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                    <DataTrigger.EnterActions>
+                                        <BeginStoryboard x:Name="SpinStory">
+                                            <Storyboard RepeatBehavior="Forever">
+                                                <DoubleAnimation Storyboard.TargetName="Spin"
+                                                                 Storyboard.TargetProperty="Angle"
+                                                                 From="0" To="360" Duration="0:0:0.9" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </DataTrigger.EnterActions>
+                                    <DataTrigger.ExitActions>
+                                        <StopStoryboard BeginStoryboardName="SpinStory" />
+                                    </DataTrigger.ExitActions>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding State}" Value="{x:Static vm:ConnectStepState.Done}">
+                                    <Setter TargetName="PendingGlyph" Property="Visibility" Value="Collapsed" />
+                                    <Setter TargetName="DoneGlyph" Property="Visibility" Value="Visible" />
+                                    <Setter TargetName="StepLabel" Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding State}" Value="{x:Static vm:ConnectStepState.Waiting}">
+                                    <Setter TargetName="PendingGlyph" Property="Visibility" Value="Collapsed" />
+                                    <Setter TargetName="WaitingGlyph" Property="Visibility" Value="Visible" />
+                                    <Setter TargetName="StepLabel" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding State}" Value="{x:Static vm:ConnectStepState.Failed}">
+                                    <Setter TargetName="PendingGlyph" Property="Visibility" Value="Collapsed" />
+                                    <Setter TargetName="FailedGlyph" Property="Visibility" Value="Visible" />
+                                    <Setter TargetName="StepLabel" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Why the last attempt ended, while the next is on its way -->
+                <TextBlock Text="{Binding PreviousError}"
+                           Margin="0,10,0,0"
+                           FontSize="{StaticResource FontSizeSmall}"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource WarningBrush}"
+                           Visibility="{Binding HasPreviousError, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+
+                <!-- Time left for this attempt, or until the next one -->
+                <StackPanel Margin="0,18,0,0"
+                            Visibility="{Binding ShowsProgress, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                    <ProgressBar Style="{StaticResource ConnectProgressBar}" Value="{Binding Progress, Mode=OneWay}" />
+                    <TextBlock Text="{Binding ProgressText}"
+                               Margin="0,6,0,0"
+                               FontSize="{StaticResource FontSizeSmall}"
+                               Foreground="{DynamicResource TextMutedBrush}" />
+                </StackPanel>
+
+                <!-- What went wrong -->
+                <TextBlock Text="{Binding ErrorText}"
+                           Margin="0,14,0,0"
+                           TextWrapping="Wrap"
+                           LineHeight="19"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           Visibility="{Binding IsFailed, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+
+                <StackPanel Margin="0,20,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource PrimaryButtonStyle}"
+                            Margin="0,0,8,0"
+                            Content="{x:Static res:Strings.Connect_Now}"
+                            Command="{Binding ConnectNowCommand}"
+                            Visibility="{Binding IsWaitingToRetry, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                    <Button x:Name="RetryButton"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Margin="0,0,8,0"
+                            Content="{x:Static res:Strings.Connect_Retry}"
+                            Command="{Binding RetryCommand}"
+                            Visibility="{Binding IsFailed, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                    <Button Style="{StaticResource SecondaryButtonStyle}"
+                            Content="{x:Static res:Strings.Common_Cancel}"
+                            Command="{Binding CancelCommand}"
+                            Visibility="{Binding IsFailed, Converter={x:Static conv:BoolToVisibilityConverter.Instance}, ConverterParameter=invert}" />
+                    <Button Style="{StaticResource SecondaryButtonStyle}"
+                            Content="{x:Static res:Strings.Common_Close}"
+                            Command="{Binding CloseCommand}"
+                            Visibility="{Binding IsFailed, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

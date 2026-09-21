@@ -35,4 +35,10 @@ public interface IAppShell
 
     /// <summary>Shows a transient notification from the tray icon.</summary>
     void Notify(string title, string message, bool isError = false);
+
+    /// <summary>
+    /// Tells the user about something they have to act on - too long, or too important, for a
+    /// passing notification. Shells without a dialog of their own fall back to a notification.
+    /// </summary>
+    void ShowNotice(string title, string message) => Notify(title, message, true);
 }

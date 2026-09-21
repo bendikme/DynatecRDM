@@ -47,6 +47,11 @@ public sealed class RdpControlHost : IDisposable
     public RdpControlHost()
     {
         _ax.Dock = System.Windows.Forms.DockStyle.Fill;
+        _ax.OnConnecting += (_, _) => Connecting?.Invoke(this, EventArgs.Empty);
+        // Only observed: the control's own answer (continue the logon) is passed back untouched.
+        _ax.OnReceivedTSPublicKey += (_, _) => ReceivedServerKey?.Invoke(this, EventArgs.Empty);
+        _ax.OnAuthenticationWarningDisplayed += (_, _) => AuthenticationWarning?.Invoke(this, true);
+        _ax.OnAuthenticationWarningDismissed += (_, _) => AuthenticationWarning?.Invoke(this, false);
         _ax.OnConnected += (_, _) => Connected?.Invoke(this, EventArgs.Empty);
         _ax.OnLoginComplete += (_, _) => LoginComplete?.Invoke(this, EventArgs.Empty);
         _ax.OnDisconnected += OnAxDisconnected;
@@ -62,6 +67,21 @@ public sealed class RdpControlHost : IDisposable
 
     /// <summary>The WinForms control to place in a <c>WindowsFormsHost</c>.</summary>
     public System.Windows.Forms.Control WinFormsControl => _ax;
+
+    /// <summary>Raised when the control starts opening the connection.</summary>
+    public event EventHandler? Connecting;
+
+    /// <summary>
+    /// Raised when the server's public key has arrived: the secure channel is up and the
+    /// credentials are being checked next.
+    /// </summary>
+    public event EventHandler? ReceivedServerKey;
+
+    /// <summary>
+    /// Raised with true when the control puts up its server-authentication (certificate) warning
+    /// and waits for the user, and with false when the user has answered it.
+    /// </summary>
+    public event EventHandler<bool>? AuthenticationWarning;
 
     /// <summary>Raised when the transport is up (before sign-in completes).</summary>
     public event EventHandler? Connected;
@@ -94,6 +114,19 @@ public sealed class RdpControlHost : IDisposable
 
     /// <summary>True between a successful connect and its disconnect.</summary>
     public bool IsConnected => !_disposed && _ax.IsHandleCreated && _ax.Connected == 1;
+
+    /// <summary>
+    /// The control's own state: 0 disconnected, 1 connected, 2 still connecting. A connection has
+    /// to be all the way back at 0 before the control accepts a new target and Connect().
+    /// </summary>
+    public int ConnectionState
+    {
+        get
+        {
+            try { return _disposed || !_ax.IsHandleCreated ? 0 : _ax.Connected; }
+            catch { return 0; }
+        }
+    }
 
     /// <summary>
     /// Starts the connection. The control must already be parented (added to a host) so its window

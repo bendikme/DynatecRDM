@@ -41,6 +41,7 @@ public sealed class SettingsViewModel : ObservableObject
 
     private bool _watchdogEnabled;
     private int _watchdogPollSeconds;
+    private int _connectTimeoutSeconds;
 
     private int _credentialDeliveryIndex;
     private int _vaultWriteMethodIndex;
@@ -91,6 +92,7 @@ public sealed class SettingsViewModel : ObservableObject
 
         _watchdogEnabled = settings.WatchdogEnabled;
         _watchdogPollSeconds = settings.WatchdogPollSeconds;
+        _connectTimeoutSeconds = settings.ConnectTimeoutSeconds;
 
         _credentialDeliveryIndex = IndexOfDelivery(settings.DefaultCredentialDelivery);
         _vaultWriteMethodIndex = settings.VaultWriteMethod == VaultWriteMethod.CmdKey ? 1 : 0;
@@ -239,6 +241,13 @@ public sealed class SettingsViewModel : ObservableObject
         set => SetClamped(ref _watchdogPollSeconds, value, 1, 120, nameof(WatchdogPollSeconds));
     }
 
+    /// <summary>How long a hosted session may take to connect before the attempt is given up.</summary>
+    public int ConnectTimeoutSeconds
+    {
+        get => _connectTimeoutSeconds;
+        set => SetClamped(ref _connectTimeoutSeconds, value, 10, 600, nameof(ConnectTimeoutSeconds));
+    }
+
     // ---------------------------------------------------------------- security
 
     /// <summary>0 vault, 1 embedded, 2 both, 3 prompt - matches the combo box order.</summary>
@@ -304,9 +313,13 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     /// <summary>One line describing the in-process client option and that it needs a restart.</summary>
-    public string EmbeddedClientStateText => UseEmbeddedClient
-        ? Strings.Settings_EmbeddedClient_On
-        : Strings.Settings_EmbeddedClient_Off;
+    /// <summary>
+    /// What the chosen client does - or, when it cannot work on this PC, what is missing and what to
+    /// do about it, right under the switch that chose it.
+    /// </summary>
+    public string EmbeddedClientStateText =>
+        DependencyCheck.CheckClient(UseEmbeddedClient)?.Message
+        ?? (UseEmbeddedClient ? Strings.Settings_EmbeddedClient_On : Strings.Settings_EmbeddedClient_Off);
 
     /// <summary>Thumbprint of the certificate to sign with; empty uses a self-signed one.</summary>
     public string SigningThumbprint
@@ -570,6 +583,7 @@ public sealed class SettingsViewModel : ObservableObject
 
             settings.WatchdogEnabled = WatchdogEnabled;
             settings.WatchdogPollSeconds = WatchdogPollSeconds;
+            settings.ConnectTimeoutSeconds = ConnectTimeoutSeconds;
 
             settings.DefaultCredentialDelivery = DeliveryFromIndex(CredentialDeliveryIndex);
             settings.VaultWriteMethod = VaultWriteMethodIndex == 1
