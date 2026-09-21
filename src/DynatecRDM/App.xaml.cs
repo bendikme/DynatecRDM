@@ -42,6 +42,9 @@ public partial class App : Application, IAppShell
 
         DarkTitleBar.ApplyToAllWindows();
 
+        // If a previous run was killed mid-launch, Default.rdp may still hold our settings.
+        DefaultRdpLaunch.RecoverIfInterrupted();
+
         try
         {
             _services = await AppServices.InitializeAsync().ConfigureAwait(true);

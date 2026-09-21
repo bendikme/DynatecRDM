@@ -79,9 +79,20 @@ public static class MstscCommandLine
         if (s.EnableCredSsp != defaults.EnableCredSsp) return "a custom CredSSP setting";
 
         var red = c.Redirection;
-        var redDefaults = new RedirectionSettings();
-        if (red.Printers != redDefaults.Printers) return "printer redirection";
-        if (red.Clipboard != redDefaults.Clipboard) return "a custom clipboard setting";
+
+        // Compared against what Remote Desktop itself does with no file, not against this
+        // application's own defaults. Started as "mstsc /v:host" it redirects the clipboard,
+        // printers, smart cards and WebAuthn, and nothing else - the boxes ticked on the Local
+        // Resources tab of a fresh client. A connection asking for exactly that needs no file.
+        var redDefaults = new RedirectionSettings
+        {
+            Clipboard = true,
+            Printers = true,
+            SmartCards = true,
+            WebAuthn = true,
+        };
+        if (red.Printers != redDefaults.Printers) return "printer redirection turned off";
+        if (red.Clipboard != redDefaults.Clipboard) return "the clipboard setting";
         if (red.SmartCards != redDefaults.SmartCards) return "smart-card redirection";
         if (red.Ports != redDefaults.Ports) return "port redirection";
         if (red.PnpDevices != redDefaults.PnpDevices) return "plug-and-play redirection";

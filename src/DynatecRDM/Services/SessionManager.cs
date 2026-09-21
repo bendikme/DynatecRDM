@@ -502,6 +502,38 @@ public sealed class SessionManager : ISessionManager, IDisposable
             }
         }
 
+        // Settings the command line cannot carry still do not need a file on the command line:
+        // Remote Desktop reads Default.rdp when it starts without one, so the settings go there
+        // instead and the launch stays file-free, which is what keeps the warning away.
+        IDisposable? borrowed = null;
+        if (startInfo.ArgumentList.Count == 0 && Cfg.AvoidRdpFilePrompt)
+        {
+            var content = await Task.Run(() => _builder.Build(connection, context), ct).ConfigureAwait(false);
+            borrowed = DefaultRdpLaunch.Borrow(content, connection.Host);
+            if (borrowed is not null)
+            {
+                // Redirecting local devices asks for consent on every launch until the host is
+                // recorded, which is the same answer the "don't ask me again" box stores.
+                if (!DefaultRdpLaunch.IsHostTrusted(connection.Host) &&
+                    DefaultRdpLaunch.TrustHost(connection.Host))
+                {
+                    AppLog.Info($"Recorded local-device consent for {connection.Host}, so Remote Desktop " +
+                                "will not ask about them again for this host.");
+                }
+
+                startInfo.ArgumentList.Add("/v:" + (connection.Port is 3389 or <= 0
+                    ? connection.Host.Trim()
+                    : $"{connection.Host.Trim()}:{connection.Port}"));
+
+                if (connection.Security.AdministrativeSession) startInfo.ArgumentList.Add("/admin");
+                if (connection.Security.PublicMode) startInfo.ArgumentList.Add("/public");
+                if (display.UseAllMonitors) startInfo.ArgumentList.Add("/multimon");
+                else if (display.ScreenMode == ScreenMode.Fullscreen) startInfo.ArgumentList.Add("/f");
+
+                AppLog.Info($"'{connection.Name}' starts from Default.rdp with no file argument, keeping every setting and no warning.");
+            }
+        }
+
         if (startInfo.ArgumentList.Count == 0)
         {
             rdpPath = await Task.Run(() => _builder.WriteToTempFile(connection, context), ct).ConfigureAwait(false);
@@ -530,8 +562,12 @@ public sealed class SessionManager : ISessionManager, IDisposable
         {
             // Nothing will ever own this file, and it can hold an encrypted password.
             if (rdpPath.Length > 0 && Cfg.ShredRdpFiles) _ = Task.Run(() => ShredFile(rdpPath));
+            borrowed?.Dispose();
             throw;
         }
+
+        // Putting Default.rdp back waits for mstsc to have read it, so it must not block the caller.
+        if (borrowed is not null) _ = Task.Run(() => borrowed.Dispose());
 
         return (process, rdpPath);
     }
