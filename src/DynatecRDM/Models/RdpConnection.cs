@@ -141,9 +141,9 @@ public sealed class CredentialSet
     /// The logon name Windows will actually accept.
     ///
     /// DOMAIN\user only works with the short NetBIOS domain name. People naturally type the DNS
-    /// name they know - "contoso.local" - and "contoso.local\user" is not a valid logon name at
-    /// all: the server rejects it and Remote Desktop falls back to asking for the password. A
-    /// dotted domain therefore becomes the user principal form, user@contoso.local, which is valid.
+    /// name they know instead, and "contoso.local\user" is not a valid logon name at all: the
+    /// server rejects it and Remote Desktop falls back to asking for the password. A dotted domain
+    /// therefore becomes the user principal form, user@contoso.local, which is valid.
     /// </summary>
     public string QualifiedUsername
     {
