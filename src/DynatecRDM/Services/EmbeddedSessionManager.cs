@@ -202,7 +202,25 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
         // One session per connection: bring the existing one forward instead of opening a second.
         if (FindByConnection(connection.Id) is { } running)
         {
-            AppLog.Info($"'{connection.Name}' is already connected; focusing that session.");
+            // Launched as part of a set, it takes its place in the set's layout, so the set comes up
+            // whole - and launching a set again puts moved windows back where the set has them.
+            if (multiConfigId is not null && _runtime.TryGetValue(running.Id, out var live) && !live.ShowingFailure)
+            {
+                var wanted = (displayOverride ?? connection.Display).Clone();
+                var setLayout = LayoutFor(wanted);
+                await OnUiAsync(() =>
+                {
+                    if (live.Closed || live.Window is not { IsDisposed: false } window) return;
+                    live.Session.Display = wanted;   // a reconnect keeps to it
+                    window.AlwaysOnTop = wanted.AlwaysOnTop;
+                    Place(window, setLayout);
+                }, ct).ConfigureAwait(false);
+                AppLog.Info($"'{connection.Name}' is already connected; moved it into the set's layout.");
+            }
+            else
+            {
+                AppLog.Info($"'{connection.Name}' is already connected; focusing that session.");
+            }
             Focus(running.Id);
             return running;
         }
@@ -253,7 +271,7 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
         var (credentialSet, plainPassword) = await ResolveCredentialAsync(connection, credentialOverride, ct)
             .ConfigureAwait(false);
 
-        var layout = DisplayLayout.Resolve(display, _monitors.GetMonitors());
+        var layout = LayoutFor(display);
         var plan = BuildPlan(display, layout);
         var credential = new RdpCredential(credentialSet, plainPassword);
 
@@ -292,16 +310,12 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
                 window.EnableFullScreenMenu(
                     Resources.Strings.Session_Menu_FullScreen,
                     Resources.Strings.Session_Menu_ExitFullScreen);
+                window.EnableFrameMenu(Resources.Strings.Session_Menu_HideFrame, Resources.Strings.Session_Menu_ShowFrame);
+                window.EnableMenuToggles(Resources.Strings.Session_Menu_AlwaysOnTop, Resources.Strings.Session_Menu_SmartSizing);
                 WireWindow(runtime, connection);
 
                 window.AlwaysOnTop = display.AlwaysOnTop;
-                window.PlaceAt(
-                    ToRectangle(layout),
-                    layout.IsFullScreen,
-                    // winposstr's rectangle is where the session sits when it is not full screen.
-                    new Rectangle(layout.WindowRect.Left, layout.WindowRect.Top, layout.WindowRect.Width, layout.WindowRect.Height),
-                    // ShowCommand 3 is "open maximised", which the layout works out for us.
-                    maximized: layout.ShowCommand == 3);
+                Place(window, layout);
                 // The connecting screen is in place before the window first paints, so it never
                 // shows up empty.
                 BeginAttempt(runtime, connection);
@@ -369,9 +383,21 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
 
         var parallelWaits = config.Sequential ? null : new List<Task>(items.Count);
 
+        // Connections this launch already has a session for. The same connection listed twice has
+        // one session, and it stays in the first item's place: launching it again would move it
+        // into the second item's slot and leave the first empty.
+        var launchedThisRun = new HashSet<Guid>();
+
         foreach (var item in items)
         {
             ct.ThrowIfCancellationRequested();
+
+            if (launchedThisRun.Contains(item.ConnectionId))
+            {
+                AppLog.Info($"Multi-config '{config.Name}': connection {item.ConnectionId} is listed more than once; " +
+                            "its session keeps the first item's place.");
+                continue;
+            }
 
             var connection = await _store.GetConnectionAsync(item.ConnectionId, ct).ConfigureAwait(false);
             if (connection is null)
@@ -394,6 +420,7 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
             var session = await LaunchAsync(connection, display, item.CredentialSetIdOverride, config.Id, extra, ct)
                 .ConfigureAwait(false);
             if (session is null) continue;
+            launchedThisRun.Add(connection.Id);
 
             if (item.AutoReconnectOverride.HasValue) session.AutoReconnect = item.AutoReconnectOverride.Value;
             started.Add(session);
@@ -523,6 +550,39 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
         return done;
     }
 
+    /// <summary>
+    /// Shows or hides the frame of a session's window, bringing it back to the desktop first when it
+    /// is minimized or maximized. Returns false when it has no window on the desktop to do it to.
+    /// </summary>
+    public bool TryToggleFrame(Guid sessionId)
+    {
+        if (!_runtime.TryGetValue(sessionId, out var runtime)) return false;
+
+        var done = false;
+        OnUi(() =>
+        {
+            var window = runtime.Window;
+            if (window is null || window.IsDisposed || window.IsFullScreen) return;
+            if (window.WindowState != System.Windows.Forms.FormWindowState.Normal)
+                window.WindowState = System.Windows.Forms.FormWindowState.Normal;
+            window.ToggleFrame();
+            done = true;
+        });
+        return done;
+    }
+
+    /// <summary>
+    /// True when the session's window is in full screen - not merely as big as a monitor, which a
+    /// window without a frame can be too.
+    /// </summary>
+    public bool IsFullScreen(Guid sessionId)
+    {
+        if (!_runtime.TryGetValue(sessionId, out var runtime)) return false;
+        var fullScreen = false;
+        OnUi(() => fullScreen = runtime.Window is { IsDisposed: false } window && window.IsFullScreen);
+        return fullScreen;
+    }
+
     /// <summary>Takes a session in or out of full screen. Returns false when it has no live window.</summary>
     public bool TrySetFullScreen(Guid sessionId, bool fullScreen)
     {
@@ -588,6 +648,12 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
 
         window.HandleCreated += (_, _) => session.WindowHandle = window.Handle;
         window.HandleDestroyed += (_, _) => session.WindowHandle = IntPtr.Zero;
+        window.FrameChanged += (_, _) =>
+        {
+            // Full screen has no frame to show or hide; the Live sessions list offers it otherwise.
+            bool? frameless = window.IsFullScreen ? null : window.IsFrameless;
+            RaiseOnUi(() => session.Frameless = frameless);
+        };
         window.FormClosing += (_, e) =>
         {
             if (!e.Cancel) session.UserInitiatedClose = true;
@@ -615,6 +681,9 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
             }
             runtime.AttemptActive = false;
             runtime.SessionUp = true;
+            // Past the sign-in: whatever the last tick saw, no prompt of it is waiting now.
+            runtime.SignInPromptUp = false;
+            window.SetWaiting(RdpSessionWindow.Waiting.SignIn, false);
             runtime.Progress?.OnConnected();
             HideProgress(runtime);
             SetState(runtime, SessionState.Connecting);
@@ -674,6 +743,8 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
         runtime.TimedOut = false;
         runtime.AttemptActive = false;
         runtime.Probe?.Cancel();
+        runtime.SignInPromptUp = false;
+        runtime.Window?.SetWaiting(RdpSessionWindow.Waiting.SignIn, false);
 
         var kind = timedOut ? RdpDisconnectKind.ConnectionLost : info.Kind;
         var reason = timedOut ? DescribeTimeout(runtime, connection) : info.Message;
@@ -732,7 +803,7 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
         {
             var (set, password) = await ResolveCredentialAsync(connection, runtime.CredentialOverride, ct).ConfigureAwait(false);
             var display = runtime.Session.Display;
-            var layout = DisplayLayout.Resolve(display, _monitors.GetMonitors());
+            var layout = LayoutFor(display);
             var plan = BuildPlan(display, layout);
             var credential = new RdpCredential(set, password);
 
@@ -760,7 +831,9 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
                 if (runtime.Closed || runtime.Window is null) return;
                 SetState(runtime, SessionState.Connecting);
                 BeginAttempt(runtime, connection);
-                runtime.Window.Start(connection, plan, credential, runtime.ExtraProperties, Cfg.SessionBarEnabled);
+                runtime.Window.Start(
+                    connection, SizedToWindow(plan, layout, runtime.Window), credential,
+                    runtime.ExtraProperties, Cfg.SessionBarEnabled);
             }, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -942,6 +1015,46 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
         return (set, password);
     }
 
+    /// <summary>What a session's settings amount to in this client, which can open a window without a frame.</summary>
+    private DisplayLayout LayoutFor(DisplaySettings display) =>
+        DisplayLayout.Resolve(display, _monitors.GetMonitors(), framelessSupported: true);
+
+    /// <summary>Puts the window where the layout has it, with or without a frame.</summary>
+    private static void Place(Rdp.RdpSessionWindow window, DisplayLayout layout) =>
+        window.PlaceAt(
+            ToRectangle(layout),
+            layout.IsFullScreen,
+            // winposstr's rectangle is where the session sits when it is not full screen.
+            new Rectangle(layout.WindowRect.Left, layout.WindowRect.Top, layout.WindowRect.Width, layout.WindowRect.Height),
+            // ShowCommand 3 is "open maximised", which the layout works out for us.
+            maximized: layout.ShowCommand == 3,
+            frameless: layout.IsFrameless,
+            // A session across several displays goes back to all of them after a spell in a window.
+            spanScreens: layout.UsesMultimon && layout.IsFullScreen
+                ? layout.Monitors.Select(m => new Rectangle(m.Left, m.Top, m.Width, m.Height)).ToList()
+                : null);
+
+    /// <summary>
+    /// A session that follows its window comes back at the window's size as it is now - moved,
+    /// resized or with its frame shown since it was launched - not at the size it was launched with,
+    /// which would leave an empty strip or scroll bars. Multimon in full screen keeps its layout: the
+    /// monitors set it. One taken out into a window follows the window like any other.
+    /// </summary>
+    private static RdpDisplayPlan SizedToWindow(RdpDisplayPlan plan, DisplayLayout layout, Rdp.RdpSessionWindow window)
+    {
+        if (plan.Resize != ResizeBehavior.FollowWindow || (layout.UsesMultimon && window.IsFullScreen)) return plan;
+        if (window.WindowState == System.Windows.Forms.FormWindowState.Minimized) return plan;
+
+        var client = window.Host.WinFormsControl.ClientSize;
+        if (client.Width < DisplayLayout.MinDesktopEdge || client.Height < DisplayLayout.MinDesktopEdge) return plan;
+
+        return plan with
+        {
+            DesktopWidth = Math.Min(client.Width, DisplayLayout.MaxDesktopEdge) & ~1,
+            DesktopHeight = Math.Min(client.Height, DisplayLayout.MaxDesktopEdge) & ~1,
+        };
+    }
+
     private static RdpDisplayPlan BuildPlan(DisplaySettings display, DisplayLayout layout) => new(
         DesktopWidth: layout.DesktopWidth,
         DesktopHeight: layout.DesktopHeight,
@@ -1051,6 +1164,7 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
         runtime.FailureReason = null;
         runtime.CertificatePromptUp = false;
         runtime.SignInPromptUp = false;
+        runtime.Window?.SetWaiting(RdpSessionWindow.Waiting.SignIn, false);
         runtime.AttemptTimeoutSeconds = AttemptTimeoutSeconds(runtime, connection);
         // Each attempt can be waited for: a multi-config launch that retries a failed window waits
         // for this attempt, not for the one that already failed. One still being waited for stays.
@@ -1180,6 +1294,8 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
             {
                 runtime.SignInPromptUp = signIn;
                 progress.SetWaitingForUser(ConnectionProgressViewModel.Prompt.SignIn, signIn);
+                // Nothing kept on top may cover the prompt meanwhile.
+                window.SetWaiting(RdpSessionWindow.Waiting.SignIn, signIn);
             }
         }
 
@@ -1224,6 +1340,8 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
 
         runtime.ShowingFailure = true;
         runtime.FailureReason = message;
+        runtime.SignInPromptUp = false;
+        runtime.Window?.SetWaiting(RdpSessionWindow.Waiting.SignIn, false);
         // Shown as "last attempt" when the user tries again.
         runtime.LastReason = message;
         runtime.AttemptActive = false;

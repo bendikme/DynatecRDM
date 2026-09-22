@@ -84,6 +84,17 @@ public sealed class RdpSession : INotifyPropertyChanged
         set => Set(ref _lastSnapshotUtc, value);
     }
 
+    private bool? _frameless;
+    /// <summary>
+    /// Whether the session's window is on the desktop without a frame: true without one, false with
+    /// one, null when the app cannot show or hide it - another process's window, or full screen.
+    /// </summary>
+    public bool? Frameless
+    {
+        get => _frameless;
+        set => Set(ref _frameless, value);
+    }
+
     public DateTime StartedUtc { get; set; } = DateTime.UtcNow;
     public DateTime? EndedUtc { get; set; }
 

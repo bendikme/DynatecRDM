@@ -157,6 +157,11 @@
                 <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                 <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             </DataTrigger>
+            <!-- Chosen, but not used: it does not touch the rest of the set. -->
+            <DataTrigger Binding="{Binding IsUnused}" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            </DataTrigger>
         </Style.Triggers>
     </Style>
 

@@ -11,7 +11,8 @@ using DynatecRDM.ViewModels;
 namespace DynatecRDM.Views;
 
 /// <summary>
-/// The strip that hangs from the top edge of a full-screen session. It never activates: the
+/// The strip that hangs from the top edge of a full-screen session - or of a session window without
+/// a frame. It never activates: the
 /// remote session keeps the keyboard while the bar is clicked, exactly as with Remote Desktop's
 /// own bar. Placement is done in device pixels, because the bar has to sit on the edge of a
 /// monitor whose scale can differ from the one the window was last on.
@@ -19,6 +20,12 @@ namespace DynatecRDM.Views;
 public partial class SessionBarWindow : Window
 {
     private const double SlideInMs = 170;
+
+    /// <summary>
+    /// Room for the bar's fixed buttons and at least one tab, in DIPs. Over a window narrower than
+    /// this the bar is wider than the window - overhanging its neighbours - rather than clipped.
+    /// </summary>
+    private const double MinUsableWidth = 440;
     private const double SlideOutMs = 130;
 
     /// <summary>One mouse-wheel notch; touchpads deliver it in smaller pieces.</summary>
@@ -30,10 +37,14 @@ public partial class SessionBarWindow : Window
     private readonly SessionBarViewModel _viewModel;
 
     private MonitorInfo? _monitor;
+    private PixelRect _area;
     private IntPtr _handle;
     private int _generation;
     private int _wheel;
     private bool _allowClose;
+
+    /// <summary>Keeps the bar's last picture - it may have been dropped at once, fully out - off the screen.</summary>
+    private readonly FirstFrameCloak _cloak;
 
     public SessionBarWindow(SessionBarViewModel viewModel)
     {
@@ -41,6 +52,7 @@ public partial class SessionBarWindow : Window
 
         InitializeComponent();
         DataContext = viewModel;
+        _cloak = new FirstFrameCloak(this);
 
         ReleaseMainWindow();
 
@@ -65,15 +77,27 @@ public partial class SessionBarWindow : Window
     public bool Reveal(MonitorInfo monitor)
     {
         ArgumentNullException.ThrowIfNull(monitor);
+        return Reveal(monitor, monitor.Bounds);
+    }
+
+    /// <summary>
+    /// Brings the bar down from the top edge of <paramref name="area"/> - a monitor, or a window
+    /// without a frame - on <paramref name="monitor"/>, whose scale it takes.
+    /// </summary>
+    public bool Reveal(MonitorInfo monitor, PixelRect area)
+    {
+        ArgumentNullException.ThrowIfNull(monitor);
 
         _monitor = monitor;
+        _area = area.IsEmpty ? monitor.Bounds : area;
         _generation++;
         IsRevealed = true;
 
         try
         {
             var scale = monitor.ScaleFactor > 0 ? monitor.ScaleFactor : 1.0;
-            BarPanel.MaxWidth = Math.Max(1, (monitor.Width / scale) - 32);
+            var monitorWidth = Math.Max(1, (monitor.Width / scale) - 32);
+            BarPanel.MaxWidth = Math.Min(monitorWidth, Math.Max(MinUsableWidth, (_area.Width / scale) - 32));
 
             if (!IsVisible)
             {
@@ -81,8 +105,10 @@ public partial class SessionBarWindow : Window
 
                 // Roughly right before the first frame, so Windows creates the window on the monitor
                 // it is meant for; Place() then puts it on the pixel.
-                Left = (monitor.Left + (monitor.Width / 2.0)) / scale - 240;
-                Top = monitor.Top / scale;
+                Left = (_area.Left + (_area.Width / 2.0)) / scale - 240;
+                Top = _area.Top / scale;
+                // Unseen until it has been drawn where and as it now is - see FirstFrameCloak.
+                _cloak.BeforeShow();
                 Show();
             }
 
@@ -113,6 +139,7 @@ public partial class SessionBarWindow : Window
             if (!animate || !SystemParameters.ClientAreaAnimation)
             {
                 Hide();
+                _cloak.Hidden();
                 ResetToHidden();
                 return;
             }
@@ -122,6 +149,7 @@ public partial class SessionBarWindow : Window
                 // A reveal that started while this was running owns the window now.
                 if (generation != _generation || IsRevealed) return;
                 Hide();
+                _cloak.Hidden();
                 ResetToHidden();
             });
         }
@@ -151,6 +179,7 @@ public partial class SessionBarWindow : Window
         try
         {
             _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _cloak.Hidden();
             Close();
         }
         catch (Exception ex)
@@ -220,7 +249,7 @@ public partial class SessionBarWindow : Window
 
     // -------------------------------------------------------------- placement
 
-    /// <summary>Centres the bar on the top edge of its monitor, in device pixels.</summary>
+    /// <summary>Centres the bar on the top edge of what it hangs from, in device pixels.</summary>
     private void Place()
     {
         if (_monitor is not { } monitor || _handle == IntPtr.Zero) return;
@@ -229,8 +258,11 @@ public partial class SessionBarWindow : Window
         {
             if (!Win32.GetWindowRect(_handle, out var rect) || rect.Width <= 0) return;
 
-            var x = monitor.Left + ((monitor.Width - rect.Width) / 2);
-            var y = monitor.Top;
+            // Centred on what it hangs from, but never off its monitor: over a narrow window the bar
+            // can be the wider of the two.
+            var x = _area.Left + ((_area.Width - rect.Width) / 2);
+            x = Math.Clamp(x, monitor.Left, Math.Max(monitor.Left, monitor.Right - rect.Width));
+            var y = _area.Top;
 
             Win32.SetWindowPos(
                 _handle, Win32.HWND_TOPMOST, x, y, 0, 0,

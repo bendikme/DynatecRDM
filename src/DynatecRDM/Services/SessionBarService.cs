@@ -8,9 +8,10 @@ using DynatecRDM.Views;
 namespace DynatecRDM.Services;
 
 /// <summary>
-/// The session bar: a strip that slides down from the top edge of a full-screen session and
-/// switches to any other running connection with one click, so several full-screen sessions on
-/// one monitor behave like tabs of a single window. It also carries what Remote Desktop's own bar
+/// The session bar: a strip that slides down from the top edge of a full-screen session - or of a
+/// session window without a frame, which has no title bar of its own - and switches to any other
+/// running connection with one click, so several full-screen sessions on one monitor behave like
+/// tabs of a single window. It also carries what Remote Desktop's own bar
 /// offered - minimise, leave full screen, disconnect - because that bar is kept out of the way while
 /// this one is on: left out of the sessions it starts, and made invisible in any session that
 /// shows one anyway. Otherwise the two would fight over the same edge.
@@ -82,7 +83,9 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
     private readonly Dictionary<IntPtr, (uint ProcessId, long Style)> _hiddenNativeBars = new();
 
     private SessionBarWindow? _window;
-    private MonitorInfo? _barMonitor;
+
+    /// <summary>What the bar hangs from while it is out, or null.</summary>
+    private BarSurface? _barSurface;
     private IntPtr _foregroundHook;
     private IntPtr _shownHook;
     private bool _enabled;
@@ -92,9 +95,35 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
 
     private long _edgeSince;
     private long _awaySince;
+
+    /// <summary>A reveal that did not happen was written down for this stay on the edge - see <see cref="LogMissedReveal"/>.</summary>
+    private bool _missLogged;
+
+    /// <summary>When a reveal's dwell starting over was last written to the log - see <see cref="LogDwellRestart"/>.</summary>
+    private long _restartLoggedAt;
+
+    /// <summary>
+    /// Since when the pointer has rested on the top edge of a monitor a session fills with no bar
+    /// out, and whether that stay was written down - see <see cref="TrackStarvedReveal"/>.
+    /// </summary>
+    private long _bandSince;
+    private bool _starvedLogged;
     private long _peekUntil;
     private Guid? _edgeSession;
-    private string? _edgeMonitor;
+    private PixelRect? _edgeArea;
+
+    /// <summary>
+    /// The frameless window whose top strip may reveal the bar: one the pointer has been inside,
+    /// below the strip. See <see cref="ArmWindowStrip"/>.
+    /// </summary>
+    private PixelRect? _armedArea;
+
+    /// <summary>
+    /// What the bar hangs from: the monitor a full-screen session fills, or a frameless session
+    /// window's own top edge. The bar is centred on <see cref="Area"/>; <see cref="Monitor"/> gives
+    /// the scale.
+    /// </summary>
+    private readonly record struct BarSurface(MonitorInfo Monitor, PixelRect Area, bool IsWindow);
 
     public SessionBarService(AppServices services, IAppShell shell)
     {
@@ -133,8 +162,7 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
             _services.Sessions.Focus(session.Id);
             // Focus can fail or target a window on a different display. Never leave action buttons
             // controlling a session behind the desktop the bar is actually covering.
-            if (!ReferenceEquals(SessionFor(Win32.GetForegroundWindow()), session)
-                || _barMonitor is not { } monitor || !FillsMonitor(session, monitor))
+            if (!ReferenceEquals(SessionFor(Win32.GetForegroundWindow()), session) || !IsUnderBar(session))
             {
                 HideBar(animate: false);
                 return;
@@ -205,6 +233,21 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
         });
     }
 
+    public void EnterFullScreen(RdpSession session)
+    {
+        HideBar(animate: false);
+        if (_services.Sessions is EmbeddedSessionManager embedded) embedded.TrySetFullScreen(session.Id, true);
+    }
+
+    public void ShowFrame(RdpSession session)
+    {
+        HideBar(animate: false);
+
+        // The toggle would hide a frame already shown, so only a window without one is asked.
+        if (session.Frameless != true || _services.Sessions is not EmbeddedSessionManager embedded) return;
+        if (embedded.TryToggleFrame(session.Id)) _services.Sessions.Focus(session.Id);
+    }
+
     public void Disconnect(RdpSession session)
     {
         HideBar(animate: true);
@@ -250,8 +293,9 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
         Unhook();
         _viewModel.ResetConfirm();
 
-        // Sessions outlive the application; without this bar they need their own back.
-        RestoreNativeBars();
+        // Sessions outlive the application; without this bar they need their own back. Not the ones
+        // in this process: they close with it, and a control on its way out refuses the change.
+        RestoreNativeBars(inProcess: false);
 
         _window?.ForceClose();
         _window = null;
@@ -393,9 +437,9 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
         if (!invisible) Win32.ShowWindowAsync(hwnd, Win32.SW_HIDE);
     }
 
-    private void RestoreNativeBars()
+    private void RestoreNativeBars(bool inProcess = true)
     {
-        if (_services.Sessions is EmbeddedSessionManager embedded) embedded.SetSessionBarEnabled(false);
+        if (inProcess && _services.Sessions is EmbeddedSessionManager embedded) embedded.SetSessionBarEnabled(false);
         foreach (var pair in _hiddenNativeBars)
         {
             Win32.GetWindowThreadProcessId(pair.Key, out var pid);
@@ -427,8 +471,7 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
         if (!_enabled || _disposed) return;
 
         _viewModel.Sync(_services.Sessions.Sessions);
-        if (IsShown && (_viewModel.Current is not { } current || _barMonitor is not { } monitor
-            || !FillsMonitor(current, monitor))) HideBar(animate: false);
+        if (IsShown && (_viewModel.Current is not { } current || !IsUnderBar(current))) HideBar(animate: false);
         UpdatePolling();
 
         // Bars of sessions that have gone are nothing to give back.
@@ -453,14 +496,17 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
         After(PeekDelayMs, () => Peek(session));
     }
 
-    /// <summary>Shows the bar for a moment over a session that has just come up in front, full screen.</summary>
+    /// <summary>
+    /// Shows the bar for a moment over a session that has just come up in front, full screen or in
+    /// a window without a frame, so it is clear where the bar lives.
+    /// </summary>
     private void Peek(RdpSession session)
     {
         if (!_enabled || IsShown || !session.IsActive) return;
         if (!ReferenceEquals(SessionFor(Win32.GetForegroundWindow()), session)) return;
-        if (!TryGetFilledMonitor(session, out var monitor)) return;
+        if (SurfaceOf(session) is not { } surface) return;
 
-        ShowBar(monitor, session, peek: true);
+        ShowBar(surface, session, peek: true);
     }
 
     private async Task CloseAsync(RdpSession session)
@@ -520,8 +566,20 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
             if (_disposed || !_enabled) return;
 
             // Alt+Tab, a notification, the manager: the bar belongs to the session it opened over.
-            if (IsShown && (SessionFor(hwnd) is not { } front || _barMonitor is not { } monitor
-                || !FillsMonitor(front, monitor))) HideBar(animate: false);
+            if (IsShown)
+            {
+                if (SessionFor(hwnd) is not { } front || !IsUnderBar(front))
+                {
+                    HideBar(animate: false);
+                }
+                else if (_barSurface is { IsWindow: true })
+                {
+                    // A window kept on top rises above the bar as it activates; put the bar back over it,
+                    // once more a moment later as SwitchTo does, in case it lifts itself again.
+                    _window?.KeepOnTop();
+                    After(RaiseAgainMs, () => { if (IsShown) _window?.KeepOnTop(); });
+                }
+            }
 
             UpdatePolling();
         }
@@ -605,11 +663,21 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
         var now = Environment.TickCount64;
         if (!Win32.GetCursorPos(out var cursor)) return;
 
+        // Which frameless window's top strip may reveal the bar is followed on every tick, bar out or
+        // not: a pass through another window while the bar hangs elsewhere arms that window's strip,
+        // and the pointer on the bar itself - no session's - disarms the one it came from.
+        var tile = FramelessUnder(cursor);
+        _armedArea = ArmWindowStrip(_armedArea, tile?.Surface.Area, cursor.Y,
+            tile is { } under ? RevealBandHeight(under.Surface.Monitor) : 0,
+            atScreenTop: tile is { } top && IsScreenTop(cursor.X, top.Surface.Area.Top));
+
         if (IsShown)
         {
+            _bandSince = 0;
+            _starvedLogged = false;
+            _missLogged = false;
             SetPollInterval(FastPollMs);
-            if (_viewModel.Current is not { } current || _barMonitor is not { } currentMonitor
-                || !FillsMonitor(current, currentMonitor))
+            if (_viewModel.Current is not { } current || _barSurface is not { } surface || !IsUnderBar(current))
             {
                 HideBar(animate: false);
                 UpdatePolling();
@@ -618,20 +686,42 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
 
             // A switch from the bar brings another session forward; if it landed on this monitor it
             // is the one the bar now belongs to. One that came up on another monitor leaves it be.
-            if (SessionFor(Win32.GetForegroundWindow()) is { } front
-                && _barMonitor is { } barMonitor
-                && FillsMonitor(front, barMonitor))
+            // Frameless windows can share one rectangle exactly - two "maximized, no frame" sessions
+            // on a monitor do - so over a window the bar follows whichever is visibly on top, never
+            // one hidden underneath; its buttons act on what the user sees.
+            var owner = surface.IsWindow
+                ? SessionOnTop(surface)
+                : SessionFor(Win32.GetForegroundWindow()) is { } front && FillsMonitor(front, surface.Monitor) ? front : null;
+            if (owner is not null && !ReferenceEquals(owner, _viewModel.Current))
             {
-                _viewModel.SetCurrent(front.Id);
+                _viewModel.SetCurrent(owner.Id);
+                if (surface.IsWindow) _window?.KeepOnTop();
             }
 
-            if (IsOnBar(cursor) || ReferenceEquals(SessionAtEdge(cursor, currentMonitor), _viewModel.Current))
+            var atEdge = surface.IsWindow ? FramelessAtEdge(cursor)?.Session : SessionAtEdge(cursor, surface.Monitor);
+            if (IsOnBar(cursor) || ReferenceEquals(atEdge, _viewModel.Current))
             {
                 // Full-screen RDP can move above an already visible topmost bar without changing
                 // the foreground window. Recover on hover; IsRevealed alone does not mean the
                 // bar is actually on top. Only raise over an RDP session, never another app.
-                if (SessionFor(Win32.WindowFromPoint(cursor)) is { } coveredBy
-                    && FillsMonitor(coveredBy, currentMonitor))
+                var underPointer = SessionFor(Win32.WindowFromPoint(cursor));
+                if (surface.IsWindow)
+                {
+                    // A window kept on top rises above the bar when it is clicked. Seen under the
+                    // pointer, the bar is covered or about to be: put it back. Another session lying
+                    // over the bar itself - one gone full screen, say - takes the edge: let go.
+                    if (ReferenceEquals(underPointer, _viewModel.Current))
+                    {
+                        _window?.KeepOnTop();
+                    }
+                    else if (underPointer is not null && IsOverBarItself(cursor))
+                    {
+                        HideBar(animate: false);
+                        UpdatePolling();
+                        return;
+                    }
+                }
+                else if (underPointer is { } coveredBy && FillsMonitor(coveredBy, surface.Monitor))
                 {
                     _viewModel.SetCurrent(coveredBy.Id);
                     _window?.KeepOnTop();
@@ -659,29 +749,140 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
         }
 
         var monitor = _services.Monitors.GetMonitorAt(cursor.X, cursor.Y);
-        SetPollInterval(cursor.Y <= monitor.Top + NearEdge ? FastPollMs : SlowPollMs);
+
+        // A window without a frame has a top edge of its own, anywhere on the monitor.
+        var nearTop = cursor.Y <= monitor.Top + NearEdge
+            || (tile is { } near && cursor.Y <= near.Surface.Area.Top + NearEdge);
+        SetPollInterval(nearTop ? FastPollMs : SlowPollMs);
+        TrackStarvedReveal(cursor, monitor, now);
+
+        RdpSession? target = null;
+        BarSurface reveal = default;
+        if (SessionAtEdge(cursor, monitor) is { } full)
+        {
+            target = full;
+            reveal = new BarSurface(monitor, monitor.Bounds, IsWindow: false);
+        }
+        else if (tile is { } window && _armedArea == window.Surface.Area
+                 && IsInRevealBand(cursor, window.Surface.Area, window.Surface.Monitor))
+        {
+            target = window.Session;
+            reveal = window.Surface;
+        }
 
         // A button held down is a drag inside the remote desktop, not a reach for the bar.
-        var target = SessionAtEdge(cursor, monitor);
-        if (target is null || Win32.IsKeyDown(Win32.VK_LBUTTON) || Win32.IsKeyDown(Win32.VK_RBUTTON))
+        var buttonDown = Win32.IsKeyDown(Win32.VK_LBUTTON) || Win32.IsKeyDown(Win32.VK_RBUTTON);
+        if (target is null || buttonDown)
         {
+            LogMissedReveal(cursor, monitor, buttonDown, now);
             _edgeSince = 0;
             return;
         }
 
-        if (_edgeSince == 0 || _edgeSession != target.Id || _edgeMonitor != monitor.DeviceName)
+        if (_edgeSince == 0 || _edgeSession != target.Id || _edgeArea != reveal.Area)
         {
+            if (_edgeSince != 0) LogDwellRestart(target, reveal, now);
             _edgeSince = now;
             _edgeSession = target.Id;
-            _edgeMonitor = monitor.DeviceName;
+            _edgeArea = reveal.Area;
             return;
         }
 
         if (now - _edgeSince < RevealDwellMs) return;
 
         _edgeSince = 0;
-        ShowBar(monitor, target, peek: false);
+        ShowBar(reveal, target, peek: false);
     }
+
+    /// <summary>
+    /// Whether a frameless window's top strip may reveal the bar. A monitor's top edge stops the
+    /// pointer, so resting on it is a reach for the bar; a window's top edge is out in the open, and
+    /// the pointer crosses it on its way in from the window above - over and over, with windows
+    /// stacked. So the strip counts only once the pointer has been inside the window below it, as it
+    /// is when someone reaches up for the edge: <paramref name="armed"/> is kept while the pointer
+    /// stays in that window, set when it is below the strip, and dropped as soon as it leaves. A
+    /// window whose top is the top of the screen (<paramref name="atScreenTop"/>) is the exception:
+    /// the pointer stops there as it does for full screen, so resting there is a reach already.
+    /// </summary>
+    internal static PixelRect? ArmWindowStrip(PixelRect? armed, PixelRect? under, int cursorY, int band, bool atScreenTop = false)
+    {
+        if (under is not { } area) return null;
+        if (atScreenTop || cursorY >= area.Top + band) return area;
+        return armed == area ? armed : null;
+    }
+
+    /// <summary>Nothing lies just above this point of a top edge: the pointer stops there instead of crossing it.</summary>
+    private bool IsScreenTop(int x, int top)
+    {
+        foreach (var m in _services.Monitors.GetMonitors())
+            if (x >= m.Left && x < m.Right && top - 1 >= m.Top && top - 1 < m.Bottom) return false;
+        return true;
+    }
+
+    /// <summary>
+    /// The session visibly on top of a frameless surface, found just below the bar (which covers the
+    /// edge itself), mid-width. Null when something else covers that spot.
+    /// </summary>
+    private RdpSession? SessionOnTop(BarSurface surface)
+    {
+        var y = surface.Area.Top + RevealBandHeight(surface.Monitor);
+        if (_window is not null && _window.TryGetScreenRect(out var bar)) y = Math.Max(y, bar.Bottom + KeepAliveMargin);
+        if (y >= surface.Area.Bottom) return null;
+
+        var probe = new Win32.POINT { X = surface.Area.Left + (surface.Area.Width / 2), Y = y };
+        return SessionFor(Win32.WindowFromPoint(probe)) is { } top && IsUnderBar(top) ? top : null;
+    }
+
+    /// <summary>The pointer is on the bar's own rectangle - not merely in the margin around it.</summary>
+    private bool IsOverBarItself(Win32.POINT cursor) =>
+        _window is not null && _window.TryGetScreenRect(out var rect)
+        && cursor.X >= rect.Left && cursor.X < rect.Right && cursor.Y >= rect.Top && cursor.Y < rect.Bottom;
+
+    /// <summary>
+    /// The session under the pointer, when its window is on the desktop without a frame, with the
+    /// surface its bar would hang from.
+    /// </summary>
+    private (RdpSession Session, BarSurface Surface)? FramelessUnder(Win32.POINT cursor)
+    {
+        if (SessionFor(Win32.WindowFromPoint(cursor)) is not { } session) return null;
+        return FramelessSurface(session) is { } surface ? (session, surface) : null;
+    }
+
+    /// <summary>The frameless session whose top edge the pointer rests on, if any.</summary>
+    private (RdpSession Session, BarSurface Surface)? FramelessAtEdge(Win32.POINT cursor) =>
+        FramelessUnder(cursor) is { } tile && IsInRevealBand(cursor, tile.Surface.Area, tile.Surface.Monitor) ? tile : null;
+
+    /// <summary>
+    /// A session window of this app on the desktop without a frame: the bar hangs from its own top
+    /// edge, as it does from a monitor's for full screen. Null for anything else.
+    /// </summary>
+    private BarSurface? FramelessSurface(RdpSession session)
+    {
+        if (session.Frameless != true || session.ProcessId != Environment.ProcessId || !session.IsActive) return null;
+
+        var hwnd = session.WindowHandle;
+        if (hwnd == IntPtr.Zero || !Win32.IsWindow(hwnd) || !Win32.IsWindowVisible(hwnd) || Win32.IsIconic(hwnd)) return null;
+        if (!Win32.TryGetClientScreenRect(hwnd, out var client) || client.Width <= 0 || client.Height <= 0) return null;
+
+        var area = new PixelRect(client.Left, client.Top, client.Width, client.Height);
+        var monitor = _services.Monitors.GetMonitorAt(client.Left + (client.Width / 2), client.Top);
+        return new BarSurface(monitor, area, IsWindow: true);
+    }
+
+    /// <summary>What a session's bar would hang from: the monitor it fills in full screen, or its frameless window.</summary>
+    private BarSurface? SurfaceOf(RdpSession session) =>
+        TryGetFilledMonitor(session, out var monitor)
+            ? new BarSurface(monitor, monitor.Bounds, IsWindow: false)
+            : FramelessSurface(session);
+
+    /// <summary>
+    /// The session is still where the bar hangs: filling the bar's monitor, or the very frameless
+    /// window the bar came down on - a window that moved, or got its frame back, leaves it.
+    /// </summary>
+    private bool IsUnderBar(RdpSession session) =>
+        _barSurface is { } surface && (surface.IsWindow
+            ? FramelessSurface(session) is { } own && own.Area == surface.Area
+            : FillsMonitor(session, surface.Monitor));
 
     /// <summary>
     /// The session showing on <paramref name="monitor"/>, when the pointer rests on its top edge and
@@ -709,11 +910,121 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
         return ReferenceEquals(SessionFor(Win32.WindowFromPoint(inside)), front) ? front : null;
     }
 
-    internal static bool IsInRevealBand(Win32.POINT cursor, MonitorInfo monitor)
+    /// <summary>
+    /// Diagnostics for a reveal that should have happened: the pointer rests in the top band of a
+    /// monitor over the session that fills it, yet the bar stays away. One line per stay on the
+    /// edge, naming what each check saw, so a failure met on the user's desk can be read from the
+    /// log. Silent otherwise - also over a session another app covers, where staying away is right.
+    /// </summary>
+    private void LogMissedReveal(Win32.POINT cursor, MonitorInfo monitor, bool buttonDown, long now)
     {
-        var quarter = monitor.Width / 4;
-        return cursor.Y >= monitor.Top && cursor.Y < monitor.Top + RevealBandHeight(monitor)
-            && cursor.X >= monitor.Left + quarter && cursor.X < monitor.Right - quarter;
+        if (_missLogged || !IsInRevealBand(cursor, monitor)) return;
+
+        if (ExpectedAtEdge(cursor, monitor) is not { } filling) return;
+        _missLogged = true;
+
+        try
+        {
+            string Name(RdpSession? session) => session is null ? "no session" : $"'{session.DisplayName}'";
+            string Fills(RdpSession? session) => session is null ? "" : FillsMonitor(session, monitor) ? ", fills it" : ", does not fill it";
+
+            var hit = Win32.WindowFromPoint(cursor);
+            Win32.GetWindowThreadProcessId(hit, out var hitPid);
+            var underPointer = SessionFor(hit);
+            var front = SessionFor(Win32.GetForegroundWindow());
+            var inside = new Win32.POINT { X = cursor.X, Y = monitor.Top + RevealBandHeight(monitor) };
+            var below = SessionFor(Win32.WindowFromPoint(inside));
+
+            AppLog.Debug_(
+                $"Session bar not revealed at ({cursor.X},{cursor.Y}) on {monitor.DeviceName}, which {Name(filling)} fills. " +
+                $"Under the pointer: 0x{hit.ToInt64():X} {Win32.GetClassName(hit)} (process {hitPid}) - {Name(underPointer)}{Fills(underPointer)}. " +
+                $"Foreground: {Name(front)}{Fills(front)}. Just below the band: {Name(below)}. " +
+                $"Button held: {buttonDown}. Bar window: {(_windowFailed ? "failed" : _window is null ? "not built" : "ready")}.");
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug_($"Describing a missed session bar reveal failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Diagnostics for a dwell that keeps starting over: a session was found at the edge, but not
+    /// the one - or not over the area - of the tick before, so the wait for the reveal began again.
+    /// Once is a pointer moving between surfaces; the same line every second while it rests is why
+    /// the bar never comes. One line a second at most.
+    /// </summary>
+    private void LogDwellRestart(RdpSession target, BarSurface reveal, long now)
+    {
+        if (now - _restartLoggedAt < MissLogIntervalMs) return;
+        _restartLoggedAt = now;
+
+        string Area(PixelRect? area) => area is { } a ? $"{a.Left},{a.Top} {a.Width}x{a.Height}" : "nothing";
+        var previous = _services.Sessions.Sessions.FirstOrDefault(s => s.Id == _edgeSession);
+        AppLog.Debug_(
+            $"Session bar reveal started over after {now - _edgeSince} ms: it was waiting for " +
+            $"'{previous?.DisplayName ?? _edgeSession?.ToString() ?? "no session"}' over {Area(_edgeArea)}, " +
+            $"and found '{target.DisplayName}' over {Area(reveal.Area)} ({(reveal.IsWindow ? "its window's top edge" : "the monitor's top edge")}).");
+    }
+
+    /// <summary>
+    /// Diagnostics for a reveal starved by anything at all: the pointer has stayed on the top edge
+    /// over the session filling the monitor for <see cref="StarvedRevealMs"/> and still no bar.
+    /// Written once per stay, with where the dwell stands, so a cause nobody has thought of still
+    /// shows up. Leaving the edge - or the session - ends the stay for both diagnostics.
+    /// </summary>
+    private void TrackStarvedReveal(Win32.POINT cursor, MonitorInfo monitor, long now)
+    {
+        if (!IsInRevealBand(cursor, monitor) || ExpectedAtEdge(cursor, monitor) is not { } filling)
+        {
+            _bandSince = 0;
+            _starvedLogged = false;
+            _missLogged = false;
+            return;
+        }
+
+        if (_bandSince == 0)
+        {
+            _bandSince = now;
+            return;
+        }
+        if (_starvedLogged || now - _bandSince < StarvedRevealMs) return;
+        _starvedLogged = true;
+
+        AppLog.Debug_(
+            $"Session bar still not revealed after {now - _bandSince} ms on the top edge of {monitor.DeviceName}, " +
+            $"which '{filling.DisplayName}' fills. Dwell: " +
+            (_edgeSince == 0 ? "not waiting." : $"waiting {now - _edgeSince} ms for {_edgeSession}.") +
+            $" Bar window: {(_windowFailed ? "failed" : _window is null ? "not built" : "ready")}.");
+    }
+
+    /// <summary>
+    /// The session a reveal is expected over: one that fills <paramref name="monitor"/> and is what
+    /// the user has there - under the pointer, just below the edge band, or in front. A session
+    /// covered by another app is none of these; the bar rightly stays away from it.
+    /// </summary>
+    private RdpSession? ExpectedAtEdge(Win32.POINT cursor, MonitorInfo monitor)
+    {
+        var below = new Win32.POINT { X = cursor.X, Y = monitor.Top + RevealBandHeight(monitor) };
+        foreach (var hwnd in new[] { Win32.WindowFromPoint(cursor), Win32.WindowFromPoint(below), Win32.GetForegroundWindow() })
+            if (SessionFor(hwnd) is { } session && FillsMonitor(session, monitor)) return session;
+        return null;
+    }
+
+    private const int MissLogIntervalMs = 1000;
+    private const int StarvedRevealMs = 2000;
+
+    internal static bool IsInRevealBand(Win32.POINT cursor, MonitorInfo monitor) =>
+        IsInRevealBand(cursor, monitor.Bounds, monitor);
+
+    /// <summary>
+    /// The reveal strip along the top of <paramref name="area"/> - a monitor, or a window without a
+    /// frame - at <paramref name="monitor"/>'s scale. Only the middle half of the edge counts.
+    /// </summary>
+    internal static bool IsInRevealBand(Win32.POINT cursor, PixelRect area, MonitorInfo monitor)
+    {
+        var quarter = area.Width / 4;
+        return cursor.Y >= area.Top && cursor.Y < area.Top + RevealBandHeight(monitor)
+            && cursor.X >= area.Left + quarter && cursor.X < area.Right - quarter;
     }
 
     private static int RevealBandHeight(MonitorInfo monitor) =>
@@ -738,9 +1049,13 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
 
     /// <summary>
     /// Full screen means the picture covers the whole monitor, taskbar included. The client area
-    /// is what is compared, so a maximised window with a title bar never passes for one.
+    /// is what is compared, so a maximised window with a title bar never passes for one. A window
+    /// without a frame can cover a monitor too - sized to it, or maximized where the taskbar hides -
+    /// so a session in this app counts only when its window really is in full screen: the bar's
+    /// "leave full screen" would have nothing to leave. Such a window gets the bar all the same,
+    /// hung from its own top edge - see <see cref="FramelessSurface"/>.
     /// </summary>
-    private static bool FillsMonitor(RdpSession session, MonitorInfo monitor)
+    private bool FillsMonitor(RdpSession session, MonitorInfo monitor)
     {
         var hwnd = session.WindowHandle;
         if (!session.IsActive || hwnd == IntPtr.Zero || !Win32.IsWindow(hwnd)
@@ -749,8 +1064,12 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
         if (pid != session.ProcessId) return false;
         if (!Win32.TryGetClientScreenRect(hwnd, out var client)) return false;
 
-        return client.Left <= monitor.Left && client.Top <= monitor.Top
-            && client.Right >= monitor.Right && client.Bottom >= monitor.Bottom;
+        if (!(client.Left <= monitor.Left && client.Top <= monitor.Top
+            && client.Right >= monitor.Right && client.Bottom >= monitor.Bottom)) return false;
+
+        return session.ProcessId != Environment.ProcessId
+            || _services.Sessions is not EmbeddedSessionManager embedded
+            || embedded.IsFullScreen(session.Id);
     }
 
     private bool IsOnBar(Win32.POINT cursor)
@@ -763,7 +1082,7 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
 
     // ------------------------------------------------------------------ the window
 
-    private void ShowBar(MonitorInfo monitor, RdpSession current, bool peek)
+    private void ShowBar(BarSurface surface, RdpSession current, bool peek)
     {
         var window = EnsureWindow();
         if (window is null) return;
@@ -771,12 +1090,13 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
         _viewModel.Sync(_services.Sessions.Sessions);
         _viewModel.SetCurrent(current.Id);
         _viewModel.ResetConfirm();
+        _viewModel.IsOverWindow = surface.IsWindow;
 
         _awaySince = 0;
         _peekUntil = peek ? Environment.TickCount64 + PeekMs : 0;
-        _barMonitor = monitor;
+        _barSurface = surface;
 
-        if (!window.Reveal(monitor))
+        if (!window.Reveal(surface.Monitor, surface.Area))
         {
             _windowFailed = true;
             HideBar(animate: false);
@@ -795,7 +1115,7 @@ public sealed class SessionBarService : ISessionBarHost, IDisposable
         _edgeSince = 0;
         _awaySince = 0;
         _peekUntil = 0;
-        _barMonitor = null;
+        _barSurface = null;
         _viewModel.ResetConfirm();
         _viewModel.SetCurrent(null);
         _window?.Conceal(animate);

@@ -737,6 +737,22 @@ The log is at {1}</value>
     <value>Ctrl+S saves, Esc cancels.</value>
     <comment>Keyboard hint in the editor footer</comment>
   </data>
+  <data name="Editor_Frameless" xml:space="preserve">
+    <value>Show the session window without a frame</value>
+    <comment>Frameless windows</comment>
+  </data>
+  <data name="Editor_Frameless_Hint" xml:space="preserve">
+    <value>No title bar or borders - only the remote desktop shows, so session windows placed edge to edge join up without a seam. Rest the pointer on the window's top edge for the session bar; to move or resize the window, choose “Show window frame” there, in the window menu (Alt+Space) or under Live sessions in Remote Desktop Manager.</value>
+    <comment>Frameless windows</comment>
+  </data>
+  <data name="Editor_Frameless_NeedsEmbedded" xml:space="preserve">
+    <value>Only sessions hosted inside this app can open without a frame, so with the external Remote Desktop client this window keeps its frame. Turn on “Host the remote desktop inside this app” in Settings and restart the app.</value>
+    <comment>Frameless windows</comment>
+  </data>
+  <data name="Editor_Frameless_NeedsRestart" xml:space="preserve">
+    <value>“Host the remote desktop inside this app” is on, but it takes effect the next time you start the app. Until then this window opens with a frame.</value>
+    <comment>Frameless windows</comment>
+  </data>
   <data name="Editor_FullWindowDrag" xml:space="preserve">
     <value>Show window contents while dragging</value>
     <comment>Toggle (mstsc term)</comment>
@@ -897,12 +913,28 @@ The log is at {1}</value>
     <value>No monitors were detected.</value>
     <comment>Shown in the monitor map when no monitor is found</comment>
   </data>
+  <data name="Editor_Monitors_NotAdjacent_Many" xml:space="preserve">
+    <value>These monitors don't all touch, and Remote Desktop can only span monitors that sit next to each other. The session opens across monitors {0} only.</value>
+    <comment>{0} = list of monitor numbers, e.g. 1 and 2, built with JoinList. Warning under the map when the chosen set is split.</comment>
+  </data>
+  <data name="Editor_Monitors_NotAdjacent_One" xml:space="preserve">
+    <value>These monitors don't all touch, and Remote Desktop can only span monitors that sit next to each other. The session opens full screen on monitor {0} only.</value>
+    <comment>{0} = monitor number. Warning under the map when the chosen set is split and only the first monitor is usable.</comment>
+  </data>
+  <data name="Editor_Monitors_NotAdjacent_UnusedMany" xml:space="preserve">
+    <value>Monitors {0} stay in the set, marked on the map, but are not used; click them to take them out.</value>
+    <comment>{0} = list of monitor numbers built with JoinList, e.g. 2 and 3. Follows Editor_Monitors_NotAdjacent_Many.</comment>
+  </data>
+  <data name="Editor_Monitors_NotAdjacent_UnusedOne" xml:space="preserve">
+    <value>Monitor {0} stays in the set, marked on the map, but is not used; click it to take it out.</value>
+    <comment>{0} = one monitor number. Follows Editor_Monitors_NotAdjacent_One/_Many in the same warning.</comment>
+  </data>
   <data name="Editor_Monitors_Reading" xml:space="preserve">
     <value>Reading the display layout...</value>
     <comment>Shown in the monitor map while monitors are enumerated</comment>
   </data>
   <data name="Editor_Monitors_Selected_Hint" xml:space="preserve">
-    <value>Click monitors to add or remove them from the set. mstsc needs the chosen monitors to be adjacent.</value>
+    <value>Click monitors to add or remove them from the set. Remote Desktop can only span monitors that touch each other.</value>
     <comment>Hint under the monitor map in 'Use selected monitors' mode</comment>
   </data>
   <data name="Editor_MstscAutoReconnect" xml:space="preserve">
@@ -925,9 +957,33 @@ The log is at {1}</value>
     <value>ORGANISATION AND SIGN-IN</value>
     <comment>Section header on the General tab: group, credential set, credential delivery</comment>
   </data>
+  <data name="Editor_Outcome_FramedFallback" xml:space="preserve">
+    <value>It opens with a frame, because only sessions hosted inside this app can open without one.</value>
+    <comment>Frameless windows</comment>
+  </data>
+  <data name="Editor_Outcome_Maximized_Frameless" xml:space="preserve">
+    <value>Opens without a frame, covering monitor {0} ({1}) up to the taskbar - {2} x {3}.</value>
+    <comment>Frameless windows; 4 placeholder(s)</comment>
+  </data>
+  <data name="Editor_Outcome_Maximized_Frameless_Unknown" xml:space="preserve">
+    <value>Opens without a frame, covering a monitor up to the taskbar.</value>
+    <comment>Frameless windows</comment>
+  </data>
   <data name="Editor_Outcome_Monitor_Named" xml:space="preserve">
     <value>monitor {0} ({1})</value>
     <comment>One item in the monitor list of Editor_Outcome_SpanSelected. {0} = monitor number, {1} = monitor name</comment>
+  </data>
+  <data name="Editor_Outcome_Rectangle_Frameless" xml:space="preserve">
+    <value>Opens a window without a frame at {0}, {1}, {2} x {3} in size - the remote desktop fills all of it.</value>
+    <comment>Frameless windows; 4 placeholder(s)</comment>
+  </data>
+  <data name="Editor_Outcome_Switch_MultiFollow" xml:space="preserve">
+    <value>Leaving full screen fits the session to the window; going full screen again spreads it back over the same monitors.</value>
+    <comment>Layout description; in-app client, multi-monitor session that follows the window.</comment>
+  </data>
+  <data name="Editor_Outcome_Window_Frameless" xml:space="preserve">
+    <value>Opens a {0} x {1} window without a frame in the middle of monitor {2}.</value>
+    <comment>Frameless windows; 3 placeholder(s)</comment>
   </data>
   <data name="Editor_Port" xml:space="preserve">
     <value>Port</value>
@@ -1601,6 +1657,10 @@ The log is at {1}</value>
     <value>CREDENTIAL</value>
     <comment>Connection detail card: field label above the credential set in use</comment>
   </data>
+  <data name="Main_Detail_Disconnect" xml:space="preserve">
+    <value>Disconnect</value>
+    <comment>Detail pane button that replaces Connect while the selected connection is connecting or connected.</comment>
+  </data>
   <data name="Main_Detail_Display_Header" xml:space="preserve">
     <value>DISPLAY</value>
     <comment>Connection detail card: field label above the display summary ('Full screen on monitor 2')</comment>
@@ -1652,6 +1712,10 @@ The log is at {1}</value>
   <data name="Main_Display_CustomRectangle" xml:space="preserve">
     <value>{0}x{1} at {2}, {3}</value>
     <comment>Display summary for a custom window rectangle. {0} = width, {1} = height, {2} = left, {3} = top (pixels on the virtual desktop)</comment>
+  </data>
+  <data name="Main_Display_Frameless" xml:space="preserve">
+    <value>{0}, no frame</value>
+    <comment>Frameless windows; 1 placeholder(s)</comment>
   </data>
   <data name="Main_Display_Fullscreen" xml:space="preserve">
     <value>Full screen</value>
@@ -1953,9 +2017,21 @@ The log is at {1}</value>
     <value>Focus</value>
     <comment>Session card: small button that brings the session window to the front</comment>
   </data>
+  <data name="Main_Session_Frame_Tooltip" xml:space="preserve">
+    <value>Show or hide the title bar and borders, to move or resize the window. The saved layout does not change.</value>
+    <comment>Frameless windows</comment>
+  </data>
+  <data name="Main_Session_HideFrame" xml:space="preserve">
+    <value>Hide frame</value>
+    <comment>Frameless windows</comment>
+  </data>
   <data name="Main_Session_Reconnect" xml:space="preserve">
     <value>Reconnect</value>
     <comment>Session card: small button that reconnects the session. Space is tight: three buttons share about 225 px</comment>
+  </data>
+  <data name="Main_Session_ShowFrame" xml:space="preserve">
+    <value>Show frame</value>
+    <comment>Frameless windows</comment>
   </data>
   <data name="Main_Session_Thumbnail_Tooltip" xml:space="preserve">
     <value>Bring this session to the front</value>
@@ -2281,6 +2357,10 @@ The log is at {1}</value>
     <value>Save the set and start every enabled item now</value>
     <comment>Tooltip of the 'Launch now' button</comment>
   </data>
+  <data name="Multi_MapHint_Rectangle" xml:space="preserve">
+    <value>Drag the window to move it, or drag an edge or corner to resize it. It snaps to monitor and taskbar edges and to the other windows in the set, and stays on the screens; hold Ctrl to place it freely. Click a monitor to move it there. The arrow keys nudge it, Shift+arrow keys resize it and Ctrl makes the step one pixel.</value>
+    <comment>Frameless windows</comment>
+  </data>
   <data name="Multi_Map_Header" xml:space="preserve">
     <value>LAYOUT MAP</value>
     <comment>Section header (all caps by design) above the drawing of the user's monitors</comment>
@@ -2349,6 +2429,10 @@ The log is at {1}</value>
     <value>Window {0} x {1} at {2}, {3}</value>
     <comment>Item summary in the list. {0} = width, {1} = height, {2} = left, {3} = top, all in pixels</comment>
   </data>
+  <data name="Multi_Summary_Frameless" xml:space="preserve">
+    <value>{0}, no frame</value>
+    <comment>Frameless windows; 1 placeholder(s)</comment>
+  </data>
   <data name="Multi_Summary_FullScreenDefault" xml:space="preserve">
     <value>Full screen, wherever the connection puts it</value>
     <comment>Item summary in the list: full screen with no placement of its own</comment>
@@ -2369,6 +2453,22 @@ The log is at {1}</value>
     <value>Windowed {0} x {1}</value>
     <comment>Item summary in the list. {0} = width, {1} = height, in pixels</comment>
   </data>
+  <data name="Multi_Warning_FramelessNeedsEmbedded" xml:space="preserve">
+    <value>Some windows in this set are meant to open without a frame. That needs “Host the remote desktop inside this app” in Settings; with the external client they open with a frame.</value>
+    <comment>Frameless windows</comment>
+  </data>
+  <data name="Multi_Warning_FramelessNeedsRestart" xml:space="preserve">
+    <value>Some windows in this set are meant to open without a frame. “Host the remote desktop inside this app” is on, but it takes effect the next time you start the app; until then they open with a frame.</value>
+    <comment>Frameless windows</comment>
+  </data>
+  <data name="Multi_Warning_Overlap" xml:space="preserve">
+    <value>Windows in this set overlap: {0}. Give them “At a position I choose” and drag them apart on the map, so they sit edge to edge.</value>
+    <comment>Frameless windows; 1 placeholder(s)</comment>
+  </data>
+  <data name="Multi_Warning_Overlap_Pair" xml:space="preserve">
+    <value>{0} and {1}</value>
+    <comment>Frameless windows; 2 placeholder(s)</comment>
+  </data>
   <data name="Multi_Warning_SameScreen" xml:space="preserve">
     <value>Two sessions will take over the same screen - {0}. That is usually a mistake, but it is allowed.</value>
     <comment>Warning at the bottom of the editor. {0} = one or more Multi_Warning_SameScreen_Clash texts joined with '; '</comment>
@@ -2380,6 +2480,30 @@ The log is at {1}</value>
   <data name="Rdp_ImportedConnection_Name" xml:space="preserve">
     <value>Imported connection</value>
     <comment>Name given to a connection imported from an .rdp file when the file name gives no usable name</comment>
+  </data>
+  <data name="SessionBar_FullScreen_Tooltip" xml:space="preserve">
+    <value>Full screen (Ctrl+Alt+Break)</value>
+    <comment>Session bar</comment>
+  </data>
+  <data name="SessionBar_ShowFrame_Tooltip" xml:space="preserve">
+    <value>Show window frame, to move or resize the window</value>
+    <comment>Session bar</comment>
+  </data>
+  <data name="Session_Menu_AlwaysOnTop" xml:space="preserve">
+    <value>Always on top</value>
+    <comment>Session window menu item</comment>
+  </data>
+  <data name="Session_Menu_HideFrame" xml:space="preserve">
+    <value>Hide window frame</value>
+    <comment>Frameless windows</comment>
+  </data>
+  <data name="Session_Menu_ShowFrame" xml:space="preserve">
+    <value>Show window frame</value>
+    <comment>Frameless windows</comment>
+  </data>
+  <data name="Session_Menu_SmartSizing" xml:space="preserve">
+    <value>Smart sizing</value>
+    <comment>Session window menu item</comment>
   </data>
   <data name="Session_State_Connected" xml:space="preserve">
     <value>Connected</value>
@@ -2566,11 +2690,11 @@ The log is at {1}</value>
     <comment>Settings section header (all caps by design)</comment>
   </data>
   <data name="Settings_FullScreen_SessionBar" xml:space="preserve">
-    <value>Show the session bar in full-screen sessions</value>
+    <value>Show the session bar in full-screen and frameless sessions</value>
     <comment>Settings toggle. The session bar is this app's own bar on the top edge of a full-screen session, for switching between sessions</comment>
   </data>
   <data name="Settings_FullScreen_SessionBar_Hint" xml:space="preserve">
-    <value>Rest the pointer on the top edge of a full-screen session to switch to any other running connection with one click, or scroll over the bar to flip through them. The bar also minimises, leaves full screen and disconnects.</value>
+    <value>Rest the pointer on the top edge of a full-screen session, or of a session window without a frame, to switch to any other running connection with one click, or scroll over the bar to flip through them. The bar also minimises, goes into or out of full screen, shows a frameless window's frame and disconnects.</value>
     <comment>Settings hint under Settings_FullScreen_SessionBar</comment>
   </data>
   <data name="Settings_QuickLaunch_Header" xml:space="preserve">

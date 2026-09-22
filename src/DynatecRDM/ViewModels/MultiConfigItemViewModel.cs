@@ -287,6 +287,7 @@ public sealed class MultiConfigItemViewModel : ObservableObject, IDisposable
                 _ => UiLanguage.Format(Strings.Multi_Summary_Windowed, layout.DesktopWidth, layout.DesktopHeight),
             };
 
+            if (layout.IsFrameless) text = UiLanguage.Format(Strings.Multi_Summary_Frameless, text);
             if (Display.AlwaysOnTop) text = UiLanguage.Format(Strings.Multi_Summary_AlwaysOnTop, text);
             return text;
         }
@@ -317,6 +318,22 @@ public sealed class MultiConfigItemViewModel : ObservableObject, IDisposable
                 DisplayLayoutKind.MaximizedWindow => layout.Monitor?.WorkArea,
                 _ => layout.Monitors.Count == 0 && layout.Monitor is null ? null : layout.WindowRect,
             };
+        }
+    }
+
+    /// <summary>
+    /// What shows of this item's window, for the set's other windows to line up with. Null for full
+    /// screen and maximized, whose edges are a monitor's own and snap already, and for an item whose
+    /// connection is gone.
+    /// </summary>
+    public PixelRect? SnapBody
+    {
+        get
+        {
+            if (IsMissing) return null;
+            var layout = Display.Layout;
+            if (layout.Kind is not (DisplayLayoutKind.Window or DisplayLayoutKind.WindowAtRectangle)) return null;
+            return layout.Monitor is null ? null : layout.VisibleRect;
         }
     }
 

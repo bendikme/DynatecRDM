@@ -37,6 +37,7 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
         _dispatcher = Dispatcher.CurrentDispatcher;
         _changed = changed;
         _display = display ?? throw new ArgumentNullException(nameof(display));
+        FramelessSupported = services.Sessions is EmbeddedSessionManager;
 
         ResolutionOptions = BuildResolutionOptions();
         ColorDepthOptions = BuildColorDepthOptions();
@@ -57,6 +58,19 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
 
     /// <summary>The settings being edited - the same object the editor was given, changed in place.</summary>
     public DisplaySettings Settings => _display;
+
+    /// <summary>
+    /// The client this app runs can open a window without a frame - only the in-app one can. It is
+    /// chosen when the app starts, so it holds for as long as the editor is open.
+    /// </summary>
+    public bool FramelessSupported { get; }
+
+    /// <summary>
+    /// Other windows the rectangle lines up with while it is dragged: what shows of them, in
+    /// virtual-desktop pixels. The multi-config editor gives each item the set's other items;
+    /// the connection editor gives nothing, and the rectangle snaps to the monitors alone.
+    /// </summary>
+    public Func<IReadOnlyList<PixelRect>>? SnapNeighbours { get; set; }
 
     /// <summary>Clicking a monitor tile on the map.</summary>
     public RelayCommand SelectMonitorCommand { get; }
@@ -285,6 +299,44 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
     /// </summary>
     public bool IsMultiMonitorLayout => CurrentLayout().UsesMultimon;
 
+    /// <summary>
+    /// The note that a multimon session cannot shrink to a window - true of mstsc. The in-app client
+    /// fits the session to the window when it leaves full screen, so there the note is not shown.
+    /// </summary>
+    public bool ShowMultiMonitorNote => IsMultiMonitorLayout && !FramelessSupported;
+
+    /// <summary>
+    /// The chosen displays do not all touch, so only some of them are used. Null when they do, or
+    /// when the layout is not a set of displays at all.
+    /// </summary>
+    public string? NotAdjacentWarning
+    {
+        get
+        {
+            if (_display.Placement != WindowPlacementMode.SelectedMonitors) return null;
+            var monitors = KnownMonitors();
+            var chosen = DisplayLayout.ChosenMonitors(_display, monitors);
+            if (chosen.Count < 2) return null;
+
+            var used = ScreenGeometry.TouchingGroup(chosen);
+            if (used.Count == chosen.Count) return null;
+
+            var numbers = used.Select(MonitorNumber).ToList();
+            var opens = used.Count == 1
+                ? UiLanguage.Format(Strings.Editor_Monitors_NotAdjacent_One, numbers[0])
+                : UiLanguage.Format(Strings.Editor_Monitors_NotAdjacent_Many, JoinList(numbers));
+
+            // And the ones left out, which stay in the set - marked on the map - until clicked away.
+            var unused = chosen.Where(m => !used.Contains(m)).Select(MonitorNumber).ToList();
+            var left = unused.Count == 1
+                ? UiLanguage.Format(Strings.Editor_Monitors_NotAdjacent_UnusedOne, unused[0])
+                : UiLanguage.Format(Strings.Editor_Monitors_NotAdjacent_UnusedMany, JoinList(unused));
+            return opens + " " + left;
+        }
+    }
+
+    public bool ShowNotAdjacentWarning => NotAdjacentWarning is not null;
+
     /// <summary>What clicking the map does in the current layout.</summary>
     public string MapHint => _display.Placement switch
     {
@@ -292,7 +344,9 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
         WindowPlacementMode.SelectedMonitors => Strings.Editor_Monitors_Selected_Hint,
         WindowPlacementMode.SpanAllMonitors => Strings.Editor_MapHint_All,
         WindowPlacementMode.SpecificMonitorMaximized => Strings.Editor_MapHint_Maximized,
-        WindowPlacementMode.CustomRectangle => Strings.Editor_MapHint_Rectangle,
+        WindowPlacementMode.CustomRectangle => SnapNeighbours is null
+            ? Strings.Editor_MapHint_Rectangle
+            : Strings.Multi_MapHint_Rectangle,
         _ => Strings.Editor_MapHint_Automatic,
     };
 
@@ -417,8 +471,101 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
     /// places, the window a one-monitor full-screen session drops back to, and the size a maximized
     /// window restores to. A rectangle carries its own size, and a multimon session keeps its layout.
     /// </summary>
-    public bool ShowWindowSize => CurrentLayout().Kind is DisplayLayoutKind.FullScreen
-        or DisplayLayoutKind.Window or DisplayLayoutKind.MaximizedWindow;
+    public bool ShowWindowSize
+    {
+        get
+        {
+            // A maximized window without a frame is simply as big as the work area: there is no
+            // smaller size for it to go back to.
+            var layout = CurrentLayout();
+            return layout.Kind is DisplayLayoutKind.FullScreen or DisplayLayoutKind.Window
+                || (layout.Kind == DisplayLayoutKind.MaximizedWindow && !layout.IsFrameless);
+        }
+    }
+
+    /// <summary>
+    /// Open the window with no title bar or borders, so sessions placed edge to edge meet without a
+    /// seam. Kept while the session is full screen, which ignores it, like the rectangle is.
+    /// </summary>
+    public bool Frameless
+    {
+        get => _display.Frameless;
+        set
+        {
+            if (_display.Frameless == value) return;
+
+            // A rectangle is lined up by what shows of the window: framed, the rectangle less its
+            // invisible resize borders; frameless, the rectangle itself. So what showed stays where it
+            // was, and edges lined up with monitors or other windows stay lined up.
+            var convert = FramelessSupported && IsCustomRectangle && KnownMonitors().Count > 0;
+            var before = CustomRect;
+            var framedInsets = RectInsets(before);   // still framed if the frame is going now
+
+            _display.Frameless = value;
+            OnPropertyChanged();
+            RaiseDisplay();
+
+            if (convert)
+            {
+                // Going: the window becomes what showed. Coming back: the invisible borders grow around it.
+                var next = value ? WithoutFrame(before, framedInsets) : RectInsets(before).Inflate(before);
+                if (next != before)
+                {
+                    SetCustomRect(next);
+                    return;
+                }
+            }
+
+            // What shows of the window changes, and with it what counts as on the screens.
+            UpdateCustomRectVisual();
+            Changed();
+        }
+    }
+
+    /// <summary>
+    /// The frameless window for a framed <paramref name="rect"/>: what showed of it. An edge already
+    /// exactly on a monitor, taskbar or neighbour line - lined up as a whole window, as rectangles
+    /// drawn before snapping worked on what shows were - stays on it.
+    /// </summary>
+    private PixelRect WithoutFrame(PixelRect rect, PixelInsets insets)
+    {
+        var vertical = new HashSet<int>();
+        var horizontal = new HashSet<int>();
+        foreach (var m in KnownMonitors())
+        {
+            vertical.UnionWith(new[] { m.Left, m.Right, m.WorkArea.Left, m.WorkArea.Right });
+            horizontal.UnionWith(new[] { m.Top, m.Bottom, m.WorkArea.Top, m.WorkArea.Bottom });
+        }
+        try
+        {
+            foreach (var n in SnapNeighbours?.Invoke() ?? Array.Empty<PixelRect>())
+            {
+                vertical.UnionWith(new[] { n.Left, n.Right });
+                horizontal.UnionWith(new[] { n.Top, n.Bottom });
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug_($"Reading the other windows failed: {ex.Message}");
+        }
+
+        static int Pick(int whole, int shown, HashSet<int> lines) =>
+            lines.Contains(whole) && !lines.Contains(shown) ? whole : shown;
+
+        return PixelRect.FromEdges(
+            Pick(rect.Left, rect.Left + insets.Left, vertical),
+            Pick(rect.Top, rect.Top + insets.Top, horizontal),
+            Pick(rect.Right, rect.Right - insets.Right, vertical),
+            Pick(rect.Bottom, rect.Bottom - insets.Bottom, horizontal));
+    }
+
+    /// <summary>A window is to open without a frame, but this app's client cannot open one.</summary>
+    public bool ShowFramelessUnsupported => IsWindowed && _display.Frameless && !FramelessSupported;
+
+    /// <summary>Why it cannot: the in-app client is off, or switched on but not running until a restart.</summary>
+    public string FramelessUnsupportedText => _services.Settings.UseEmbeddedClient
+        ? Strings.Editor_Frameless_NeedsRestart
+        : Strings.Editor_Frameless_NeedsEmbedded;
 
     public string WindowSizeLabel => _display.Placement switch
     {
@@ -622,7 +769,7 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
         }
     }
 
-    private DisplayLayout CurrentLayout() => DisplayLayout.Resolve(_display, KnownMonitors());
+    private DisplayLayout CurrentLayout() => DisplayLayout.Resolve(_display, KnownMonitors(), FramelessSupported);
 
     private void RebuildTiles()
     {
@@ -693,6 +840,7 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
                 W = Math.Max(30d, m.Width * scale - 3),
                 H = Math.Max(24d, m.Height * scale - 3),
                 IsHighlighted = IsTargeted(layout, m),
+                IsUnused = IsChosenButUnused(layout, m),
             };
             MonitorTiles.Add(tile);
         }
@@ -711,6 +859,19 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
         return false;
     }
 
+    /// <summary>
+    /// A monitor in the chosen set that the session will not use, because it does not touch the
+    /// rest. It stays in the set - clicking it takes it out - so the map marks it rather than
+    /// showing it as if it were not chosen at all.
+    /// </summary>
+    private bool IsChosenButUnused(DisplayLayout layout, MonitorInfo monitor)
+    {
+        if (_display.Placement != WindowPlacementMode.SelectedMonitors || IsTargeted(layout, monitor)) return false;
+        foreach (var m in DisplayLayout.ChosenMonitors(_display, _monitors))
+            if (m.Index == monitor.Index) return true;
+        return false;
+    }
+
     private void RefreshHighlights()
     {
         var layout = CurrentLayout();
@@ -718,6 +879,7 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
         {
             var monitor = DisplayLayout.ByIndex(_monitors, tile.Index);
             tile.IsHighlighted = monitor is not null && IsTargeted(layout, monitor);
+            tile.IsUnused = monitor is not null && IsChosenButUnused(layout, monitor);
         }
     }
 
@@ -755,7 +917,7 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
                     work.Top + (work.Height - rect.Height) / 2,
                     rect.Width,
                     rect.Height);
-                SetCustomRect(ScreenGeometry.FitOnScreens(moved, monitors, MinWindowWidth, MinWindowHeight));
+                SetCustomRect(ScreenGeometry.FitOnScreens(moved, monitors, MinWindowWidth, MinWindowHeight, RectInsets(moved)));
                 return;
             }
 
@@ -862,22 +1024,15 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
 
         var display = _display;
         var target = monitor ?? DisplayLayout.PrimaryOf(monitors)!;
-        if (ScreenGeometry.IsOnScreens(CustomRect, monitors)
+        if (ScreenGeometry.IsOnScreens(RectInsets(CustomRect).Deflate(CustomRect), monitors)
             && ScreenGeometry.MostOverlapping(monitors, CustomRect)?.Index == target.Index)
         {
             return;
         }
 
-        var window = DisplayLayout.Resolve(
-            new DisplaySettings
-            {
-                ScreenMode = ScreenMode.Windowed,
-                Placement = WindowPlacementMode.SpecificMonitorMaximized,
-                TargetMonitorIndex = target.Index,
-                DesktopWidth = display.DesktopWidth,
-                DesktopHeight = display.DesktopHeight,
-            },
-            monitors).WindowRect;
+        // The size the window would have had, frame and all - or without one, just the session.
+        var window = DisplayLayout.CenteredOn(
+            target, display.DesktopWidth, display.DesktopHeight, frameless: FramelessSupported && display.Frameless);
 
         display.CustomLeft = window.Left;
         display.CustomTop = window.Top;
@@ -922,11 +1077,13 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
 
             case WindowPlacementMode.SelectedMonitors when monitors.Count > 0:
             {
-                var layout = DisplayLayout.Resolve(display, monitors);
-                if (!layout.UsesMultimon)
+                // One chosen display is simply full screen on it. Two or more stay a set - even one
+                // that does not all touch, which the tab then explains rather than quietly redoing.
+                var chosen = DisplayLayout.ChosenMonitors(display, monitors);
+                if (chosen.Count < 2)
                 {
                     display.Placement = WindowPlacementMode.SpecificMonitorFullscreen;
-                    display.TargetMonitorIndex = layout.Monitor?.Index ?? primary?.Index ?? 0;
+                    display.TargetMonitorIndex = chosen.Count == 1 ? chosen[0].Index : primary?.Index ?? 0;
                 }
                 break;
             }
@@ -947,6 +1104,8 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
     private double _mapOffsetY;
     private PixelRect _dragStart;
     private bool _dragging;
+    private PixelInsets _dragInsets;
+    private IReadOnlyList<PixelRect>? _dragNeighbours;
 
     private PixelRect CustomRect => new(
         _display.CustomLeft, _display.CustomTop,
@@ -957,24 +1116,50 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
     {
         if (!CanEditRectangle) return;
         _dragStart = CustomRect;
+        _dragInsets = RectInsets(_dragStart);
+
+        // Nothing else moves during a drag, so the other windows are read once.
+        _dragNeighbours = null;
+        try
+        {
+            _dragNeighbours = SnapNeighbours?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("Reading the other windows to line up with failed.", ex);
+        }
+
         _dragging = true;
     }
 
     /// <summary>
     /// The pointer has moved this far, in map pixels, since the drag began. The rectangle follows,
-    /// snapping to monitor and taskbar edges, and never leaves the screens.
+    /// snapping to monitor and taskbar edges and to the other windows it is given, and never leaves
+    /// the screens. <paramref name="snap"/> false (Ctrl held) places it exactly where the pointer is.
     /// </summary>
-    public void DragRectangle(RectEdges edges, double mapDx, double mapDy)
+    public void DragRectangle(RectEdges edges, double mapDx, double mapDy, bool snap = true)
     {
         if (!_dragging || _mapScale <= 0) return;
 
         var dx = (int)Math.Round(mapDx / _mapScale);
         var dy = (int)Math.Round(mapDy / _mapScale);
-        var snap = (int)Math.Round(SnapMapPixels / _mapScale);
+        var distance = snap ? (int)Math.Round(SnapMapPixels / _mapScale) : 0;
 
-        var next = edges == RectEdges.None
-            ? ScreenGeometry.Move(_dragStart, dx, dy, _monitors, snap)
-            : ScreenGeometry.Resize(_dragStart, edges, dx, dy, _monitors, MinWindowWidth, MinWindowHeight, snap);
+        PixelRect? Compute(PixelInsets insets) => edges == RectEdges.None
+            ? ScreenGeometry.Move(_dragStart, dx, dy, _monitors, distance, _dragNeighbours, insets)
+            : ScreenGeometry.Resize(_dragStart, edges, dx, dy, _monitors, MinWindowWidth, MinWindowHeight, distance,
+                _dragNeighbours, insets);
+
+        var next = Compute(_dragInsets);
+
+        // A framed window's invisible borders are as wide as the monitor it ends up on makes them.
+        // Dragged onto a monitor with other scaling, it is worked out again with that monitor's, so
+        // the rectangle agrees with the off-screen check and with what the other windows snap to.
+        if (next is { } first && RectInsets(first) is var landed && landed != _dragInsets
+            && Compute(landed) is { } again && RectInsets(again) == landed)
+        {
+            next = again;
+        }
 
         if (next is { } rect && rect != CustomRect) SetCustomRect(rect, rebuild: false);
     }
@@ -983,6 +1168,7 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
     {
         if (!_dragging) return;
         _dragging = false;
+        _dragNeighbours = null;
 
         // The map may have been drawn wider to show a rectangle that started off the screens.
         RebuildTiles();
@@ -1005,9 +1191,10 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
         }
 
         var start = CustomRect;
+        var insets = RectInsets(start);
         var next = edges == RectEdges.None
-            ? ScreenGeometry.Move(start, dx, dy, _monitors, 0)
-            : ScreenGeometry.Resize(start, edges, dx, dy, _monitors, MinWindowWidth, MinWindowHeight, 0);
+            ? ScreenGeometry.Move(start, dx, dy, _monitors, 0, insets: insets)
+            : ScreenGeometry.Resize(start, edges, dx, dy, _monitors, MinWindowWidth, MinWindowHeight, 0, insets: insets);
 
         if (next is { } rect && rect != start) SetCustomRect(rect);
     }
@@ -1024,7 +1211,7 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
                 Width = Math.Max(rect.Width, MinWindowWidth),
                 Height = Math.Max(rect.Height, MinWindowHeight),
             },
-            _monitors, MinWindowWidth, MinWindowHeight);
+            _monitors, MinWindowWidth, MinWindowHeight, RectInsets(rect));
 
         if (fitted != rect) SetCustomRect(fitted);
     }
@@ -1044,6 +1231,20 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
         Changed();
     }
 
+    /// <summary>
+    /// The part of a window at <paramref name="rect"/> that does not show: a framed window's invisible
+    /// resize borders, at the scale of the monitor it is on; nothing for a window without a frame.
+    /// Geometry is worked out on what shows, so edges meet with no gap and invisible borders never
+    /// count as being off the screens.
+    /// </summary>
+    private PixelInsets RectInsets(PixelRect rect)
+    {
+        if (FramelessSupported && _display.Frameless) return default;
+        var monitors = KnownMonitors();
+        var monitor = ScreenGeometry.MostOverlapping(monitors, rect) ?? DisplayLayout.PrimaryOf(monitors);
+        return ScreenGeometry.InvisibleFrame(monitor?.DpiX ?? 96);
+    }
+
     private void OnCustomRectTyped()
     {
         RebuildTiles();
@@ -1058,7 +1259,7 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
         CustomRectW = Math.Max(4d, display.CustomWidth * _mapScale);
         CustomRectH = Math.Max(4d, display.CustomHeight * _mapScale);
         CustomRectOffScreen = IsCustomRectangle && _monitors.Count > 0
-            && !ScreenGeometry.IsOnScreens(CustomRect, _monitors);
+            && !ScreenGeometry.IsOnScreens(RectInsets(CustomRect).Deflate(CustomRect), _monitors);
         OnPropertyChanged(nameof(CustomRectCaption));
     }
 
@@ -1085,7 +1286,9 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
         nameof(ScreenMode), nameof(FullScreenChoice), nameof(WindowChoice),
         nameof(IsFullScreen), nameof(IsWindowed), nameof(IsCustomRectangle), nameof(CanEditRectangle),
         nameof(IsMultiMonitorLayout), nameof(MapHint),
-        nameof(ShowWindowSize), nameof(WindowSizeLabel), nameof(WindowSizeHint));
+        nameof(ShowWindowSize), nameof(WindowSizeLabel), nameof(WindowSizeHint),
+        nameof(Frameless), nameof(ShowFramelessUnsupported), nameof(FramelessUnsupportedText),
+        nameof(ShowMultiMonitorNote), nameof(NotAdjacentWarning), nameof(ShowNotAdjacentWarning));
 
     // ....................................................................
     // Plain-language description of the layout
@@ -1095,7 +1298,8 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
     {
         var layout = CurrentLayout();
 
-        var text = DescribeStart(layout) + " " + DescribeSwitch(layout);
+        var text = DescribeStart(layout) + " " + DescribeSwitch(layout, FramelessSupported);
+        if (ShowFramelessUnsupported) text += " " + Strings.Editor_Outcome_FramedFallback;
         if (_display.AlwaysOnTop) text += " " + Strings.Editor_Outcome_OnTop;
 
         PlacementPreview = text;
@@ -1131,6 +1335,15 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
                 return UiLanguage.Format(Strings.Editor_Outcome_AcrossSelected, JoinList(names));
             }
 
+            case DisplayLayoutKind.MaximizedWindow when layout.IsFrameless:
+                return monitor is null
+                    ? Strings.Editor_Outcome_Maximized_Frameless_Unknown
+                    : UiLanguage.Format(
+                        Strings.Editor_Outcome_Maximized_Frameless,
+                        MonitorNumber(monitor), monitor.FriendlyName,
+                        layout.WindowRect.Width.ToString(CultureInfo.InvariantCulture),
+                        layout.WindowRect.Height.ToString(CultureInfo.InvariantCulture));
+
             case DisplayLayoutKind.MaximizedWindow:
                 return monitor is null
                     ? Strings.Editor_Outcome_Maximized_Unknown
@@ -1138,7 +1351,7 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
 
             case DisplayLayoutKind.WindowAtRectangle:
                 return UiLanguage.Format(
-                    Strings.Editor_Outcome_Rectangle,
+                    layout.IsFrameless ? Strings.Editor_Outcome_Rectangle_Frameless : Strings.Editor_Outcome_Rectangle,
                     layout.WindowRect.Left.ToString(CultureInfo.InvariantCulture),
                     layout.WindowRect.Top.ToString(CultureInfo.InvariantCulture),
                     layout.WindowRect.Width.ToString(CultureInfo.InvariantCulture),
@@ -1146,7 +1359,7 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
 
             default:
                 return UiLanguage.Format(
-                    Strings.Editor_Outcome_Window,
+                    layout.IsFrameless ? Strings.Editor_Outcome_Window_Frameless : Strings.Editor_Outcome_Window,
                     layout.DesktopWidth.ToString(CultureInfo.InvariantCulture),
                     layout.DesktopHeight.ToString(CultureInfo.InvariantCulture),
                     monitor is null ? "1" : MonitorNumber(monitor));
@@ -1154,7 +1367,7 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>What happens when the window changes size - above all, between full screen and a window.</summary>
-    private static string DescribeSwitch(DisplayLayout layout)
+    private static string DescribeSwitch(DisplayLayout layout, bool inAppClient)
     {
         var desktop = (
             layout.DesktopWidth.ToString(CultureInfo.InvariantCulture),
@@ -1176,6 +1389,9 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
             }
 
             case DisplayLayoutKind.FullScreenMultiMonitor:
+                // The in-app client fits a session that follows the window to it, and spreads it over
+                // the displays again on the way back; mstsc keeps the whole layout in the window.
+                if (inAppClient && layout.Resize == ResizeBehavior.FollowWindow) return Strings.Editor_Outcome_Switch_MultiFollow;
                 return layout.Resize == ResizeBehavior.Scale
                     ? Strings.Editor_Outcome_Switch_MultiScaled
                     : Strings.Editor_Outcome_Switch_Multi;
@@ -1327,6 +1543,14 @@ public sealed class DisplayEditorViewModel : ObservableObject, IDisposable
         {
             get => _isHighlighted;
             set => SetProperty(ref _isHighlighted, value);
+        }
+
+        /// <summary>Chosen, but left out of the session because it does not touch the others.</summary>
+        private bool _isUnused;
+        public bool IsUnused
+        {
+            get => _isUnused;
+            set => SetProperty(ref _isUnused, value);
         }
     }
 }

@@ -12,6 +12,13 @@ public interface ISessionBarHost
     void SwitchTo(RdpSession session);
     void Minimize(RdpSession session);
     void ExitFullScreen(RdpSession session);
+
+    /// <summary>Takes a session's window full screen - offered when the bar is over a window without a frame.</summary>
+    void EnterFullScreen(RdpSession session) { }
+
+    /// <summary>Shows the frame of a window without one, so it can be moved or resized.</summary>
+    void ShowFrame(RdpSession session) { }
+
     void Disconnect(RdpSession session);
     void LaunchAnother();
     void OpenManager();
@@ -48,10 +55,13 @@ public sealed class SessionBarViewModel : ObservableObject
     private readonly DispatcherTimer _confirmTimer;
     private readonly RelayCommand _minimizeCommand;
     private readonly RelayCommand _exitFullScreenCommand;
+    private readonly RelayCommand _enterFullScreenCommand;
+    private readonly RelayCommand _showFrameCommand;
     private readonly RelayCommand _disconnectCommand;
 
     private SessionBarTab? _current;
     private bool _isConfirmingDisconnect;
+    private bool _isOverWindow;
 
     public SessionBarViewModel(ISessionBarHost host, Func<bool> confirmCloses)
     {
@@ -70,6 +80,8 @@ public sealed class SessionBarViewModel : ObservableObject
 
         _minimizeCommand = new RelayCommand(() => Act(_host.Minimize), () => _current is not null);
         _exitFullScreenCommand = new RelayCommand(() => Act(_host.ExitFullScreen), () => _current is not null);
+        _enterFullScreenCommand = new RelayCommand(() => Act(_host.EnterFullScreen), () => _current is not null);
+        _showFrameCommand = new RelayCommand(() => Act(_host.ShowFrame), () => _current is not null);
         _disconnectCommand = new RelayCommand(Disconnect, () => _current is not null);
     }
 
@@ -80,7 +92,19 @@ public sealed class SessionBarViewModel : ObservableObject
     public ICommand OpenManagerCommand { get; }
     public ICommand MinimizeCommand => _minimizeCommand;
     public ICommand ExitFullScreenCommand => _exitFullScreenCommand;
+    public ICommand EnterFullScreenCommand => _enterFullScreenCommand;
+    public ICommand ShowFrameCommand => _showFrameCommand;
     public ICommand DisconnectCommand => _disconnectCommand;
+
+    /// <summary>
+    /// The bar hangs from a window without a frame rather than a full-screen monitor: it offers
+    /// full screen and the frame instead of leaving full screen.
+    /// </summary>
+    public bool IsOverWindow
+    {
+        get => _isOverWindow;
+        set => SetProperty(ref _isOverWindow, value);
+    }
 
     /// <summary>The session in front, or null when the bar is not over one of ours.</summary>
     public RdpSession? Current => _current?.Session;
@@ -139,6 +163,8 @@ public sealed class SessionBarViewModel : ObservableObject
         OnPropertyChanged(nameof(Current));
         _minimizeCommand.RaiseCanExecuteChanged();
         _exitFullScreenCommand.RaiseCanExecuteChanged();
+        _enterFullScreenCommand.RaiseCanExecuteChanged();
+        _showFrameCommand.RaiseCanExecuteChanged();
         _disconnectCommand.RaiseCanExecuteChanged();
     }
 

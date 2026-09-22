@@ -61,8 +61,11 @@ internal static class LiveSessionChecks
                 else HoverCycles(bar, session, monitor);
                 return;
             }
+            // The bar hangs from a surface: here the monitor the full-screen session fills.
+            var fullScreen = Activator.CreateInstance(
+                typeof(SessionBarService).GetNestedType("BarSurface", BindingFlags.NonPublic)!, monitor, monitor.Bounds, false)!;
             typeof(SessionBarService).GetMethod("ShowBar", BindingFlags.NonPublic | BindingFlags.Instance)!
-                .Invoke(bar, new object[] { monitor, session, false });
+                .Invoke(bar, new object[] { fullScreen, session, false });
             var barWindow = (SessionBarWindow)typeof(SessionBarService).GetField("_window", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(bar)!;
             Check(barWindow.IsRevealed, "Bar did not reveal over the connected desktop.");
             bar.Minimize(session);

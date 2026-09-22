@@ -46,6 +46,13 @@ public sealed class DisplaySettings
     /// <summary>Keep the session window above other windows.</summary>
     public bool AlwaysOnTop { get; set; }
 
+    /// <summary>
+    /// A windowed session opens with no title bar or borders, so windows placed edge to edge meet
+    /// without a seam. Only the in-app client can do this; full screen ignores it, and the .rdp
+    /// file has no such line.
+    /// </summary>
+    public bool Frameless { get; set; }
+
     public DisplaySettings Clone() => new()
     {
         ScreenMode = ScreenMode,
@@ -65,6 +72,7 @@ public sealed class DisplaySettings
         CustomWidth = CustomWidth,
         CustomHeight = CustomHeight,
         AlwaysOnTop = AlwaysOnTop,
+        Frameless = Frameless,
     };
 }
 

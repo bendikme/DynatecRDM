@@ -153,6 +153,8 @@ public sealed class SessionManager : ISessionManager, IDisposable
         }
 
         var display = (displayOverride ?? connection.Display).Clone();
+        if (display.Frameless && DisplayLayout.Resolve(display, null, framelessSupported: true).IsFrameless)
+            AppLog.Info($"'{connection.Name}' is set to open without a frame, which only the in-app client can do; it opens with a frame.");
 
         string? nameOverride = null;
         if (extraProperties is { Count: > 0 } && extraProperties.TryGetValue(DisplayNameKey, out var label))

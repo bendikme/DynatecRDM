@@ -1,5 +1,6 @@
 using System;
 using AxMSTSCLib;
+using DynatecRDM.Services;
 using MSTSCLib;
 
 namespace DynatecRDM.Rdp;
@@ -158,9 +159,28 @@ public sealed class RdpControlHost : IDisposable
     /// caller's concern; pass the pixel size the session should render at). This is the dynamic
     /// resolution that external clients no longer let us drive. No-op until the session is connected.
     /// </summary>
-    public void UpdateResolution(int width, int height, int desktopScaleFactor = 100, int deviceScaleFactor = 100)
+    /// <summary>
+    /// Sends the session the display layout the control works out for itself - for a full-screen
+    /// multimon session, every display it covers. False when the session would not take it yet.
+    /// </summary>
+    public bool SyncDisplaySettings()
     {
-        if (!IsConnected) return;
+        if (!IsConnected) return false;
+        try
+        {
+            ((IMsRdpClient9)Ocx).SyncSessionDisplaySettings();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug_($"The session would not take the display layout yet: {ex.Message}");
+            return false;
+        }
+    }
+
+    public bool UpdateResolution(int width, int height, int desktopScaleFactor = 100, int deviceScaleFactor = 100)
+    {
+        if (!IsConnected) return false;
 
         // The control rejects odd sizes and out-of-range factors with E_UNEXPECTED, so clamp to its
         // documented limits: sizes even and within [200, 8192]; desktop scale 100-500; device scale
@@ -170,8 +190,17 @@ public sealed class RdpControlHost : IDisposable
         var desktopScale = (uint)Clamp(desktopScaleFactor, 100, 500);
         var deviceScale = (uint)(deviceScaleFactor >= 180 ? 180 : deviceScaleFactor >= 140 ? 140 : 100);
 
-        try { ((IMsRdpClient9)Ocx).UpdateSessionDisplaySettings(w, h, w, h, 0, desktopScale, deviceScale); }
-        catch { /* the session may not support display control yet; ignore and try again on the next resize */ }
+        try
+        {
+            ((IMsRdpClient9)Ocx).UpdateSessionDisplaySettings(w, h, w, h, 0, desktopScale, deviceScale);
+            return true;
+        }
+        catch
+        {
+            // The session may not support display control yet - just after signing in, say. The
+            // caller tries again a little later, and on the next resize anyway.
+            return false;
+        }
     }
 
     private static int Clamp(int value, int min, int max) => value < min ? min : value > max ? max : value;

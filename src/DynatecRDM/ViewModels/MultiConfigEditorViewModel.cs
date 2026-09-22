@@ -525,8 +525,22 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
     private MultiConfigItemViewModel CreateItem(MultiConfigItem model, RdpConnection? connection)
     {
         var item = new MultiConfigItemViewModel(_services, model, connection, ScheduleRefresh);
+        // Dragged on the map, an item's window lines up with the set's other windows.
+        item.Display.SnapNeighbours = () => NeighbourBodies(item);
         item.Display.EnsureMonitorMap();
         return item;
+    }
+
+    /// <summary>What shows of every other item's window, for <paramref name="self"/> to line up with.</summary>
+    private IReadOnlyList<PixelRect> NeighbourBodies(MultiConfigItemViewModel self)
+    {
+        var bodies = new List<PixelRect>(Items.Count);
+        foreach (var item in Items)
+        {
+            if (ReferenceEquals(item, self)) continue;
+            if (item.SnapBody is { } body) bodies.Add(body);
+        }
+        return bodies;
     }
 
     /// <summary>Drops the monitor subscriptions; called when the window closes.</summary>
@@ -875,10 +889,40 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
                     owners[monitor.Value] = item.DisplayName;
             }
 
+            var warnings = new List<string>(3);
             if (clashes.Count > 0)
+                warnings.Add(UiLanguage.Format(Strings.Multi_Warning_SameScreen, string.Join("; ", clashes)));
+
+            // Windows without a frame are meant to sit edge to edge; one on top of another is
+            // almost always a slip on the map. A pixel or two is the rounding to even sizes. Every
+            // window counts, maximized ones included; each layout is resolved once.
+            var overlaps = new List<string>();
+            var windows = new List<(MultiConfigItemViewModel Item, PixelRect Body, bool Frameless)>();
+            foreach (var item in Items)
             {
-                warning = UiLanguage.Format(Strings.Multi_Warning_SameScreen, string.Join("; ", clashes));
+                if (!item.Enabled || item.IsMissing) continue;
+                var layout = item.Display.Layout;
+                if (layout.IsFullScreen || layout.Monitor is null || layout.VisibleRect is not { } body) continue;
+                windows.Add((item, body, layout.IsFrameless));
             }
+            for (var a = 0; a < windows.Count; a++)
+            for (var b = a + 1; b < windows.Count; b++)
+            {
+                if (!windows[a].Frameless && !windows[b].Frameless) continue;
+                if (Overlap(windows[a].Body, windows[b].Body) > 2)
+                    overlaps.Add(UiLanguage.Format(Strings.Multi_Warning_Overlap_Pair,
+                        windows[a].Item.DisplayName, windows[b].Item.DisplayName));
+            }
+            if (overlaps.Count > 0)
+                warnings.Add(UiLanguage.Format(Strings.Multi_Warning_Overlap, string.Join("; ", overlaps)));
+
+            // As the item's own hint: the in-app client is off - or on, and waiting for a restart.
+            if (Items.Any(i => i.Enabled && i.Display.ShowFramelessUnsupported))
+                warnings.Add(_services.Settings.UseEmbeddedClient
+                    ? Strings.Multi_Warning_FramelessNeedsRestart
+                    : Strings.Multi_Warning_FramelessNeedsEmbedded);
+
+            if (warnings.Count > 0) warning = string.Join("\n", warnings);
         }
 
         ErrorText = error;
@@ -892,6 +936,14 @@ public sealed class MultiConfigEditorViewModel : ObservableObject
             : null;
 
         RaiseCommandStates();
+    }
+
+    /// <summary>How far two rectangles overlap: the smaller of the shared width and height, 0 when apart.</summary>
+    private static int Overlap(PixelRect a, PixelRect b)
+    {
+        var w = Math.Min(a.Right, b.Right) - Math.Max(a.Left, b.Left);
+        var h = Math.Min(a.Bottom, b.Bottom) - Math.Max(a.Top, b.Top);
+        return w > 0 && h > 0 ? Math.Min(w, h) : 0;
     }
 
     private void RaiseCommandStates()

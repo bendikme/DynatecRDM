@@ -771,22 +771,23 @@
                                    VerticalAlignment="Center" />
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal"
-                                Visibility="{Binding HasWarning, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
-                        <Path Data="{StaticResource MceAlert}"
+                    <!-- Several warnings can stand together, each saying what to do, so they wrap
+                         rather than lose their ends; the icon stays by the first line. -->
+                    <DockPanel Visibility="{Binding HasWarning, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                        <Path DockPanel.Dock="Left"
+                              Data="{StaticResource MceAlert}"
                               Width="14"
                               Height="14"
-                              Margin="0,0,7,0"
+                              Margin="0,1,7,0"
                               Stretch="Uniform"
-                              VerticalAlignment="Center"
+                              VerticalAlignment="Top"
                               Stroke="{DynamicResource WarningBrush}"
                               StrokeThickness="1.8"
                               StrokeLineJoin="Round" />
                         <TextBlock Text="{Binding WarningText}"
                                    Foreground="{DynamicResource WarningBrush}"
-                                   TextTrimming="CharacterEllipsis"
-                                   VerticalAlignment="Center" />
-                    </StackPanel>
+                                   TextWrapping="Wrap" />
+                    </DockPanel>
 
                     <TextBlock Text="{Binding InfoText}"
                                Foreground="{DynamicResource TextMutedBrush}"

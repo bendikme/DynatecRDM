@@ -34,12 +34,16 @@ public partial class TrayMenuWindow : Window
     private bool _allowClose;
     private bool _refitQueued;
 
+    /// <summary>Keeps the popup's last picture - as it was when it went away - off the screen.</summary>
+    private readonly FirstFrameCloak _cloak;
+
     public TrayMenuWindow(TrayMenuViewModel vm)
     {
         _viewModel = vm ?? throw new ArgumentNullException(nameof(vm));
 
         InitializeComponent();
         DataContext = vm;
+        _cloak = new FirstFrameCloak(this);
 
         ReleaseMainWindow();
 
@@ -95,6 +99,8 @@ public partial class TrayMenuWindow : Window
 
             if (!IsVisible)
             {
+                // Unseen until it has been drawn where and as it now is - see FirstFrameCloak.
+                _cloak.BeforeShow();
                 Show();
             }
 
@@ -126,6 +132,7 @@ public partial class TrayMenuWindow : Window
         try
         {
             Hide();
+            _cloak.Hidden();
             LastHiddenTicks = Environment.TickCount64;
             _viewModel.OnHidden();
         }
@@ -147,6 +154,7 @@ public partial class TrayMenuWindow : Window
         {
             _viewModel.CloseRequested -= OnCloseRequested;
             _viewModel.RowsChanged -= OnRowsChanged;
+            _cloak.Hidden();
             Close();
         }
         catch (Exception ex)

@@ -50,6 +50,14 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly DispatcherTimer _searchTimer;
     private readonly DispatcherTimer _clockTimer;
 
+    /// <summary>
+    /// When Disconnect took Connect's place for the selected connection, and the timer that lets it
+    /// act a double-click's time later. The two share one spot, so the second click of a double
+    /// click on Connect must not end the session the first one opened.
+    /// </summary>
+    private long _disconnectShownAt;
+    private readonly DispatcherTimer _disconnectArm;
+
     private readonly Dictionary<Guid, TreeNodeViewModel> _index = new();
     private readonly List<TreeNodeViewModel> _flat = new();
     private readonly Dictionary<Guid, ConnectionGroup> _groupsById = new();
@@ -114,6 +122,13 @@ public sealed partial class MainViewModel : ObservableObject
         };
         _clockTimer.Tick += OnClockTick;
 
+        _disconnectArm = new DispatcherTimer(DispatcherPriority.Input, _dispatcher);
+        _disconnectArm.Tick += (_, _) =>
+        {
+            _disconnectArm.Stop();
+            RaiseCommandStates();
+        };
+
         NewConnectionCommand = Async(_ => NewConnectionAsync());
         NewMultiConfigCommand = Async(_ => NewMultiConfigAsync());
         NewGroupCommand = Async(_ => NewGroupAsync());
@@ -123,6 +138,8 @@ public sealed partial class MainViewModel : ObservableObject
         DeleteSelectedCommand = Async(_ => DeleteSelectedAsync(), _ => _selectedNode is not null);
         ExportSelectedCommand = Async(_ => ExportSelectedAsync(), _ => _selectedNode is { IsConnection: true });
         ConnectSelectedCommand = Async(_ => ConnectSelectedAsync(), _ => _selectedNode is { IsConnection: true });
+        DisconnectSelectedCommand = Async(_ => DisconnectSelectedAsync(),
+            _ => _selectedNode is { IsConnection: true, IsRunning: true } && DisconnectArmed);
         ToggleFavoriteCommand = Async(_ => ToggleFavoriteAsync(), _ => _selectedNode is { IsGroup: false });
         LaunchMultiCommand = Async(_ => LaunchMultiAsync(), _ => _selectedNode is { IsMultiConfig: true });
         CloseMultiCommand = Async(_ => CloseMultiAsync(), _ => _selectedNode is { IsMultiConfig: true, IsRunning: true });
@@ -131,6 +148,7 @@ public sealed partial class MainViewModel : ObservableObject
         RefreshCommand = Async(_ => LoadAsync());
 
         FocusSessionCommand = Sync(FocusSession);
+        ToggleSessionFrameCommand = Sync(ToggleSessionFrame);
         ReconnectSessionCommand = Async(ReconnectSessionAsync);
         CloseSessionCommand = Async(CloseSessionAsync);
 
@@ -270,6 +288,7 @@ public sealed partial class MainViewModel : ObservableObject
     public ICommand DeleteSelectedCommand { get; }
     public ICommand ExportSelectedCommand { get; }
     public ICommand ConnectSelectedCommand { get; }
+    public ICommand DisconnectSelectedCommand { get; }
     public ICommand ToggleFavoriteCommand { get; }
     public ICommand LaunchMultiCommand { get; }
     public ICommand CloseMultiCommand { get; }
@@ -277,6 +296,7 @@ public sealed partial class MainViewModel : ObservableObject
     public ICommand ImportRdpFileCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand FocusSessionCommand { get; }
+    public ICommand ToggleSessionFrameCommand { get; }
     public ICommand ReconnectSessionCommand { get; }
     public ICommand CloseSessionCommand { get; }
     public ICommand OpenCredentialsCommand { get; }
@@ -345,6 +365,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (_detached) return;
         _detached = true;
+        _disconnectArm.Stop();
 
         try
         {
@@ -945,7 +966,7 @@ public sealed partial class MainViewModel : ObservableObject
             DetailAddress = connection.FullAddress;
             DetailBreadcrumb = DescribeGroupPath(connection.GroupId);
             DetailCredential = DescribeCredential(connection);
-            DetailDisplay = DescribeDisplay(connection.Display);
+            DetailDisplay = DescribeDisplay(connection.Display, FramelessSupported, SafeMonitors());
             DetailTags = string.IsNullOrWhiteSpace(connection.Tags) ? string.Empty : connection.Tags.Trim();
             DetailDescription = connection.Description ?? string.Empty;
             DetailLastConnectedUtc = connection.LastConnectedUtc;
@@ -1023,6 +1044,7 @@ public sealed partial class MainViewModel : ObservableObject
         ordered.Sort(static (a, b) => a.Order.CompareTo(b.Order));
 
         var position = 1;
+        var monitors = SafeMonitors();
         foreach (var item in ordered)
         {
             _connectionsById.TryGetValue(item.ConnectionId, out var connection);
@@ -1042,7 +1064,7 @@ public sealed partial class MainViewModel : ObservableObject
                 Order = position.ToString(CultureInfo.InvariantCulture),
                 Name = name,
                 Address = connection?.FullAddress ?? Strings.Main_MultiItem_NotFound,
-                Target = DescribeDisplay(display),
+                Target = DescribeDisplay(display, FramelessSupported, monitors),
                 StateText = state,
                 Enabled = item.Enabled,
             });
@@ -1124,10 +1146,29 @@ public sealed partial class MainViewModel : ObservableObject
         return builder.ToString();
     }
 
-    /// <summary>Turns display settings into the plain sentence shown in the detail panel.</summary>
-    public static string DescribeDisplay(DisplaySettings? display)
+    /// <summary>Only the in-app client can open a window without a frame.</summary>
+    private bool FramelessSupported => _services.Sessions is EmbeddedSessionManager;
+
+    /// <summary>
+    /// Turns display settings into the plain sentence shown in the detail panel. A window without a
+    /// frame says so - when this app's client can open one (<paramref name="framelessSupported"/>).
+    /// With the <paramref name="monitors"/> known, a set of monitors is described as it will open:
+    /// only the ones that touch, numbered as the editor's map numbers them.
+    /// </summary>
+    public static string DescribeDisplay(DisplaySettings? display, bool framelessSupported = false,
+        IReadOnlyList<MonitorInfo>? monitors = null)
     {
         if (display is null) return string.Empty;
+
+        var text = DescribePlacement(display, monitors);
+        return framelessSupported && display.Frameless
+            && DisplayLayout.Resolve(display, monitors: null, framelessSupported: true).IsFrameless
+            ? UiLanguage.Format(Strings.Main_Display_Frameless, text)
+            : text;
+    }
+
+    private static string DescribePlacement(DisplaySettings display, IReadOnlyList<MonitorInfo>? monitors)
+    {
 
         if (display.Placement == WindowPlacementMode.SpecificMonitorFullscreen)
             return UiLanguage.Format(Strings.Main_Display_MonitorFullscreen, display.TargetMonitorIndex + 1);
@@ -1140,6 +1181,17 @@ public sealed partial class MainViewModel : ObservableObject
 
         if (display.Placement == WindowPlacementMode.SelectedMonitors)
         {
+            if (monitors is { Count: > 0 } && display.SelectedMonitors.Count > 0)
+            {
+                var layout = DisplayLayout.Resolve(display, monitors);
+                if (layout.Kind == DisplayLayoutKind.FullScreen && layout.Monitor is { } one)
+                    return UiLanguage.Format(Strings.Main_Display_MonitorFullscreen, one.Index + 1);
+                if (layout.UsesMultimon && layout.Monitors.Count > 0)
+                    return UiLanguage.Format(
+                        Strings.Main_Display_MonitorList,
+                        string.Join(", ", layout.Monitors.Select(static m => m.Index + 1)));
+            }
+
             return display.SelectedMonitors.Count > 0
                 ? UiLanguage.Format(
                     Strings.Main_Display_MonitorList,
@@ -1271,6 +1323,9 @@ public sealed partial class MainViewModel : ObservableObject
 
             if (_selectedNode is { } node)
             {
+                // Just started - not merely selected while running: Disconnect is appearing where
+                // Connect was clicked a moment ago.
+                if (!DetailRunning && node.IsRunning) ArmDisconnect();
                 DetailRunning = node.IsRunning;
                 if (node.IsMultiConfig && node.AsMultiConfig is { } config) FillMultiItems(config);
             }
@@ -1313,6 +1368,22 @@ public sealed partial class MainViewModel : ObservableObject
         {
             AppLog.Warn($"Could not focus '{session.DisplayName}'.", ex);
             Notify(UiLanguage.Format(Strings.Main_Error_Focus, session.DisplayName), true);
+        }
+    }
+
+    /// <summary>Shows or hides a session window's frame, to move or resize it; the saved layout stays.</summary>
+    private void ToggleSessionFrame(object? parameter)
+    {
+        if (parameter is not RdpSession session) return;
+
+        try
+        {
+            if (_services.Sessions is EmbeddedSessionManager embedded && embedded.TryToggleFrame(session.Id))
+                _services.Sessions.Focus(session.Id);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"Could not show or hide the frame of '{session.DisplayName}'.", ex);
         }
     }
 
@@ -1396,6 +1467,36 @@ public sealed partial class MainViewModel : ObservableObject
             AppLog.Error($"Could not launch '{connection.Name}'.", ex);
             Notify(UiLanguage.Format(Strings.Main_Error_Start, connection.Name, ex.Message), true);
         }
+    }
+
+    /// <summary>
+    /// Ends the selected connection's session - connecting or connected - as closing it from the
+    /// live sessions list does, confirmation included.
+    /// </summary>
+    private async Task DisconnectSelectedAsync()
+    {
+        // A click already queued from a double click on Connect is dropped too.
+        if (!DisconnectArmed || _selectedNode?.AsConnection is not { } connection) return;
+        if (_services.Sessions.FindByConnection(connection.Id) is not { } session)
+        {
+            RefreshRunningFlags();
+            return;
+        }
+
+        await CloseSessionAsync(session).ConfigureAwait(true);
+        RefreshRunningFlags();
+    }
+
+    private static int DoubleClickMs => Math.Max(500, System.Windows.Forms.SystemInformation.DoubleClickTime);
+
+    private bool DisconnectArmed => Environment.TickCount64 - _disconnectShownAt >= DoubleClickMs;
+
+    private void ArmDisconnect()
+    {
+        _disconnectShownAt = Environment.TickCount64;
+        _disconnectArm.Stop();
+        _disconnectArm.Interval = TimeSpan.FromMilliseconds(DoubleClickMs);
+        _disconnectArm.Start();
     }
 
     private async Task LaunchMultiAsync()

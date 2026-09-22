@@ -565,6 +565,18 @@ Loggen ligger her: {1}</value>
   <data name="Editor_Footer_Hint" xml:space="preserve">
     <value>Ctrl+S lagrer, Esc avbryter.</value>
   </data>
+  <data name="Editor_Frameless" xml:space="preserve">
+    <value>Vis øktvinduet uten ramme</value>
+  </data>
+  <data name="Editor_Frameless_Hint" xml:space="preserve">
+    <value>Ingen tittellinje eller kanter – bare det eksterne skrivebordet vises, så øktvinduer som ligger kant i kant, går sømløst over i hverandre. Hold pekeren mot øvre kant av vinduet for å få frem øktlinjen; for å flytte vinduet eller endre størrelsen velger du «Vis vindusrammen» der, i vindusmenyen (Alt+mellomrom) eller under «Aktive økter» i Remote Desktop Manager.</value>
+  </data>
+  <data name="Editor_Frameless_NeedsEmbedded" xml:space="preserve">
+    <value>Bare økter som vises inne i denne appen, kan åpnes uten ramme, så med den eksterne klienten for eksternt skrivebord beholder vinduet rammen. Slå på «Vis det eksterne skrivebordet inne i denne appen» under Innstillinger, og start appen på nytt.</value>
+  </data>
+  <data name="Editor_Frameless_NeedsRestart" xml:space="preserve">
+    <value>«Vis det eksterne skrivebordet inne i denne appen» er slått på, men trer i kraft neste gang du starter appen. Frem til da åpnes vinduet med ramme.</value>
+  </data>
   <data name="Editor_FullWindowDrag" xml:space="preserve">
     <value>Vis vindusinnhold mens du drar</value>
   </data>
@@ -685,11 +697,23 @@ Loggen ligger her: {1}</value>
   <data name="Editor_Monitors_None" xml:space="preserve">
     <value>Fant ingen skjermer.</value>
   </data>
+  <data name="Editor_Monitors_NotAdjacent_Many" xml:space="preserve">
+    <value>Disse skjermene ligger ikke alle inntil hverandre, og Eksternt skrivebord kan bare bruke skjermer som henger sammen. Økten åpnes bare over skjerm {0}.</value>
+  </data>
+  <data name="Editor_Monitors_NotAdjacent_One" xml:space="preserve">
+    <value>Disse skjermene ligger ikke alle inntil hverandre, og Eksternt skrivebord kan bare bruke skjermer som henger sammen. Økten åpnes i fullskjerm bare på skjerm {0}.</value>
+  </data>
+  <data name="Editor_Monitors_NotAdjacent_UnusedMany" xml:space="preserve">
+    <value>Skjermene {0} er fortsatt valgt og merket på kartet, men brukes ikke. Klikk på dem for å ta dem ut.</value>
+  </data>
+  <data name="Editor_Monitors_NotAdjacent_UnusedOne" xml:space="preserve">
+    <value>Skjerm {0} er fortsatt valgt og merket på kartet, men brukes ikke. Klikk på den for å ta den ut.</value>
+  </data>
   <data name="Editor_Monitors_Reading" xml:space="preserve">
     <value>Leser skjermoppsettet...</value>
   </data>
   <data name="Editor_Monitors_Selected_Hint" xml:space="preserve">
-    <value>Klikk på en skjerm for å legge den til eller fjerne den. De valgte skjermene må ligge inntil hverandre, ellers kan ikke mstsc bruke dem.</value>
+    <value>Klikk på en skjerm for å legge den til eller fjerne den. Eksternt skrivebord kan bare bruke skjermer som ligger inntil hverandre.</value>
   </data>
   <data name="Editor_MstscAutoReconnect" xml:space="preserve">
     <value>La mstsc koble til på nytt selv</value>
@@ -706,8 +730,26 @@ Loggen ligger her: {1}</value>
   <data name="Editor_Organisation_Header" xml:space="preserve">
     <value>ORGANISERING OG PÅLOGGING</value>
   </data>
+  <data name="Editor_Outcome_FramedFallback" xml:space="preserve">
+    <value>Det åpnes med ramme, fordi bare økter som vises inne i denne appen, kan åpnes uten.</value>
+  </data>
+  <data name="Editor_Outcome_Maximized_Frameless" xml:space="preserve">
+    <value>Åpnes uten ramme og dekker skjerm {0} ({1}) frem til oppgavelinjen – {2} x {3}.</value>
+  </data>
+  <data name="Editor_Outcome_Maximized_Frameless_Unknown" xml:space="preserve">
+    <value>Åpnes uten ramme og dekker en skjerm frem til oppgavelinjen.</value>
+  </data>
   <data name="Editor_Outcome_Monitor_Named" xml:space="preserve">
     <value>skjerm {0} ({1})</value>
+  </data>
+  <data name="Editor_Outcome_Rectangle_Frameless" xml:space="preserve">
+    <value>Åpnes i et vindu uten ramme på {2} x {3} i posisjon {0}, {1} – det eksterne skrivebordet fyller hele vinduet.</value>
+  </data>
+  <data name="Editor_Outcome_Switch_MultiFollow" xml:space="preserve">
+    <value>Når du går ut av fullskjerm, tilpasses økten vinduet. Går du tilbake til fullskjerm, spres den over de samme skjermene igjen.</value>
+  </data>
+  <data name="Editor_Outcome_Window_Frameless" xml:space="preserve">
+    <value>Åpnes i et vindu uten ramme på {0} x {1} midt på skjerm {2}.</value>
   </data>
   <data name="Editor_Port" xml:space="preserve">
     <value>Port</value>
@@ -1213,6 +1255,9 @@ Loggen ligger her: {1}</value>
   <data name="Main_Detail_Credential_Header" xml:space="preserve">
     <value>LEGITIMASJON</value>
   </data>
+  <data name="Main_Detail_Disconnect" xml:space="preserve">
+    <value>Koble fra</value>
+  </data>
   <data name="Main_Detail_Display_Header" xml:space="preserve">
     <value>SKJERM</value>
   </data>
@@ -1251,6 +1296,9 @@ Loggen ligger her: {1}</value>
   </data>
   <data name="Main_Display_CustomRectangle" xml:space="preserve">
     <value>{0}x{1} i posisjon {2}, {3}</value>
+  </data>
+  <data name="Main_Display_Frameless" xml:space="preserve">
+    <value>{0}, uten ramme</value>
   </data>
   <data name="Main_Display_Fullscreen" xml:space="preserve">
     <value>Fullskjerm</value>
@@ -1477,8 +1525,17 @@ Loggen ligger her: {1}</value>
   <data name="Main_Session_Focus" xml:space="preserve">
     <value>Hent frem</value>
   </data>
+  <data name="Main_Session_Frame_Tooltip" xml:space="preserve">
+    <value>Vis eller skjul tittellinjen og kantene for å flytte vinduet eller endre størrelsen. Det lagrede oppsettet endres ikke.</value>
+  </data>
+  <data name="Main_Session_HideFrame" xml:space="preserve">
+    <value>Skjul rammen</value>
+  </data>
   <data name="Main_Session_Reconnect" xml:space="preserve">
     <value>Koble til igjen</value>
+  </data>
+  <data name="Main_Session_ShowFrame" xml:space="preserve">
+    <value>Vis rammen</value>
   </data>
   <data name="Main_Session_Thumbnail_Tooltip" xml:space="preserve">
     <value>Hent frem denne økten</value>
@@ -1723,6 +1780,9 @@ Loggen ligger her: {1}</value>
   <data name="Multi_LaunchNow_Tooltip" xml:space="preserve">
     <value>Lagre settet og start alle aktiverte elementer nå</value>
   </data>
+  <data name="Multi_MapHint_Rectangle" xml:space="preserve">
+    <value>Dra vinduet for å flytte det, eller dra i en kant eller et hjørne for å endre størrelsen. Det fester seg til kantene av skjermene og oppgavelinjen og til de andre vinduene i settet, og holder seg innenfor skjermene; hold inne Ctrl for å plassere det fritt. Klikk på en skjerm for å flytte det dit. Piltastene flytter det, Shift+piltast endrer størrelsen, og med Ctrl blir steget én piksel.</value>
+  </data>
   <data name="Multi_Map_Header" xml:space="preserve">
     <value>SKJERMOVERSIKT</value>
   </data>
@@ -1774,6 +1834,9 @@ Loggen ligger her: {1}</value>
   <data name="Multi_Summary_CustomRect" xml:space="preserve">
     <value>Vindu på {0} x {1} i posisjon {2}, {3}</value>
   </data>
+  <data name="Multi_Summary_Frameless" xml:space="preserve">
+    <value>{0}, uten ramme</value>
+  </data>
   <data name="Multi_Summary_FullScreenDefault" xml:space="preserve">
     <value>Fullskjerm på skjermen tilkoblingen velger</value>
   </data>
@@ -1789,6 +1852,18 @@ Loggen ligger her: {1}</value>
   <data name="Multi_Summary_Windowed" xml:space="preserve">
     <value>I vindu på {0} x {1}</value>
   </data>
+  <data name="Multi_Warning_FramelessNeedsEmbedded" xml:space="preserve">
+    <value>Noen vinduer i dette settet skal åpnes uten ramme. Det krever «Vis det eksterne skrivebordet inne i denne appen» under Innstillinger; med den eksterne klienten åpnes de med ramme.</value>
+  </data>
+  <data name="Multi_Warning_FramelessNeedsRestart" xml:space="preserve">
+    <value>Noen vinduer i dette settet skal åpnes uten ramme. «Vis det eksterne skrivebordet inne i denne appen» er slått på, men trer i kraft neste gang du starter appen; frem til da åpnes de med ramme.</value>
+  </data>
+  <data name="Multi_Warning_Overlap" xml:space="preserve">
+    <value>Vinduer i dette settet overlapper hverandre: {0}. Velg «Der jeg velger» for dem, og dra dem fra hverandre på kartet så de ligger kant i kant.</value>
+  </data>
+  <data name="Multi_Warning_Overlap_Pair" xml:space="preserve">
+    <value>{0} og {1}</value>
+  </data>
   <data name="Multi_Warning_SameScreen" xml:space="preserve">
     <value>To økter vil ta over samme skjerm – {0}. Det er som regel en feil, men det er tillatt.</value>
   </data>
@@ -1797,6 +1872,24 @@ Loggen ligger her: {1}</value>
   </data>
   <data name="Rdp_ImportedConnection_Name" xml:space="preserve">
     <value>Importert tilkobling</value>
+  </data>
+  <data name="SessionBar_FullScreen_Tooltip" xml:space="preserve">
+    <value>Fullskjerm (Ctrl+Alt+Break)</value>
+  </data>
+  <data name="SessionBar_ShowFrame_Tooltip" xml:space="preserve">
+    <value>Vis vindusrammen for å flytte vinduet eller endre størrelsen</value>
+  </data>
+  <data name="Session_Menu_AlwaysOnTop" xml:space="preserve">
+    <value>Alltid øverst</value>
+  </data>
+  <data name="Session_Menu_HideFrame" xml:space="preserve">
+    <value>Skjul vindusrammen</value>
+  </data>
+  <data name="Session_Menu_ShowFrame" xml:space="preserve">
+    <value>Vis vindusrammen</value>
+  </data>
+  <data name="Session_Menu_SmartSizing" xml:space="preserve">
+    <value>Smart skalering</value>
   </data>
   <data name="Session_State_Connected" xml:space="preserve">
     <value>Tilkoblet</value>
@@ -1937,10 +2030,10 @@ Loggen ligger her: {1}</value>
     <value>FULLSKJERM</value>
   </data>
   <data name="Settings_FullScreen_SessionBar" xml:space="preserve">
-    <value>Vis øktlinjen i fullskjermøkter</value>
+    <value>Vis øktlinjen i fullskjermøkter og økter uten ramme</value>
   </data>
   <data name="Settings_FullScreen_SessionBar_Hint" xml:space="preserve">
-    <value>Hold pekeren mot øvre kant av en fullskjermøkt for å bytte til en annen aktiv tilkobling med ett klikk, eller rull over linjen for å bla gjennom dem. Fra linjen kan du også minimere, gå ut av fullskjerm og koble fra.</value>
+    <value>Hold pekeren mot øvre kant av en fullskjermøkt, eller av et øktvindu uten ramme, for å bytte til en annen aktiv tilkobling med ett klikk, eller rull over linjen for å bla gjennom dem. Fra linjen kan du også minimere, gå inn i eller ut av fullskjerm, vise rammen på et vindu uten ramme og koble fra.</value>
   </data>
   <data name="Settings_QuickLaunch_Header" xml:space="preserve">
     <value>HURTIGSTART</value>

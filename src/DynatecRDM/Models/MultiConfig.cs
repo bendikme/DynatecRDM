@@ -23,6 +23,7 @@ public sealed class DisplayOverride
     public int? CustomWidth { get; set; }
     public int? CustomHeight { get; set; }
     public bool? AlwaysOnTop { get; set; }
+    public bool? Frameless { get; set; }
 
     /// <summary>True when at least one value is set.</summary>
     public bool HasAny =>
@@ -30,7 +31,7 @@ public sealed class DisplayOverride
         DesktopWidth.HasValue || DesktopHeight.HasValue || ColorDepth.HasValue ||
         SmartSizing.HasValue || DynamicResolution.HasValue || DesktopScaleFactor.HasValue ||
         DeviceScaleFactor.HasValue || Placement.HasValue || TargetMonitorIndex.HasValue || CustomLeft.HasValue ||
-        CustomTop.HasValue || CustomWidth.HasValue || CustomHeight.HasValue || AlwaysOnTop.HasValue;
+        CustomTop.HasValue || CustomWidth.HasValue || CustomHeight.HasValue || AlwaysOnTop.HasValue || Frameless.HasValue;
 
     /// <summary>Returns a copy of <paramref name="baseline"/> with every set override applied.</summary>
     public DisplaySettings ApplyTo(DisplaySettings baseline)
@@ -53,6 +54,7 @@ public sealed class DisplayOverride
         if (CustomWidth.HasValue) d.CustomWidth = CustomWidth.Value;
         if (CustomHeight.HasValue) d.CustomHeight = CustomHeight.Value;
         if (AlwaysOnTop.HasValue) d.AlwaysOnTop = AlwaysOnTop.Value;
+        if (Frameless.HasValue) d.Frameless = Frameless.Value;
         return d;
     }
 
@@ -79,7 +81,10 @@ public sealed class DisplayOverride
             || baseline.CustomLeft != chosen.CustomLeft
             || baseline.CustomTop != chosen.CustomTop
             || baseline.CustomWidth != chosen.CustomWidth
-            || baseline.CustomHeight != chosen.CustomHeight;
+            || baseline.CustomHeight != chosen.CustomHeight
+            // Whether the window has a frame decides what the rectangle holds - the session alone,
+            // or the session and a frame around it - so it travels with the placement.
+            || baseline.Frameless != chosen.Frameless;
         if (layoutDiffers)
         {
             result.ScreenMode = chosen.ScreenMode;
@@ -91,6 +96,7 @@ public sealed class DisplayOverride
             result.CustomTop = chosen.CustomTop;
             result.CustomWidth = chosen.CustomWidth;
             result.CustomHeight = chosen.CustomHeight;
+            result.Frameless = chosen.Frameless;
         }
 
         if (baseline.DesktopWidth != chosen.DesktopWidth || baseline.DesktopHeight != chosen.DesktopHeight)
@@ -132,6 +138,7 @@ public sealed class DisplayOverride
         CustomWidth = CustomWidth,
         CustomHeight = CustomHeight,
         AlwaysOnTop = AlwaysOnTop,
+        Frameless = Frameless,
     };
 }
 

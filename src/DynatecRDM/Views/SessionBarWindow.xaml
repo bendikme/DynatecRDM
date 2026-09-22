@@ -7,6 +7,7 @@
         xmlns:vm="clr-namespace:DynatecRDM.ViewModels"
         xmlns:res="clr-namespace:DynatecRDM.Resources"
         xmlns:views="clr-namespace:DynatecRDM.Views"
+        xmlns:conv="clr-namespace:DynatecRDM.Converters"
         mc:Ignorable="po"
         Title="{x:Static res:Strings.SessionBar_Window_Title}"
         WindowStyle="None"
@@ -31,6 +32,8 @@
         <PathGeometry x:Key="BarIconPlus" po:Freeze="True" Figures="M12,5 V19 M5,12 H19" />
         <PathGeometry x:Key="BarIconMinimize" po:Freeze="True" Figures="M5,12 H19" />
         <PathGeometry x:Key="BarIconExitFullScreen" po:Freeze="True" Figures="M9,3.5 V9 H3.5 M15,3.5 V9 H20.5 M9,20.5 V15 H3.5 M15,20.5 V15 H20.5" />
+        <PathGeometry x:Key="BarIconFullScreen" po:Freeze="True" Figures="M3.5,9 V3.5 H9 M15,3.5 H20.5 V9 M20.5,15 V20.5 H15 M9,20.5 H3.5 V15" />
+        <PathGeometry x:Key="BarIconFrame" po:Freeze="True" Figures="M3.5,5 H20.5 V19 H3.5 Z M3.5,9 H20.5" />
         <PathGeometry x:Key="BarIconPower" po:Freeze="True" Figures="M12,3 V10.5 M6.6,6.2 A7.6,7.6 0 1 0 17.4,6.2" />
 
         <!-- Tool tips hang below the bar, never over the edge it came from. -->
@@ -266,8 +269,25 @@
                     <Button Style="{StaticResource BarIconButton}"
                             Command="{Binding ExitFullScreenCommand}"
                             AutomationProperties.Name="{x:Static res:Strings.SessionBar_ExitFullScreen_Tooltip}"
-                            ToolTip="{x:Static res:Strings.SessionBar_ExitFullScreen_Tooltip}">
+                            ToolTip="{x:Static res:Strings.SessionBar_ExitFullScreen_Tooltip}"
+                            Visibility="{Binding IsOverWindow, Converter={x:Static conv:BoolToVisibilityConverter.Instance}, ConverterParameter=invert}">
                         <Path Style="{StaticResource BarGlyph}" Data="{StaticResource BarIconExitFullScreen}" />
+                    </Button>
+                    <!-- Over a window without a frame there is no full screen to leave: it offers full
+                         screen, and the frame to move or resize the window by. -->
+                    <Button Style="{StaticResource BarIconButton}"
+                            Command="{Binding EnterFullScreenCommand}"
+                            AutomationProperties.Name="{x:Static res:Strings.SessionBar_FullScreen_Tooltip}"
+                            ToolTip="{x:Static res:Strings.SessionBar_FullScreen_Tooltip}"
+                            Visibility="{Binding IsOverWindow, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                        <Path Style="{StaticResource BarGlyph}" Data="{StaticResource BarIconFullScreen}" />
+                    </Button>
+                    <Button Style="{StaticResource BarIconButton}"
+                            Command="{Binding ShowFrameCommand}"
+                            AutomationProperties.Name="{x:Static res:Strings.SessionBar_ShowFrame_Tooltip}"
+                            ToolTip="{x:Static res:Strings.SessionBar_ShowFrame_Tooltip}"
+                            Visibility="{Binding IsOverWindow, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                        <Path Style="{StaticResource BarGlyph}" Data="{StaticResource BarIconFrame}" />
                     </Button>
                     <Button Margin="4,0,0,0"
                             Style="{StaticResource BarDisconnectButton}"

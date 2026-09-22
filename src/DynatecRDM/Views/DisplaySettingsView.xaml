@@ -58,11 +58,33 @@
                     </Grid>
                 </Border>
 
+                <!-- A window without a frame, for sessions placed edge to edge. Only the in-app
+                     client can open one, so the choice says so when this app runs the other. -->
+                <StackPanel Margin="0,6,0,0"
+                            Visibility="{Binding IsWindowed, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                    <CheckBox Style="{StaticResource AppToggleStyle}"
+                              HorizontalAlignment="Left"
+                              IsChecked="{Binding Frameless, Mode=TwoWay}"
+                              Content="{x:Static res:Strings.Editor_Frameless}" />
+                    <TextBlock Style="{StaticResource EditorHintStyle}"
+                               Text="{x:Static res:Strings.Editor_Frameless_Hint}" />
+                    <TextBlock Style="{StaticResource EditorHintStyle}"
+                               Foreground="{DynamicResource WarningBrush}"
+                               Text="{Binding FramelessUnsupportedText}"
+                               Visibility="{Binding ShowFramelessUnsupported, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                </StackPanel>
+
                 <!-- The host's map, with what clicking it does. -->
                 <StackPanel x:Name="MapSlot" Margin="0,6,0,0" Visibility="Collapsed">
                     <ContentPresenter x:Name="MapPresenter" />
                     <TextBlock Style="{StaticResource EditorHintStyle}" Text="{Binding MapHint}" />
                 </StackPanel>
+
+                <!-- Chosen displays that do not all touch: which of them the session will use. -->
+                <TextBlock Style="{StaticResource EditorHintStyle}"
+                           Foreground="{DynamicResource WarningBrush}"
+                           Text="{Binding NotAdjacentWarning}"
+                           Visibility="{Binding ShowNotAdjacentWarning, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
 
                 <!-- The rectangle, typed. Two pairs, so the four fields fit a narrow panel too. -->
                 <Grid Margin="0,14,0,0"
@@ -159,7 +181,7 @@
                 <TextBlock Style="{StaticResource EditorHintStyle}"
                            Foreground="{DynamicResource WarningBrush}"
                            Text="{x:Static res:Strings.Editor_Resize_MultiMonitorNote}"
-                           Visibility="{Binding IsMultiMonitorLayout, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
+                           Visibility="{Binding ShowMultiMonitorNote, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
             </StackPanel>
         </Border>
 

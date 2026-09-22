@@ -103,7 +103,9 @@ public partial class MonitorMapView : UserControl
         try
         {
             var point = e.GetPosition(MonitorMapHost);
-            Editor?.DragRectangle(_dragEdges, point.X - _dragOrigin.X, point.Y - _dragOrigin.Y);
+            // Ctrl places the window exactly under the pointer, as it makes a nudge exact.
+            Editor?.DragRectangle(_dragEdges, point.X - _dragOrigin.X, point.Y - _dragOrigin.Y,
+                snap: !Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
         }
         catch (Exception ex)
         {

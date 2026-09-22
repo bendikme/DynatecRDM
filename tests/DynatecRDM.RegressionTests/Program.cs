@@ -46,6 +46,11 @@ public static class Program
             return _failed == 0 ? 0 : 1;
         }
 
+        // The app writes its log into the user's data folder. The checks below work on throwaway
+        // databases and fakes, and their warnings - a damaged update token, a migrated schema -
+        // must not end up in the log of the app the user is running.
+        typeof(AppLog).GetField("_enabled", BindingFlags.NonPublic | BindingFlags.Static)?.SetValue(null, false);
+
         Run("Disconnect confirmation belongs to one session", Confirmation);
         Run("Removed tabs cannot switch or disconnect sessions", RemovedTabs);
         Run("Mouse wheel wraps sessions in both directions", Wheel);
@@ -254,20 +259,23 @@ public static class Program
         using var bar = new SessionBarService(services, DispatchProxy.Create<IAppShell, NoCalls>());
         var vm = (SessionBarViewModel)typeof(SessionBarService).GetField("_viewModel", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(bar)!;
         var windowField = typeof(SessionBarService).GetField("_window", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        // The bar hangs from a surface: here the monitor the session fills, as in full screen.
+        var fullScreen = Activator.CreateInstance(
+            typeof(SessionBarService).GetNestedType("BarSurface", BindingFlags.NonPublic)!, monitor, monitor.Bounds, false)!;
         Check(ReferenceEquals(Call(bar, "SessionFor", child.Handle), session), "RDP child window did not match its session.");
         Check(Call(bar, "SessionFor", second.Handle) is null, "Unrelated app window matched by shared process id.");
-        Call(bar, "ShowBar", monitor, session, false);
+        Call(bar, "ShowBar", fullScreen, session, false);
         var barWindow = (SessionBarWindow)windowField.GetValue(bar)!;
         Check(barWindow.IsRevealed && vm.Current == session, "Bar did not select the displayed session.");
         // A focus request can be rejected by Windows. The bar must not claim the requested tab won.
         bar.SwitchTo(session);
         Check(!barWindow.IsRevealed && vm.Current is null, "Failed focus retained destructive actions.");
-        Call(bar, "ShowBar", monitor, session, false);
+        Call(bar, "ShowBar", fullScreen, session, false);
         first.Hide();
         Call(bar, "Poll");
         Check(!barWindow.IsRevealed, "Bar remained visible over a hidden session.");
         ShowWithoutActivation(first);
-        Call(bar, "ShowBar", monitor, session, false);
+        Call(bar, "ShowBar", fullScreen, session, false);
         sessions.End(session);
         Check(!barWindow.IsRevealed && vm.Current is null && vm.Tabs.Count == 0,
             "Ending the last session left a ghost bar.");
