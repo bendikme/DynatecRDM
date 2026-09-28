@@ -63,3 +63,38 @@ top row. Pointer movement before the reveal fails the check as interrupted.
 
 Cross-monitor foreground switching, mixed physical monitor DPI, remote resolution negotiation,
 and external mstsc/msrdc toolbar behavior still need interactive checks.
+
+## Memory regression checks
+
+The default suite also repeatedly creates and closes real RDP ActiveX windows with WPF overlays,
+then checks weak references after dispatcher teardown and garbage collection. Closed windows,
+controls, and overlay content must all become collectible. Run just this check with:
+
+```powershell
+dotnet run --project tests/DynatecRDM.RegressionTests -c Release -- --memory
+```
+
+This caught a COM event sink retaining every disposed RDP window on .NET 10.0.12. Before the fix,
+16 of 24 tracked objects survived eight open/close cycles; afterwards none survived. The transport
+check additionally verifies that the replacement subscription still delivers the connecting event.
+Forced GC is used only to make the test deterministic, not as an application memory workaround.
+
+For release validation, record a fresh process's working set, private bytes, managed heap, and
+handle count after warm-up. Repeat opening/closing the manager, quick launch, editors, and approved
+RDP sessions, then return to the same idle state between batches. Include failed connections and
+reconnects. Compare several batches and an overnight idle run: retained objects and resources
+should plateau, rather than grow with each cycle. Active RDP sessions are a separate baseline.
+
+Use `dotnet-counters collect --process-id <PID> --counters System.Runtime --format csv
+--duration 00:10:00 --output idle.csv` for runtime metrics. If the managed heap grows, compare local
+heap dumps using `dotnet-dump` (`dumpheap -stat` and `gcroot`). If private bytes or handles grow
+without managed-heap growth, investigate native RDP, GDI, and WPF resources too. Heap dumps can
+contain credentials and desktop content; keep them local and outside source control.
+
+The September 2026 investigation of the six-day-old 1.0.9 process found approximately 1.46 GiB
+working set, 753 MiB GC committed memory, and 581 MiB in large byte arrays. A disposed RDP window
+was rooted by its generated COM event multicaster; large image buffers were also rooted through
+ElementHost background brushes. The checked-in fix owns the RDP COM event connection explicitly,
+balancing Advise/Unadvise instead of using the leaking AxHost connection cookie in that runtime.
+The regression establishes collectibility for this path; it does not establish that every app
+workflow is leak-free or predict a fresh process's exact memory footprint.

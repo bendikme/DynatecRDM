@@ -41,7 +41,7 @@ public sealed class RdpControlHost : IDisposable
     // actually instantiates (the registered v13 {3F859AA3-…} returns CLASS_E_CLASSNOTAVAILABLE).
     // Its OCX implements IMsRdpClient9/10 (UpdateSessionDisplaySettings), and the NotSafeForScripting
     // variant is the one that lets us set the password programmatically.
-    private readonly AxMsRdpClient11NotSafeForScripting _ax = new();
+    private readonly RdpActiveXControl _ax = new();
     private bool _disposed;
     private bool _handledDisconnect;
 

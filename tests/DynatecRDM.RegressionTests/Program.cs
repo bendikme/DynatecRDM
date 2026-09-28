@@ -18,7 +18,7 @@ using MSTSCLib;
 using Microsoft.Data.Sqlite;
 using Forms = System.Windows.Forms;
 
-public static class Program
+public static partial class Program
 {
     private static int _failed;
 
@@ -51,6 +51,13 @@ public static class Program
         // must not end up in the log of the app the user is running.
         typeof(AppLog).GetField("_enabled", BindingFlags.NonPublic | BindingFlags.Static)?.SetValue(null, false);
 
+        if (args.Contains("--memory"))
+        {
+            Run("Closed RDP windows and overlays are collectible", SessionLifetime);
+            app.Shutdown();
+            return _failed == 0 ? 0 : 1;
+        }
+
         Run("Disconnect confirmation belongs to one session", Confirmation);
         Run("Removed tabs cannot switch or disconnect sessions", RemovedTabs);
         Run("Mouse wheel wraps sessions in both directions", Wheel);
@@ -62,6 +69,7 @@ public static class Program
         Run("Session bar reveal strip scales and respects monitor boundaries", RevealBand);
         Run("Update tokens are encrypted, round-trip, and migrate from older settings", TokenStorage);
         Run("RDP Connect sends negotiation to a loopback listener", ConnectTransport);
+        Run("Closed RDP windows and overlays are collectible", SessionLifetime);
         Console.WriteLine(_failed == 0 ? "All regression checks passed." : $"{_failed} regression check(s) failed.");
         app.Shutdown();
         return _failed == 0 ? 0 : 1;
@@ -347,6 +355,8 @@ public static class Program
         window.Location = new System.Drawing.Point(-20000, -20000);
         ShowWithoutActivation(window);
         RdpDisconnectInfo? disconnect = null;
+        var connecting = false;
+        window.Connecting += (_, _) => connecting = true;
         window.Disconnected += (_, info) => disconnect = info;
         var connection = new RdpConnection { Host = "127.0.0.1", Port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port };
         var plan = new RdpDisplayPlan(1024, 768, 32, false, ResizeBehavior.FollowWindow, 100, 100);
@@ -366,6 +376,7 @@ public static class Program
         var read = client.GetStream().ReadAsync(bytes, deadline.Token).AsTask();
         while (!read.IsCompleted && !deadline.IsCancellationRequested) Pump();
         Check(read.GetAwaiter().GetResult() >= 4 && bytes[0] == 3, "Client sent no RDP negotiation packet.");
+        Check(connecting, "The ActiveX connection event was not delivered to the host.");
         window.Host.Disconnect();
     }
 
