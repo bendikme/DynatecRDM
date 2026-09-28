@@ -572,7 +572,7 @@ Loggen ligger her: {1}</value>
     <value>Ingen tittellinje eller kanter – bare det eksterne skrivebordet vises, så øktvinduer som ligger kant i kant, går sømløst over i hverandre. Hold pekeren mot øvre kant av vinduet for å få frem øktlinjen; for å flytte vinduet eller endre størrelsen velger du «Vis vindusrammen» der, i vindusmenyen (Alt+mellomrom) eller under «Aktive økter» i Remote Desktop Manager.</value>
   </data>
   <data name="Editor_Frameless_NeedsEmbedded" xml:space="preserve">
-    <value>Bare økter som vises inne i denne appen, kan åpnes uten ramme, så med den eksterne klienten for eksternt skrivebord beholder vinduet rammen. Slå på «Vis det eksterne skrivebordet inne i denne appen» under Innstillinger, og start appen på nytt.</value>
+    <value>Bare økter som vises inne i denne appen, kan åpnes uten ramme, så i en egen klient for eksternt skrivebord beholder vinduet rammen. Slå på «Vis det eksterne skrivebordet inne i denne appen» under Innstillinger, og start appen på nytt.</value>
   </data>
   <data name="Editor_Frameless_NeedsRestart" xml:space="preserve">
     <value>«Vis det eksterne skrivebordet inne i denne appen» er slått på, men trer i kraft neste gang du starter appen. Frem til da åpnes vinduet med ramme.</value>
