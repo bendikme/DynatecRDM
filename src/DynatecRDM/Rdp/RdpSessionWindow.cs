@@ -103,12 +103,17 @@ public sealed class RdpSessionWindow : Form
 
         Controls.Add(_host.WinFormsControl);
 
-        _overlay = new System.Windows.Forms.Integration.ElementHost
-        {
-            Dock = DockStyle.Fill,
-            BackColor = BackColor,
-            Visible = false,
-        };
+        _overlay = new System.Windows.Forms.Integration.ElementHost();
+        // ElementHost maps even a solid WinForms background to a full-size bitmap. Resizing or
+        // hiding/showing it recreates that bitmap, leaving large managed buffers and native image
+        // resources awaiting collection. The WPF progress view already paints an opaque background.
+        // Remove these mappings before parenting/sizing the host or assigning its background.
+        _overlay.PropertyMap.Remove(nameof(BackColor));
+        _overlay.PropertyMap.Remove(nameof(BackgroundImage));
+        _overlay.PropertyMap.Remove(nameof(BackgroundImageLayout));
+        _overlay.Dock = DockStyle.Fill;
+        _overlay.BackColor = BackColor;
+        _overlay.Visible = false;
         Controls.Add(_overlay);
         _overlay.BringToFront();
 

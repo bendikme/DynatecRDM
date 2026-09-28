@@ -53,6 +53,7 @@ public static partial class Program
 
         if (args.Contains("--memory"))
         {
+            Run("Session overlays avoid desktop-sized bitmap allocations", SessionOverlayAllocations);
             Run("Closed RDP windows and overlays are collectible", SessionLifetime);
             app.Shutdown();
             return _failed == 0 ? 0 : 1;
@@ -70,6 +71,7 @@ public static partial class Program
         Run("Update tokens are encrypted, round-trip, and migrate from older settings", TokenStorage);
         Run("RDP Connect sends negotiation to a loopback listener", ConnectTransport);
         Run("Closed RDP windows and overlays are collectible", SessionLifetime);
+        Run("Session overlays avoid desktop-sized bitmap allocations", SessionOverlayAllocations);
         Console.WriteLine(_failed == 0 ? "All regression checks passed." : $"{_failed} regression check(s) failed.");
         app.Shutdown();
         return _failed == 0 ? 0 : 1;

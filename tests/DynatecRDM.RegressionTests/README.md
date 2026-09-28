@@ -68,7 +68,8 @@ and external mstsc/msrdc toolbar behavior still need interactive checks.
 
 The default suite also repeatedly creates and closes real RDP ActiveX windows with WPF overlays,
 then checks weak references after dispatcher teardown and garbage collection. Closed windows,
-controls, and overlay content must all become collectible. Run just this check with:
+controls, and overlay content must all become collectible. It also measures allocations while a
+solid overlay is resized between portrait and landscape and hidden/shown six times. Run these checks with:
 
 ```powershell
 dotnet run --project tests/DynatecRDM.RegressionTests -c Release -- --memory
@@ -78,6 +79,18 @@ This caught a COM event sink retaining every disposed RDP window on .NET 10.0.12
 16 of 24 tracked objects survived eight open/close cycles; afterwards none survived. The transport
 check additionally verifies that the replacement subscription still delivers the connecting event.
 Forced GC is used only to make the test deterministic, not as an application memory workaround.
+
+The follow-up allocation check caught a separate issue: ElementHost's default background mapping
+creates full-window bitmaps even for a solid colour, including on size and visibility changes.
+Six resize/show cycles allocated 294.7 MiB before removing those mappings and approximately 0.1 MiB
+afterwards. The WPF progress view supplies its own opaque background. The check allows 16 MiB for
+framework/layout variation and verifies that the overlay still lays out and becomes visible.
+See the [framework background mapping](https://source.dot.net/WindowsFormsIntegration/System/Windows/Integration/ElementHostPropertyMap.cs.html).
+
+In the running 1.0.10 process's follow-up dump, the closed session window had no GC roots, but two
+14 MiB bitmap buffers were still rooted through WPF's StreamAsIStream handles. This supports
+eliminating the unnecessary image allocations; a single dump does not establish an unbounded leak.
+The allocation test does not authenticate or measure a connected RDP client's native memory.
 
 For release validation, record a fresh process's working set, private bytes, managed heap, and
 handle count after warm-up. Repeat opening/closing the manager, quick launch, editors, and approved

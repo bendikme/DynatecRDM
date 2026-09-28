@@ -9,7 +9,7 @@
     <Product>Remote Desktop Manager</Product>
     <AssemblyTitle>Remote Desktop Manager</AssemblyTitle>
     <Copyright>Copyright © DYNATEC</Copyright>
-    <Version>1.0.10</Version>
+    <Version>1.0.11</Version>
     <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>
 </Project>
