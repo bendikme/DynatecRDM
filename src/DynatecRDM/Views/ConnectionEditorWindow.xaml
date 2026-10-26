@@ -1016,28 +1016,10 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource CardBorderStyle}" Background="{DynamicResource SurfaceAltBrush}" Margin="0,0,0,12">
+                        <Border Style="{StaticResource CardBorderStyle}" Background="{DynamicResource SurfaceAltBrush}">
                             <StackPanel>
                                 <TextBlock Text="{x:Static res:Strings.Editor_WhatWillHappen_Header}" Style="{StaticResource SectionHeaderStyle}" />
                                 <TextBlock Style="{StaticResource EditorValueStyle}" Text="{Binding WatchdogSummary}" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Leaving hands the session to the remote computer's own screen instead of
-                             disconnecting it. Only the in-app client can do that. -->
-                        <Border Style="{StaticResource CardBorderStyle}">
-                            <StackPanel>
-                                <TextBlock Text="{x:Static res:Strings.Editor_Leave_Header}" Style="{StaticResource SectionHeaderStyle}" />
-                                <CheckBox Style="{StaticResource AppToggleStyle}"
-                                          HorizontalAlignment="Left"
-                                          IsChecked="{Binding LeaveOnConsole, Mode=TwoWay}"
-                                          Content="{x:Static res:Strings.Editor_LeaveOnConsole}" />
-                                <TextBlock Style="{StaticResource EditorHintStyle}"
-                                           Text="{x:Static res:Strings.Editor_LeaveOnConsole_Hint}" />
-                                <TextBlock Style="{StaticResource EditorHintStyle}"
-                                           Foreground="{DynamicResource WarningBrush}"
-                                           Text="{Binding LeaveOnConsoleUnsupportedText}"
-                                           Visibility="{Binding ShowLeaveOnConsoleUnsupported, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
                             </StackPanel>
                         </Border>
 

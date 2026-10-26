@@ -27,12 +27,6 @@ public sealed class RdpConnection
     /// </summary>
     public bool UseWindowsSignIn { get; set; }
 
-    /// <summary>
-    /// Leaving the session hands it to the remote computer's own screen (tscon … /dest:console)
-    /// instead of disconnecting it, so it stays signed in and unlocked there.
-    /// </summary>
-    public bool LeaveOnConsole { get; set; }
-
     public DisplaySettings Display { get; set; } = new();
     public ExperienceSettings Experience { get; set; } = new();
     public RedirectionSettings Redirection { get; set; } = new();
@@ -85,7 +79,6 @@ public sealed class RdpConnection
         CredentialSetId = CredentialSetId,
         CredentialDelivery = CredentialDelivery,
         UseWindowsSignIn = UseWindowsSignIn,
-        LeaveOnConsole = LeaveOnConsole,
         Display = Display.Clone(),
         Experience = Experience.Clone(),
         Redirection = Redirection.Clone(),

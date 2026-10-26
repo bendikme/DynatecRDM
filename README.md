@@ -36,11 +36,6 @@ live thumbnail of every running session.
   running the app instead. Windows only passes that sign-in on to computers listed in the
   "Allow delegating default credentials" policy, which an administrator sets; elsewhere Remote
   Desktop asks for the password.
-- **Leave a session running on the remote screen.** Per connection (Watchdog tab), leaving a
-  session hands it to the remote computer's console with `tscon <id> /dest:console` instead of
-  disconnecting it, so it stays signed in and unlocked there - useful for HMI and test PCs. The app
-  types the command into the session's Run box, and Windows asks you to confirm it with
-  administrator rights. Leaving again while it waits disconnects as usual. In-app client only.
 - **Multi-configs.** Launch several connections together, each with its own screen placement that
   overrides the connection's own settings. A layout map shows which session lands on which monitor.
 - **Tray quick launch.** A global shortcut (Ctrl+Alt+R by default) opens a searchable menu of every

@@ -61,49 +61,17 @@ including after opening and closing remote Start. Unlike `--live-hover`, it does
 park the pointer: the bar must receive native hit testing while the pointer is still on the exact
 top row. Pointer movement before the reveal fails the check as interrupted.
 
-To check the console hand-over without running it:
-
-```powershell
-dotnet run --project tests/DynatecRDM.RegressionTests -c Release -- --live-console-dry "Connection name"
-```
-
-This opens the remote Run box, types the `tscon` hand-over command, and reads it back with Ctrl+A,
-Ctrl+C through clipboard redirection (which the connection must allow), then presses Escape so
-nothing runs. It catches a keyboard-layout mismatch between this computer and the session. The
-local clipboard text is restored afterwards.
-
-To perform the hand-over for real, only on a computer where moving the session to its console is
-acceptable:
-
-```powershell
-dotnet run --project tests/DynatecRDM.RegressionTests -c Release -- --live-console "Connection name"
-```
-
-This leaves the session as the app does for a connection set to stay on the remote screen. Confirm
-the administrator prompt in the session within two minutes. The session must then end as a normal
-close, with no reconnect.
-
 To check switching between two full-screen sessions from the bar's tabs:
 
 ```powershell
-dotnet run --project tests/DynatecRDM.RegressionTests -c Release -- --live-switch "First" "Second" [screenshot.png]
+dotnet run --project tests/DynatecRDM.RegressionTests -c Release -- --live-switch "First" "Second"
 ```
 
 This opens both saved connections with their own display settings, reveals the bar by hovering,
 and clicks the other session's tab with the real mouse, both ways, tracing the native messages, the
-WPF click and what is in front. It then types the console hand-over into the second session without
-Enter, the way leaving a session does, and saves a screenshot of its monitor if a path is given.
-Leave the mouse and keyboard idle; the local computer must not be locked.
-
-To compare ways of sending keys to a session:
-
-```powershell
-dotnet run --project tests/DynatecRDM.RegressionTests -c Release -- --live-keys "Connection name" <folder> [variants]
-```
-
-With no variants it only photographs the connected session. Variants (comma-separated):
-`interop-one-per-call`, `vtable-one-call`, `vtable-one-call-ih-focus`, `vtable-one-call-scancode`.
-Each sends Windows+R, saves a screenshot to the folder, and presses Escape.
+WPF click and what is in front. Leave the mouse and keyboard idle. Run it at the computer itself:
+the local computer must not be locked, and inside a Remote Desktop session the moved pointer does
+not stay where the check puts it.
 
 Cross-monitor foreground switching, mixed physical monitor DPI, remote resolution negotiation,
 and external mstsc/msrdc toolbar behavior still need interactive checks.

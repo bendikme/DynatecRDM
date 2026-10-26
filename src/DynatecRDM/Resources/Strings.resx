@@ -889,26 +889,6 @@ The log is at {1}</value>
     <value>Decides where combinations such as Alt+Tab and the Windows key are handled.</value>
     <comment>Hint under the keyboard option</comment>
   </data>
-  <data name="Editor_LeaveOnConsole" xml:space="preserve">
-    <value>Leave the session running on the remote computer's own screen</value>
-    <comment>Toggle on the Watchdog tab</comment>
-  </data>
-  <data name="Editor_LeaveOnConsole_Hint" xml:space="preserve">
-    <value>Disconnecting hands the session to the remote computer's console (tscon … /dest:console) instead of disconnecting it, so it stays signed in and unlocked there. Windows on the remote computer asks you to confirm with administrator rights. Disconnect again while it waits to disconnect the usual way.</value>
-    <comment>Explanation under the leave-on-console toggle</comment>
-  </data>
-  <data name="Editor_LeaveOnConsole_NeedsEmbedded" xml:space="preserve">
-    <value>Only sessions hosted inside this app can be handed to the remote screen; with the external Remote Desktop client they disconnect as usual. Turn on “Host the remote desktop inside this app” in Settings and restart the app.</value>
-    <comment>Warning under the leave-on-console toggle when the external client is used</comment>
-  </data>
-  <data name="Editor_LeaveOnConsole_NeedsRestart" xml:space="preserve">
-    <value>“Host the remote desktop inside this app” is on, but it takes effect the next time you start the app. Until then sessions disconnect as usual.</value>
-    <comment>Warning under the leave-on-console toggle before a restart</comment>
-  </data>
-  <data name="Editor_Leave_Header" xml:space="preserve">
-    <value>WHEN YOU LEAVE</value>
-    <comment>Section header on the Watchdog tab</comment>
-  </data>
   <data name="Editor_List_JoinLast" xml:space="preserve">
     <value>{0}, {1}</value>
     <comment>Joins the last item onto a list. {0} = the earlier items (already separated by ', '), {1} = the last item. Used for monitor lists and the validation problems</comment>
@@ -2552,10 +2532,6 @@ The log is at {1}</value>
   <data name="SessionBar_ShowFrame_Tooltip" xml:space="preserve">
     <value>Show window frame, to move or resize the window</value>
     <comment>Session bar</comment>
-  </data>
-  <data name="Session_HandingOff" xml:space="preserve">
-    <value>{0} - handing over to the remote screen...</value>
-    <comment>Session window title while the session is handed to the remote console. {0} = the connection</comment>
   </data>
   <data name="Session_Menu_AlwaysOnTop" xml:space="preserve">
     <value>Always on top</value>

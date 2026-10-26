@@ -53,7 +53,7 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
         "gateway_json", "security_json", "custom_properties_json", "auto_reconnect",
         "max_reconnect_attempts", "reconnect_delay_seconds", "color", "tags", "favorite",
         "sort_order", "created_utc", "modified_utc", "last_connected_utc", "launch_count",
-        "use_windows_sign_in", "leave_on_console",
+        "use_windows_sign_in",
     ];
 
     private static readonly string[] MultiConfigColumns =
@@ -206,6 +206,8 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
 
     // Version 3: signing in as the Windows user, and leaving a session on the remote console.
     // Older builds name every column they write, so they leave these two as they found them.
+    // leave_on_console is no longer read or written: leaving a session on the remote console was
+    // withdrawn in 1.0.14. The column stays, as older databases already have it.
     private const string SchemaV3Sql = """
         ALTER TABLE connections ADD COLUMN use_windows_sign_in INTEGER NOT NULL DEFAULT 0;
         ALTER TABLE connections ADD COLUMN leave_on_console INTEGER NOT NULL DEFAULT 0;
@@ -1111,7 +1113,6 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
         Set(cmd, "$last_connected_utc", ToDb(c.LastConnectedUtc));
         Set(cmd, "$launch_count", c.LaunchCount);
         Set(cmd, "$use_windows_sign_in", ToDb(c.UseWindowsSignIn));
-        Set(cmd, "$leave_on_console", ToDb(c.LeaveOnConsole));
     }
 
     private static RdpConnection ReadConnection(DbDataReader r)
@@ -1148,7 +1149,6 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
             LastConnectedUtc = GetNullableUtc(r, 23),
             LaunchCount = GetInt(r, 24),
             UseWindowsSignIn = GetBool(r, 25),
-            LeaveOnConsole = GetBool(r, 26),
         };
     }
 

@@ -6,8 +6,8 @@ using DynatecRDM.Services;
 using MSTSCLib;
 using Microsoft.Data.Sqlite;
 
-// Signing in as the Windows user, logins typed into the editor, and leaving a session on the
-// remote console. Synthetic data only; nothing here authenticates or touches the user's database.
+// Signing in as the Windows user and logins typed into the editor. Synthetic data only; nothing
+// here authenticates or touches the user's database.
 public static partial class Program
 {
     private static void WindowsSignIn()
@@ -42,37 +42,6 @@ public static partial class Program
         Check(CredentialDelegationPolicy.StatusFor("10.0.0.5:3390") == WindowsSignInStatus.NeedsComputerName, "An address was treated as a name.");
     }
 
-    private static void ConsoleHandOffKeys()
-    {
-        var keys = new List<RdpKeyEvent>();
-        Check(RdpKeyboard.TryType(RdpSessionWindow.ConsoleHandOffCommand, RdpKeyboard.CurrentLayout(), keys, out var missing),
-            $"The current keyboard layout cannot type '{missing}'.");
-
-        // Every key that goes down comes up again, so no modifier is left held in the session.
-        var held = new Dictionary<(int, bool), int>();
-        foreach (var key in keys)
-        {
-            held[(key.ScanCode, key.Extended)] = held.GetValueOrDefault((key.ScanCode, key.Extended)) + (key.Up ? -1 : 1);
-            Check((key.LParam & 0xFFFF) == 1, "A key does not carry a repeat count of one.");
-            Check(((uint)key.LParam & 0xC0000000) == (key.Up ? 0xC0000000 : 0), "A key's transition bits do not match its direction.");
-        }
-        Check(held.Values.All(v => v == 0), "The command leaves a key held down.");
-
-        // On the Norwegian layout '$' is AltGr+4: the right Alt key, extended.
-        var layout = RdpKeyboard.CurrentLayout();
-        if (((long)layout & 0xFFFF) == 0x0414)
-        {
-            var dollar = new List<RdpKeyEvent>();
-            Check(RdpKeyboard.TryType("$", layout, dollar, out _), "'$' cannot be typed.");
-            Check(dollar.Count == 4 && dollar[0] == new RdpKeyEvent(0x38, true, false) && dollar[1].ScanCode == 0x05,
-                $"'$' is not AltGr+4: {string.Join(", ", dollar)}");
-        }
-
-        var windowsR = RdpKeyboard.WindowsR();
-        Check(windowsR[0] == new RdpKeyEvent(0x5B, true, false) && windowsR[^1] == new RdpKeyEvent(0x5B, true, true),
-            "Windows+R does not wrap R in the Windows key.");
-    }
-
     private static void ConnectionSignInStorage()
     {
         // Only synthetic connections in uniquely named databases beside this test executable.
@@ -80,14 +49,33 @@ public static partial class Program
         var upgraded = System.IO.Path.Combine(AppContext.BaseDirectory, $"regression-{Guid.NewGuid():N}.db");
         try
         {
+            var connection = new RdpConnection { Name = "Test", Host = "test.invalid", UseWindowsSignIn = true };
             using (var store = new SqliteDataStore(fresh))
             {
                 store.InitializeAsync().GetAwaiter().GetResult();
-                var connection = new RdpConnection { Name = "Test", Host = "test.invalid", UseWindowsSignIn = true, LeaveOnConsole = true };
                 store.UpsertConnectionAsync(connection).GetAwaiter().GetResult();
                 var back = store.GetConnectionAsync(connection.Id).GetAwaiter().GetResult()!;
-                Check(back.UseWindowsSignIn && back.LeaveOnConsole, "The new connection settings did not round-trip.");
-                Check(back.Clone() is { UseWindowsSignIn: true, LeaveOnConsole: true }, "Clone dropped the new settings.");
+                Check(back.UseWindowsSignIn, "Windows sign-in did not round-trip.");
+                Check(back.Clone() is { UseWindowsSignIn: true }, "Clone dropped Windows sign-in.");
+            }
+
+            // 1.0.12 and 1.0.13 also stored whether to leave a session on the remote console. The
+            // column is no longer read or written; a connection that has it set still loads and saves.
+            using (var cn = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = fresh, Pooling = false }.ToString()))
+            {
+                cn.Open();
+                using var cmd = cn.CreateCommand();
+                cmd.CommandText = $"UPDATE connections SET leave_on_console = 1 WHERE id = '{connection.Id}';";
+                Check(cmd.ExecuteNonQuery() == 1, "The stored connection was not found to mark.");
+            }
+            using (var store = new SqliteDataStore(fresh))
+            {
+                store.InitializeAsync().GetAwaiter().GetResult();
+                var back = store.GetConnectionAsync(connection.Id).GetAwaiter().GetResult()!;
+                back.Name = "Renamed";
+                store.UpsertConnectionAsync(back).GetAwaiter().GetResult();
+                Check(store.GetConnectionAsync(connection.Id).GetAwaiter().GetResult()?.Name == "Renamed",
+                    "A connection stored by 1.0.12 or 1.0.13 no longer loads and saves.");
             }
 
             // A version 2 database, as every released build left it, with one connection in it.
@@ -106,10 +94,10 @@ public static partial class Program
             {
                 store.InitializeAsync().GetAwaiter().GetResult();
                 var old = store.GetConnectionAsync(id).GetAwaiter().GetResult();
-                Check(old is { Name: "Old", UseWindowsSignIn: false, LeaveOnConsole: false }, "An upgraded connection was lost or changed.");
-                old!.LeaveOnConsole = true;
+                Check(old is { Name: "Old", UseWindowsSignIn: false }, "An upgraded connection was lost or changed.");
+                old!.UseWindowsSignIn = true;
                 store.UpsertConnectionAsync(old).GetAwaiter().GetResult();
-                Check(store.GetConnectionAsync(id).GetAwaiter().GetResult()!.LeaveOnConsole, "An upgraded database does not keep the new setting.");
+                Check(store.GetConnectionAsync(id).GetAwaiter().GetResult()!.UseWindowsSignIn, "An upgraded database does not keep Windows sign-in.");
             }
         }
         finally

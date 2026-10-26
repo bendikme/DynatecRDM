@@ -679,21 +679,6 @@ Loggen ligger her: {1}</value>
   <data name="Editor_KeyboardHook_Hint" xml:space="preserve">
     <value>Bestemmer hvor kombinasjoner som Alt+Tab og Windows-tasten skal virke.</value>
   </data>
-  <data name="Editor_LeaveOnConsole" xml:space="preserve">
-    <value>La økten fortsette på den eksterne maskinens egen skjerm</value>
-  </data>
-  <data name="Editor_LeaveOnConsole_Hint" xml:space="preserve">
-    <value>Frakobling flytter økten til den eksterne maskinens konsoll (tscon … /dest:console) i stedet for å koble den fra, slik at den forblir pålogget og ulåst der. Windows på den eksterne maskinen ber deg bekrefte med administratorrettigheter. Koble fra en gang til mens den venter for å koble fra på vanlig måte.</value>
-  </data>
-  <data name="Editor_LeaveOnConsole_NeedsEmbedded" xml:space="preserve">
-    <value>Bare økter som vises inne i denne appen, kan flyttes til den eksterne skjermen; med en egen klient for eksternt skrivebord kobles de fra som vanlig. Slå på «Vis det eksterne skrivebordet inne i denne appen» under Innstillinger, og start appen på nytt.</value>
-  </data>
-  <data name="Editor_LeaveOnConsole_NeedsRestart" xml:space="preserve">
-    <value>«Vis det eksterne skrivebordet inne i denne appen» er slått på, men trer i kraft neste gang du starter appen. Frem til da kobles øktene fra som vanlig.</value>
-  </data>
-  <data name="Editor_Leave_Header" xml:space="preserve">
-    <value>NÅR DU FORLATER ØKTEN</value>
-  </data>
   <data name="Editor_List_JoinLast" xml:space="preserve">
     <value>{0} og {1}</value>
   </data>
@@ -1926,9 +1911,6 @@ Loggen ligger her: {1}</value>
   </data>
   <data name="SessionBar_ShowFrame_Tooltip" xml:space="preserve">
     <value>Vis vindusrammen for å flytte vinduet eller endre størrelsen</value>
-  </data>
-  <data name="Session_HandingOff" xml:space="preserve">
-    <value>{0} – flyttes til den eksterne skjermen ...</value>
   </data>
   <data name="Session_Menu_AlwaysOnTop" xml:space="preserve">
     <value>Alltid øverst</value>

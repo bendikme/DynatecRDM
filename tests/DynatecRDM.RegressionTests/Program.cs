@@ -39,23 +39,9 @@ public static partial class Program
             app.Shutdown();
             return _failed == 0 ? 0 : 1;
         }
-        if (args.Length == 2 && args[0] is "--live-console-dry" or "--live-console")
+        if (args.Length == 3 && args[0] == "--live-switch")
         {
-            var check = args[0] == "--live-console" ? LiveSessionChecks.ConsoleCheck.HandOff : LiveSessionChecks.ConsoleCheck.DryRun;
-            Run("Live console hand-over", () => LiveSessionChecks.Run(args[1], console: check));
-            app.Shutdown();
-            return _failed == 0 ? 0 : 1;
-        }
-        if (args.Length is 3 or 4 && args[0] == "--live-keys")
-        {
-            Run("Live key delivery probe", () => LiveSessionChecks.RunKeyProbe(args[1], args[2],
-                args.Length == 4 ? args[3].Split(',', StringSplitOptions.RemoveEmptyEntries) : Array.Empty<string>()));
-            app.Shutdown();
-            return _failed == 0 ? 0 : 1;
-        }
-        if (args.Length is 3 or 4 && args[0] == "--live-switch")
-        {
-            Run("Live session bar tab switch", () => LiveSessionChecks.RunSwitch(args[1], args[2], args.Length == 4 ? args[3] : null));
+            Run("Live session bar tab switch", () => LiveSessionChecks.RunSwitch(args[1], args[2]));
             app.Shutdown();
             return _failed == 0 ? 0 : 1;
         }
@@ -91,8 +77,7 @@ public static partial class Program
         Run("Session bar reveal strip scales and respects monitor boundaries", RevealBand);
         Run("Update tokens are encrypted, round-trip, and migrate from older settings", TokenStorage);
         Run("Windows sign-in never forces the prompt and sends no password", WindowsSignIn);
-        Run("The console hand-over types on this layout and releases every key", ConsoleHandOffKeys);
-        Run("Sign-in and console settings survive the database and its upgrade", ConnectionSignInStorage);
+        Run("Sign-in settings survive the database and its upgrade", ConnectionSignInStorage);
         Run("RDP Connect sends negotiation to a loopback listener", ConnectTransport);
         Run("Closed RDP windows and overlays are collectible", SessionLifetime);
         Run("Session overlays avoid desktop-sized bitmap allocations", SessionOverlayAllocations);

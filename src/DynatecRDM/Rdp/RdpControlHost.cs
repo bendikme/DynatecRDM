@@ -205,35 +205,6 @@ public sealed class RdpControlHost : IDisposable
 
     private static int Clamp(int value, int min, int max) => value < min ? min : value > max ? max : value;
 
-    /// <summary>
-    /// Sends keystrokes to the remote session as if typed on its keyboard. False when the session
-    /// is not connected or the control refused them.
-    ///
-    /// One key per call: the generated interop declares the key arrays as single by-ref values,
-    /// and a VARIANT_BOOL is copied rather than pinned, so only a call with one key is
-    /// marshalled exactly as the control expects.
-    /// </summary>
-    public bool SendKeys(IEnumerable<RdpKeyEvent> keys)
-    {
-        if (!IsConnected) return false;
-        try
-        {
-            var input = (IMsRdpClientNonScriptable)Ocx;
-            foreach (var key in keys)
-            {
-                var up = key.Up;
-                var data = key.LParam;
-                input.SendKeys(1, ref up, ref data);
-            }
-            return true;
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn($"The session refused keystrokes: {ex.Message}");
-            return false;
-        }
-    }
-
     private void OnAxDisconnected(object? sender, IMsTscAxEvents_OnDisconnectedEvent e)
         => RaiseDisconnected(ClassifyDisconnect(e.discReason), e.discReason, DescribeDisconnect(e.discReason));
 

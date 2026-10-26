@@ -763,27 +763,6 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _watchdogSummary, value);
     }
 
-    public bool LeaveOnConsole
-    {
-        get => _model.LeaveOnConsole;
-        set
-        {
-            if (_model.LeaveOnConsole == value) return;
-            _model.LeaveOnConsole = value;
-            Raise(nameof(LeaveOnConsole), nameof(ShowLeaveOnConsoleUnsupported));
-            Invalidate();
-        }
-    }
-
-    /// <summary>Only the in-app client can type into the session, so only it can hand a session over.</summary>
-    public bool ShowLeaveOnConsoleUnsupported =>
-        _model.LeaveOnConsole && _services.Sessions is not EmbeddedSessionManager;
-
-    /// <summary>Why it cannot: the in-app client is off, or switched on but not running until a restart.</summary>
-    public string LeaveOnConsoleUnsupportedText => _services.Settings.UseEmbeddedClient
-        ? Strings.Editor_LeaveOnConsole_NeedsRestart
-        : Strings.Editor_LeaveOnConsole_NeedsEmbedded;
-
     // ....................................................................
     // Advanced
     // ....................................................................

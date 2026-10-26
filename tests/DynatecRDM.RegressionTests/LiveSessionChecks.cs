@@ -13,12 +13,10 @@ using Microsoft.Data.Sqlite;
 // Explicit opt-in: authenticates with a named saved connection. Database access is read-only.
 internal static class LiveSessionChecks
 {
-    public static void Run(string connectionName, bool hoverOnly = false, bool edgeOnly = false, ConsoleCheck console = ConsoleCheck.None)
+    public static void Run(string connectionName, bool hoverOnly = false, bool edgeOnly = false)
     {
         var (connection, credential) = ReadConnection(connectionName);
         connection.AutoReconnect = false;
-        // Only the copy in memory: the database is never written.
-        connection.LeaveOnConsole = console == ConsoleCheck.HandOff;
         var config = new AppSettings { EnableSnapshots = false, SessionBarEnabled = true, WatchdogEnabled = false };
         using var monitors = new MonitorService();
         var store = DispatchProxy.Create<IDataStore, StoreProxy>();
@@ -53,16 +51,6 @@ internal static class LiveSessionChecks
             WaitUntil(() => session.State == SessionState.Connected || !session.IsActive, "login", 30);
             Check(session.State == SessionState.Connected, $"RDP login failed: {session.State}, {session.LastError}");
             Console.WriteLine("LIVE login completed.");
-            if (console == ConsoleCheck.DryRun)
-            {
-                ConsoleDryRun(session);
-                return;
-            }
-            if (console == ConsoleCheck.HandOff)
-            {
-                ConsoleHandOff(manager, session);
-                return;
-            }
 
             Check(manager.TrySetFullScreen(session.Id, true), "Full-screen request failed.");
             WaitUntil(() => FullScreen(session), "full-screen", 5);
@@ -105,25 +93,19 @@ internal static class LiveSessionChecks
         }
     }
 
-    public enum ConsoleCheck { None, DryRun, HandOff }
-
     /// <summary>
     /// Two saved connections opened the way the app opens them - full screen where they are set to
     /// be - and the bar's tab of the one behind clicked with the real mouse, as a user switches.
     /// Every step is traced: the native messages the bar gets, the WPF click, the bar's current
-    /// session and what is in front. Then the console hand-over is typed into the second session
-    /// without Enter, on the threads the app types it on, and read back. Nothing runs remotely.
+    /// session and what is in front.
     /// </summary>
-    public static void RunSwitch(string firstName, string secondName, string? screenshotPath)
+    public static void RunSwitch(string firstName, string secondName)
     {
         var (first, firstCredential) = ReadConnection(firstName);
         var (second, secondCredential) = ReadConnection(secondName);
         // Only the copies in memory: the database is never written.
-        foreach (var connection in new[] { first, second })
-        {
-            connection.AutoReconnect = false;
-            connection.LeaveOnConsole = false;
-        }
+        first.AutoReconnect = false;
+        second.AutoReconnect = false;
         var config = new AppSettings { EnableSnapshots = false, SessionBarEnabled = true, WatchdogEnabled = false };
         using var monitors = new MonitorService();
         var store = DispatchProxy.Create<IDataStore, StoreProxy>();
@@ -192,9 +174,6 @@ internal static class LiveSessionChecks
                 Console.WriteLine($"SWITCH {attempt}: {trace.Summary()}");
             }
 
-            SetCursorPos(middle, monitor.Top + monitor.Height / 2);
-            WaitUntil(() => Window()?.IsRevealed != true, "bar to hide", 4);
-            TypeHandOffLikeTheApp(manager, b, screenshotPath, monitor);
         }
         finally
         {
@@ -205,138 +184,6 @@ internal static class LiveSessionChecks
         }
     }
 
-    /// <summary>
-    /// Sends Windows+R to a full-screen session in several ways and photographs the result of each,
-    /// to see which one the session actually receives. Escape follows each, so nothing is left open.
-    /// </summary>
-    public static void RunKeyProbe(string connectionName, string directory, string[] wanted)
-    {
-        var (connection, credential) = ReadConnection(connectionName);
-        connection.AutoReconnect = false;
-        connection.LeaveOnConsole = false;
-        var config = new AppSettings { EnableSnapshots = false, SessionBarEnabled = true, WatchdogEnabled = false };
-        using var monitors = new MonitorService();
-        var store = DispatchProxy.Create<IDataStore, StoreProxy>();
-        ((StoreProxy)(object)store).Connection = connection;
-        ((StoreProxy)(object)store).Credential = credential;
-        using var manager = new EmbeddedSessionManager(store, new SecretProtector(), monitors,
-            new WindowPlacementService(monitors), new NoSnapshots(), () => config);
-        var services = (AppServices)Activator.CreateInstance(typeof(AppServices), nonPublic: true)!;
-        services.Settings = config;
-        typeof(AppServices).GetProperty(nameof(AppServices.Sessions))!.SetValue(services, manager);
-        typeof(AppServices).GetProperty(nameof(AppServices.Monitors))!.SetValue(services, monitors);
-        using var bar = new SessionBarService(services, DispatchProxy.Create<IAppShell, Program.NoCalls>());
-        var windowField = typeof(SessionBarService).GetField("_window", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        SessionBarWindow? Window() => (SessionBarWindow?)windowField.GetValue(bar);
-        var originalForeground = Win32.GetForegroundWindow();
-        Win32.GetCursorPos(out var originalCursor);
-        RdpSession? session = null;
-        try
-        {
-            session = LaunchConnected(manager, connection);
-            var form = (DynatecRDM.Rdp.RdpSessionWindow)System.Windows.Forms.Control.FromHandle(session.WindowHandle)!;
-            Win32.TryGetClientScreenRect(session.WindowHandle, out var rect);
-            var monitor = monitors.GetMonitorAt(rect.Left + 20, rect.Top + 20);
-
-            // The foreground the way a user gives it: a click on the session's own tab on the bar.
-            var middle = monitor.Left + monitor.Width / 2;
-            SetCursorPos(middle, monitor.Top + monitor.Height / 2);
-            PumpFor(4500);
-            Shoot(monitor, System.IO.Path.Combine(directory, "keys-0-connected.png"), whole: true);
-            var top = Win32.GetRootWindow(Win32.WindowFromPoint(new Win32.POINT { X = middle, Y = monitor.Top + 2 }));
-            Console.WriteLine($"KEYS connected: foreground is the session={Win32.GetForegroundWindow() == session.WindowHandle}; " +
-                              $"at the top edge {Win32.GetClassName(top)} '{Win32.GetWindowText(top)}' (session: {top == session.WindowHandle})");
-            SetCursorPos(middle, monitor.Top + 2);
-            try { WaitUntil(() => Window()?.IsRevealed == true, "hover reveal", 3); }
-            catch (Exception ex) { Console.WriteLine($"KEYS {ex.Message}"); }
-            if (Window()?.IsRevealed == true)
-            {
-                PumpFor(300);
-                var tab = Descendants<System.Windows.Controls.Button>((System.Windows.Controls.ItemsControl)Window()!.FindName("TabList")).First();
-                var centre = tab.PointToScreen(new System.Windows.Point(tab.ActualWidth / 2, tab.ActualHeight / 2));
-                SetCursorPos((int)centre.X, (int)centre.Y);
-                PumpFor(300);
-                MouseEvent(2, 0, 0, 0, UIntPtr.Zero);
-                PumpFor(80);
-                MouseEvent(4, 0, 0, 0, UIntPtr.Zero);
-            }
-            SetCursorPos(middle, monitor.Top + monitor.Height / 2);
-            PumpFor(800);
-            Console.WriteLine($"KEYS ready: foreground is the session={Win32.GetForegroundWindow() == session.WindowHandle}; focus={Win32.GetClassName(GetFocus())}");
-
-            var winR = DynatecRDM.Rdp.RdpKeyboard.WindowsR();
-            var escape = DynatecRDM.Rdp.RdpKeyboard.Escape;
-            var variants = new (string Name, Action<DynatecRDM.Rdp.RdpKeyEvent[]> Send)[]
-            {
-                ("interop-one-per-call", keys => form.Host.SendKeys(keys)),
-                ("vtable-one-call", keys => SendRaw(form.Host.Ocx, keys, k => k.LParam)),
-                ("vtable-one-call-ih-focus", keys => { FocusInputWindow(form); SendRaw(form.Host.Ocx, keys, k => k.LParam); }),
-                ("vtable-one-call-scancode", keys => SendRaw(form.Host.Ocx, keys, k => k.ScanCode | (k.Extended ? 0x100 : 0))),
-            };
-            foreach (var (name, send) in variants)
-            {
-                if (!wanted.Contains(name)) continue;
-                Console.WriteLine($"KEYS {name}: foreground is the session={Win32.GetForegroundWindow() == session.WindowHandle}; focus={Win32.GetClassName(GetFocus())}");
-                send(winR);
-                PumpFor(1500);
-                Shoot(monitor, System.IO.Path.Combine(directory, $"keys-{name}.png"), whole: true);
-                send(escape);
-                PumpFor(800);
-            }
-        }
-        finally
-        {
-            if (session is not null) manager.CloseAsync(session.Id).GetAwaiter().GetResult();
-            SetCursorPos(originalCursor.X, originalCursor.Y);
-            if (originalForeground != IntPtr.Zero) Win32.ForceForeground(originalForeground);
-        }
-    }
-
-    private delegate int SendKeysFn(IntPtr self, int count, short[] keyUp, int[] keyData);
-
-    /// <summary>The whole sequence in one SendKeys call, straight through the vtable with real arrays.</summary>
-    private static void SendRaw(object ocx, DynatecRDM.Rdp.RdpKeyEvent[] keys, Func<DynatecRDM.Rdp.RdpKeyEvent, int> data)
-    {
-        var unknown = Marshal.GetComInterfaceForObject(ocx, typeof(MSTSCLib.IMsRdpClientNonScriptable));
-        try
-        {
-            var slot = Marshal.ReadIntPtr(Marshal.ReadIntPtr(unknown), 14 * IntPtr.Size);
-            var fn = Marshal.GetDelegateForFunctionPointer<SendKeysFn>(slot);
-            var hr = fn(unknown, keys.Length, keys.Select(k => (short)(k.Up ? -1 : 0)).ToArray(), keys.Select(data).ToArray());
-            if (hr != 0) Console.WriteLine($"KEYS SendKeys returned 0x{hr:X8}");
-        }
-        finally { Marshal.Release(unknown); }
-    }
-
-    private static void FocusInputWindow(DynatecRDM.Rdp.RdpSessionWindow form)
-    {
-        var found = IntPtr.Zero;
-        Win32.EnumChildWindows(form.Handle, child =>
-        {
-            if (Win32.GetClassName(child) == "IHWindowClass") { found = child; return false; }
-            return true;
-        });
-        if (found != IntPtr.Zero) SetFocus(found);
-        Console.WriteLine($"KEYS input window 0x{found.ToInt64():X}, focus now {Win32.GetClassName(GetFocus())}");
-    }
-
-    private static void Shoot(MonitorInfo monitor, string path, bool whole = false)
-    {
-        using var shot = new System.Drawing.Bitmap(monitor.Width, monitor.Height);
-        using (var g = System.Drawing.Graphics.FromImage(shot))
-            g.CopyFromScreen(monitor.Left, monitor.Top, 0, 0, shot.Size);
-        // The lower-left quarter is where the Run box opens; that is all the check needs to see.
-        var area = whole
-            ? new System.Drawing.Rectangle(0, 0, monitor.Width, monitor.Height)
-            : new System.Drawing.Rectangle(0, monitor.Height / 2, monitor.Width / 2, monitor.Height / 2);
-        using var corner = shot.Clone(area, shot.PixelFormat);
-        using var small = new System.Drawing.Bitmap(corner, corner.Width / 2, corner.Height / 2);
-        small.Save(path, System.Drawing.Imaging.ImageFormat.Png);
-    }
-
-    [DllImport("user32.dll")] private static extern IntPtr GetFocus();
-    [DllImport("user32.dll")] private static extern IntPtr SetFocus(IntPtr hwnd);
-
     private static RdpSession LaunchConnected(EmbeddedSessionManager manager, RdpConnection connection)
     {
         var launch = manager.LaunchAsync(connection);
@@ -346,52 +193,6 @@ internal static class LiveSessionChecks
         Check(session.State == SessionState.Connected, $"RDP login to '{connection.Name}' failed: {session.State}, {session.LastError}");
         Console.WriteLine($"LIVE '{connection.Name}' connected.");
         return session;
-    }
-
-    /// <summary>
-    /// Types the hand-over the way leaving a session does - focus from a pool thread, the typing
-    /// handed to the UI thread - but without Enter, and reads it back.
-    /// </summary>
-    private static void TypeHandOffLikeTheApp(EmbeddedSessionManager manager, RdpSession session, string? screenshotPath, MonitorInfo monitor)
-    {
-        var form = (DynatecRDM.Rdp.RdpSessionWindow)System.Windows.Forms.Control.FromHandle(session.WindowHandle)!;
-        var command = DynatecRDM.Rdp.RdpSessionWindow.ConsoleHandOffCommand;
-        var dispatcher = Dispatcher.CurrentDispatcher;
-        var saved = ClipboardText();
-        try
-        {
-            var typing = Task.Run(async () =>
-            {
-                manager.Focus(session.Id);
-                var inner = await dispatcher.InvokeAsync(() => form.TypeIntoRunBoxAsync(command, submit: false)).Task;
-                return await inner;
-            });
-            WaitUntil(() => typing.IsCompleted, "typing into the Run box", 20);
-            Console.WriteLine($"CONSOLE typed={typing.Result}; foreground is the session: {Win32.GetForegroundWindow() == session.WindowHandle}");
-            PumpFor(700);
-            if (screenshotPath is not null)
-            {
-                using var shot = new System.Drawing.Bitmap(monitor.Width, monitor.Height);
-                using (var g = System.Drawing.Graphics.FromImage(shot))
-                    g.CopyFromScreen(monitor.Left, monitor.Top, 0, 0, shot.Size);
-                using var small = new System.Drawing.Bitmap(shot, monitor.Width / 2, monitor.Height / 2);
-                small.Save(screenshotPath, System.Drawing.Imaging.ImageFormat.Png);
-                Console.WriteLine($"CONSOLE screenshot: {screenshotPath}");
-            }
-            form.Host.SendKeys(Control(0x1E));
-            form.Host.SendKeys(Control(0x2E));
-            try { WaitUntil(() => ClipboardText() == command, "the typed command to come back on the clipboard", 5); }
-            catch { }
-            Console.WriteLine(ClipboardText() == command
-                ? "CONSOLE the Run box holds exactly the hand-over command."
-                : $"CONSOLE read back: '{ClipboardText()}'");
-        }
-        finally
-        {
-            form.Host.SendKeys(DynatecRDM.Rdp.RdpKeyboard.Escape);
-            PumpFor(300);
-            try { if (saved is not null) System.Windows.Clipboard.SetText(saved); } catch { }
-        }
     }
 
     private static void Describe(string when, RdpSession a, RdpSession b, SessionBarViewModel vm, SessionBarWindow? window, MonitorInfo monitor)
@@ -488,66 +289,6 @@ internal static class LiveSessionChecks
             if (child is T match) yield return match;
             foreach (var nested in Descendants<T>(child)) yield return nested;
         }
-    }
-
-    /// <summary>
-    /// Types the console hand-over into the session's Run box without submitting it, then reads it
-    /// back: Ctrl+A, Ctrl+C in the Run box, and clipboard redirection brings the text here. Escape
-    /// closes the box again, so nothing runs in the session.
-    /// </summary>
-    private static void ConsoleDryRun(RdpSession session)
-    {
-        var form = (DynatecRDM.Rdp.RdpSessionWindow)System.Windows.Forms.Control.FromHandle(session.WindowHandle)!;
-        var command = DynatecRDM.Rdp.RdpSessionWindow.ConsoleHandOffCommand;
-        var saved = ClipboardText();
-        try
-        {
-            var typing = form.TypeIntoRunBoxAsync(command, submit: false);
-            WaitUntil(() => typing.IsCompleted, "typing into the Run box", 15);
-            Check(typing.Result, "Nothing was typed into the session.");
-            PumpFor(700);
-            Check(form.Host.SendKeys(Control(0x1E)) && form.Host.SendKeys(Control(0x2E)), "The session refused Ctrl+A, Ctrl+C.");
-            try { WaitUntil(() => ClipboardText() == command, "the typed command to come back on the clipboard", 8); }
-            catch
-            {
-                Console.WriteLine($"CONSOLE expected: {command}");
-                Console.WriteLine($"CONSOLE typed:    {ClipboardText()}");
-                throw;
-            }
-            Console.WriteLine("CONSOLE the Run box holds exactly the hand-over command.");
-        }
-        finally
-        {
-            form.Host.SendKeys(DynatecRDM.Rdp.RdpKeyboard.Escape);
-            PumpFor(300);
-            try { if (saved is not null) System.Windows.Clipboard.SetText(saved); } catch { }
-        }
-    }
-
-    /// <summary>
-    /// Leaves the session the way the app does for a connection set to stay on the remote screen,
-    /// and waits for the operator to confirm the elevation in the session. The session must then
-    /// end as a normal close, not be brought back.
-    /// </summary>
-    private static void ConsoleHandOff(EmbeddedSessionManager manager, RdpSession session)
-    {
-        manager.CloseAsync(session.Id).GetAwaiter().GetResult();
-        Check(session.IsActive, "Leaving disconnected the session instead of handing it over.");
-        Console.WriteLine("CONSOLE confirm the administrator prompt in the session within two minutes.");
-        WaitUntil(() => !session.IsActive, "the session to move to the remote console", 130);
-        Check(session.State == SessionState.Disconnected, $"The hand-over ended as {session.State}: {session.LastError}");
-        Console.WriteLine("CONSOLE the session moved to the remote console and ended here without reconnecting.");
-    }
-
-    private static DynatecRDM.Rdp.RdpKeyEvent[] Control(int scanCode) =>
-    [
-        new(0x1D, false, false), new(scanCode, false, false), new(scanCode, false, true), new(0x1D, false, true),
-    ];
-
-    private static string? ClipboardText()
-    {
-        try { return System.Windows.Clipboard.ContainsText() ? System.Windows.Clipboard.GetText() : null; }
-        catch { return null; }
     }
 
     private static void RapidEdgeCycles(SessionBarService bar, RdpSession session, MonitorInfo monitor)
