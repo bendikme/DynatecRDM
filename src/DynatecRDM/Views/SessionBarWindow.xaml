@@ -53,10 +53,16 @@
             <Setter Property="SnapsToDevicePixels" Value="True" />
         </Style>
 
+        <!-- The bar hangs from the screen edge, and the pointer that reached for it is stopped by that
+             edge: it slides along the top row to a button and clicks there. So every button reaches up
+             to the edge, its visible face this far below it, and a click on the top row is a click on
+             the button underneath rather than on the panel around them. -->
+        <Thickness x:Key="BarEdgeReach">0,5,0,0</Thickness>
+
         <Style x:Key="BarSeparator" TargetType="Border">
             <Setter Property="Width" Value="1" />
             <Setter Property="Height" Value="18" />
-            <Setter Property="Margin" Value="6,0" />
+            <Setter Property="Margin" Value="6,5,6,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Background" Value="{DynamicResource BorderBrushSoft}" />
         </Style>
@@ -64,7 +70,7 @@
         <!-- The bar never takes focus - the remote session keeps the keyboard - so nothing in it
              is focusable, and there is no focus visual to design. -->
         <Style x:Key="BarButtonBase" TargetType="Button">
-            <Setter Property="Height" Value="30" />
+            <Setter Property="Height" Value="35" />
             <Setter Property="MinWidth" Value="32" />
             <Setter Property="Padding" Value="9,0" />
             <Setter Property="Margin" Value="1,0" />
@@ -80,17 +86,20 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="{StaticResource RadiusMedium}"
-                                SnapsToDevicePixels="True">
-                            <ContentPresenter Margin="{TemplateBinding Padding}"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"
-                                              SnapsToDevicePixels="True" />
-                        </Border>
+                        <Grid Background="Transparent">
+                            <Border x:Name="Bd"
+                                    Margin="{StaticResource BarEdgeReach}"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="{StaticResource RadiusMedium}"
+                                    SnapsToDevicePixels="True">
+                                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  SnapsToDevicePixels="True" />
+                            </Border>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
@@ -120,17 +129,20 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="{StaticResource RadiusMedium}"
-                                SnapsToDevicePixels="True">
-                            <ContentPresenter Margin="{TemplateBinding Padding}"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"
-                                              SnapsToDevicePixels="True" />
-                        </Border>
+                        <Grid Background="Transparent">
+                            <Border x:Name="Bd"
+                                    Margin="{StaticResource BarEdgeReach}"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="{StaticResource RadiusMedium}"
+                                    SnapsToDevicePixels="True">
+                                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  SnapsToDevicePixels="True" />
+                            </Border>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DangerSubtleBrush}" />
@@ -157,23 +169,25 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Grid>
-                            <Border x:Name="Bd"
-                                    Background="{TemplateBinding Background}"
-                                    CornerRadius="{StaticResource RadiusMedium}"
-                                    SnapsToDevicePixels="True" />
-                            <ContentPresenter Margin="{TemplateBinding Padding}"
-                                              VerticalAlignment="Center"
-                                              SnapsToDevicePixels="True" />
-                            <Border x:Name="Underline"
-                                    Width="18"
-                                    Height="2"
-                                    Margin="0,0,0,1"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Bottom"
-                                    CornerRadius="1"
-                                    Background="{DynamicResource AccentBrush}"
-                                    Visibility="Collapsed" />
+                        <Grid Background="Transparent">
+                            <Grid Margin="{StaticResource BarEdgeReach}">
+                                <Border x:Name="Bd"
+                                        Background="{TemplateBinding Background}"
+                                        CornerRadius="{StaticResource RadiusMedium}"
+                                        SnapsToDevicePixels="True" />
+                                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                  VerticalAlignment="Center"
+                                                  SnapsToDevicePixels="True" />
+                                <Border x:Name="Underline"
+                                        Width="18"
+                                        Height="2"
+                                        Margin="0,0,0,1"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Bottom"
+                                        CornerRadius="1"
+                                        Background="{DynamicResource AccentBrush}"
+                                        Visibility="Collapsed" />
+                            </Grid>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -239,8 +253,9 @@
             </Border.Effect>
         </Border>
 
+        <!-- No padding at the top: the buttons reach the edge themselves (see BarEdgeReach). -->
         <Border x:Name="BarPanel"
-                Padding="6,5,6,6"
+                Padding="6,0,6,6"
                 CornerRadius="0,0,12,12"
                 Background="{DynamicResource SurfaceBrush}"
                 BorderBrush="{DynamicResource BorderBrushSoft}"

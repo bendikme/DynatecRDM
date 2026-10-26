@@ -46,6 +46,19 @@ public static partial class Program
             app.Shutdown();
             return _failed == 0 ? 0 : 1;
         }
+        if (args.Length is 3 or 4 && args[0] == "--live-keys")
+        {
+            Run("Live key delivery probe", () => LiveSessionChecks.RunKeyProbe(args[1], args[2],
+                args.Length == 4 ? args[3].Split(',', StringSplitOptions.RemoveEmptyEntries) : Array.Empty<string>()));
+            app.Shutdown();
+            return _failed == 0 ? 0 : 1;
+        }
+        if (args.Length is 3 or 4 && args[0] == "--live-switch")
+        {
+            Run("Live session bar tab switch", () => LiveSessionChecks.RunSwitch(args[1], args[2], args.Length == 4 ? args[3] : null));
+            app.Shutdown();
+            return _failed == 0 ? 0 : 1;
+        }
         if (args.Length == 2 && args[0] is "--live" or "--live-hover" or "--live-edge")
         {
             Run("Live saved RDP connection and session controls", () => LiveSessionChecks.Run(args[1], args[0] != "--live", args[0] == "--live-edge"));
@@ -71,6 +84,7 @@ public static partial class Program
         Run("Mouse wheel wraps sessions in both directions", Wheel);
         Run("UI launch exceptions and cancellation propagate", UiFailures);
         Run("Session bar renders and does not activate on click", BarWindow);
+        Run("Session bar buttons reach the screen edge the bar hangs from", BarEdgeTargets);
         Run("Full-screen minimize/restore preserves the layout", FullScreen);
         Run("Reconfiguring the RDP control clears old identity and settings", Credentials);
         Run("Session bar follows window identity and hides when the session ends", BarTracking);
@@ -200,6 +214,43 @@ public static partial class Program
             Check(window.IsRevealed && window.IsVisible, "Old hide callback closed a newly revealed bar.");
             window.Conceal(false);
             Check(!window.IsVisible && !window.IsRevealed, "Conceal left the bar visible.");
+        }
+        finally { window.ForceClose(); }
+    }
+
+    /// <summary>
+    /// The bar is reached by pushing the pointer against the top of the screen, where it stays as it
+    /// slides along to a button. A click on that top row must land on the button below it, not on
+    /// the panel around the buttons - which takes the click and does nothing.
+    /// </summary>
+    private static void BarEdgeTargets()
+    {
+        var (vm, host, a, b) = Sessions();
+        var window = new SessionBarWindow(vm);
+        try
+        {
+            var monitor = new MonitorInfo(0, "test", "test", -20000, -20000, 1280, 720,
+                -20000, -20000, 1280, 720, false, 96, 96);
+            Check(window.Reveal(monitor), "Reveal failed.");
+            var slide = (TranslateTransform)window.FindName("SlideTransform");
+            var until = Environment.TickCount64 + 2000;
+            while (slide.Y != 0 && Environment.TickCount64 < until) Pump();
+            Check(slide.Y == 0, "The bar did not finish sliding in.");
+
+            var buttons = Descendants<Button>(window).Where(button => button.IsVisible).ToArray();
+            Check(buttons.Length >= 6, $"Expected the bar's buttons and two tabs, found {buttons.Length}.");
+            foreach (var button in buttons)
+            {
+                var centre = button.TranslatePoint(new System.Windows.Point(button.ActualWidth / 2, button.ActualHeight / 2), window);
+                foreach (var y in new[] { 0.0, 1.0, 3.0, centre.Y })
+                {
+                    var hit = window.InputHitTest(new System.Windows.Point(centre.X, y)) as DependencyObject;
+                    while (hit is not null && hit is not Button) hit = VisualTreeHelper.GetParent(hit);
+                    var name = System.Windows.Automation.AutomationProperties.GetName(button);
+                    if (string.IsNullOrEmpty(name)) name = (button.DataContext as SessionBarTab)?.Session.DisplayName ?? "?";
+                    Check(ReferenceEquals(hit, button), $"A click {y:0} px from the top edge above '{name}' does not reach it.");
+                }
+            }
         }
         finally { window.ForceClose(); }
     }

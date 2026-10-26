@@ -6,6 +6,7 @@ using DynatecRDM.Data;
 using DynatecRDM.Interop;
 using DynatecRDM.Models;
 using DynatecRDM.Services;
+using DynatecRDM.ViewModels;
 using DynatecRDM.Views;
 using Microsoft.Data.Sqlite;
 
@@ -105,6 +106,389 @@ internal static class LiveSessionChecks
     }
 
     public enum ConsoleCheck { None, DryRun, HandOff }
+
+    /// <summary>
+    /// Two saved connections opened the way the app opens them - full screen where they are set to
+    /// be - and the bar's tab of the one behind clicked with the real mouse, as a user switches.
+    /// Every step is traced: the native messages the bar gets, the WPF click, the bar's current
+    /// session and what is in front. Then the console hand-over is typed into the second session
+    /// without Enter, on the threads the app types it on, and read back. Nothing runs remotely.
+    /// </summary>
+    public static void RunSwitch(string firstName, string secondName, string? screenshotPath)
+    {
+        var (first, firstCredential) = ReadConnection(firstName);
+        var (second, secondCredential) = ReadConnection(secondName);
+        // Only the copies in memory: the database is never written.
+        foreach (var connection in new[] { first, second })
+        {
+            connection.AutoReconnect = false;
+            connection.LeaveOnConsole = false;
+        }
+        var config = new AppSettings { EnableSnapshots = false, SessionBarEnabled = true, WatchdogEnabled = false };
+        using var monitors = new MonitorService();
+        var store = DispatchProxy.Create<IDataStore, StoreProxy>();
+        var proxy = (StoreProxy)(object)store;
+        proxy.Connection = first;
+        proxy.Credential = firstCredential;
+        proxy.Others.Add((second, secondCredential));
+        using var manager = new EmbeddedSessionManager(store, new SecretProtector(), monitors,
+            new WindowPlacementService(monitors), new NoSnapshots(), () => config);
+        var services = (AppServices)Activator.CreateInstance(typeof(AppServices), nonPublic: true)!;
+        services.Settings = config;
+        typeof(AppServices).GetProperty(nameof(AppServices.Sessions))!.SetValue(services, manager);
+        typeof(AppServices).GetProperty(nameof(AppServices.Monitors))!.SetValue(services, monitors);
+        using var bar = new SessionBarService(services, DispatchProxy.Create<IAppShell, Program.NoCalls>());
+        var vm = (SessionBarViewModel)typeof(SessionBarService)
+            .GetField("_viewModel", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(bar)!;
+        var windowField = typeof(SessionBarService).GetField("_window", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        SessionBarWindow? Window() => (SessionBarWindow?)windowField.GetValue(bar);
+
+        var originalForeground = Win32.GetForegroundWindow();
+        Win32.GetCursorPos(out var originalCursor);
+        RdpSession? a = null, b = null;
+        try
+        {
+            a = LaunchConnected(manager, first);
+            b = LaunchConnected(manager, second);
+            Check(FullScreen(a) && FullScreen(b), $"Both sessions must be full screen: {first.Name}={FullScreen(a)}, {second.Name}={FullScreen(b)}.");
+            Win32.TryGetClientScreenRect(a.WindowHandle, out var ra);
+            Win32.TryGetClientScreenRect(b.WindowHandle, out var rb);
+            var monitor = monitors.GetMonitorAt(rb.Left + 20, rb.Top + 20);
+            Console.WriteLine($"SWITCH {first.Name} at {ra.Left},{ra.Top} {ra.Width}x{ra.Height}; {second.Name} at {rb.Left},{rb.Top} {rb.Width}x{rb.Height}; monitor {monitor.DeviceName} {monitor.Left},{monitor.Top} {monitor.Width}x{monitor.Height}");
+
+            Win32.ForceForeground(b.WindowHandle);
+            var middle = monitor.Left + monitor.Width / 2;
+            SetCursorPos(middle, monitor.Top + monitor.Height / 2);
+            // Let the login peek come and go; the bar must come from hovering, as the user's does.
+            PumpFor(4500);
+            Describe("before", a, b, vm, Window(), monitor);
+
+            for (var attempt = 1; attempt <= 2; attempt++)
+            {
+                var target = attempt == 1 ? a : b;
+                var other = attempt == 1 ? b : a;
+                SetCursorPos(middle, monitor.Top + monitor.Height / 2);
+                WaitUntil(() => Window()?.IsRevealed != true, "bar to hide", 4);
+                PumpFor(200);
+                SetCursorPos(middle, monitor.Top + 2);
+                WaitUntil(() => Window()?.IsRevealed == true, "hover reveal", 3);
+                PumpFor(300);
+                var window = Window()!;
+                Check(ReferenceEquals(vm.Current, other), $"The bar opened over {vm.Current?.DisplayName ?? "nothing"}, not {other.DisplayName}.");
+                using var trace = new BarTrace(window, vm, a, b, monitor);
+                var tab = Descendants<System.Windows.Controls.Button>((System.Windows.Controls.ItemsControl)window.FindName("TabList"))
+                    .First(t => t.DataContext is SessionBarTab { } st && ReferenceEquals(st.Session, target));
+                var centre = tab.PointToScreen(new System.Windows.Point(tab.ActualWidth / 2, tab.ActualHeight / 2));
+                var point = new Win32.POINT { X = (int)centre.X, Y = (int)centre.Y };
+                var hit = Win32.WindowFromPoint(point);
+                Console.WriteLine($"SWITCH {attempt}: tab '{target.DisplayName}' at {point.X},{point.Y}; under it {Win32.GetClassName(hit)} root={Win32.GetRootWindow(hit)} bar={new WindowInteropHelper(window).Handle}");
+                SetCursorPos(point.X, point.Y);
+                PumpFor(500);
+                MouseEvent(2, 0, 0, 0, UIntPtr.Zero);
+                PumpFor(80);
+                MouseEvent(4, 0, 0, 0, UIntPtr.Zero);
+                PumpFor(1500);
+                Describe($"after click {attempt}", a, b, vm, Window(), monitor);
+                Console.WriteLine($"SWITCH {attempt}: {trace.Summary()}");
+            }
+
+            SetCursorPos(middle, monitor.Top + monitor.Height / 2);
+            WaitUntil(() => Window()?.IsRevealed != true, "bar to hide", 4);
+            TypeHandOffLikeTheApp(manager, b, screenshotPath, monitor);
+        }
+        finally
+        {
+            if (a is not null) manager.CloseAsync(a.Id).GetAwaiter().GetResult();
+            if (b is not null) manager.CloseAsync(b.Id).GetAwaiter().GetResult();
+            SetCursorPos(originalCursor.X, originalCursor.Y);
+            if (originalForeground != IntPtr.Zero) Win32.ForceForeground(originalForeground);
+        }
+    }
+
+    /// <summary>
+    /// Sends Windows+R to a full-screen session in several ways and photographs the result of each,
+    /// to see which one the session actually receives. Escape follows each, so nothing is left open.
+    /// </summary>
+    public static void RunKeyProbe(string connectionName, string directory, string[] wanted)
+    {
+        var (connection, credential) = ReadConnection(connectionName);
+        connection.AutoReconnect = false;
+        connection.LeaveOnConsole = false;
+        var config = new AppSettings { EnableSnapshots = false, SessionBarEnabled = true, WatchdogEnabled = false };
+        using var monitors = new MonitorService();
+        var store = DispatchProxy.Create<IDataStore, StoreProxy>();
+        ((StoreProxy)(object)store).Connection = connection;
+        ((StoreProxy)(object)store).Credential = credential;
+        using var manager = new EmbeddedSessionManager(store, new SecretProtector(), monitors,
+            new WindowPlacementService(monitors), new NoSnapshots(), () => config);
+        var services = (AppServices)Activator.CreateInstance(typeof(AppServices), nonPublic: true)!;
+        services.Settings = config;
+        typeof(AppServices).GetProperty(nameof(AppServices.Sessions))!.SetValue(services, manager);
+        typeof(AppServices).GetProperty(nameof(AppServices.Monitors))!.SetValue(services, monitors);
+        using var bar = new SessionBarService(services, DispatchProxy.Create<IAppShell, Program.NoCalls>());
+        var windowField = typeof(SessionBarService).GetField("_window", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        SessionBarWindow? Window() => (SessionBarWindow?)windowField.GetValue(bar);
+        var originalForeground = Win32.GetForegroundWindow();
+        Win32.GetCursorPos(out var originalCursor);
+        RdpSession? session = null;
+        try
+        {
+            session = LaunchConnected(manager, connection);
+            var form = (DynatecRDM.Rdp.RdpSessionWindow)System.Windows.Forms.Control.FromHandle(session.WindowHandle)!;
+            Win32.TryGetClientScreenRect(session.WindowHandle, out var rect);
+            var monitor = monitors.GetMonitorAt(rect.Left + 20, rect.Top + 20);
+
+            // The foreground the way a user gives it: a click on the session's own tab on the bar.
+            var middle = monitor.Left + monitor.Width / 2;
+            SetCursorPos(middle, monitor.Top + monitor.Height / 2);
+            PumpFor(4500);
+            Shoot(monitor, System.IO.Path.Combine(directory, "keys-0-connected.png"), whole: true);
+            var top = Win32.GetRootWindow(Win32.WindowFromPoint(new Win32.POINT { X = middle, Y = monitor.Top + 2 }));
+            Console.WriteLine($"KEYS connected: foreground is the session={Win32.GetForegroundWindow() == session.WindowHandle}; " +
+                              $"at the top edge {Win32.GetClassName(top)} '{Win32.GetWindowText(top)}' (session: {top == session.WindowHandle})");
+            SetCursorPos(middle, monitor.Top + 2);
+            try { WaitUntil(() => Window()?.IsRevealed == true, "hover reveal", 3); }
+            catch (Exception ex) { Console.WriteLine($"KEYS {ex.Message}"); }
+            if (Window()?.IsRevealed == true)
+            {
+                PumpFor(300);
+                var tab = Descendants<System.Windows.Controls.Button>((System.Windows.Controls.ItemsControl)Window()!.FindName("TabList")).First();
+                var centre = tab.PointToScreen(new System.Windows.Point(tab.ActualWidth / 2, tab.ActualHeight / 2));
+                SetCursorPos((int)centre.X, (int)centre.Y);
+                PumpFor(300);
+                MouseEvent(2, 0, 0, 0, UIntPtr.Zero);
+                PumpFor(80);
+                MouseEvent(4, 0, 0, 0, UIntPtr.Zero);
+            }
+            SetCursorPos(middle, monitor.Top + monitor.Height / 2);
+            PumpFor(800);
+            Console.WriteLine($"KEYS ready: foreground is the session={Win32.GetForegroundWindow() == session.WindowHandle}; focus={Win32.GetClassName(GetFocus())}");
+
+            var winR = DynatecRDM.Rdp.RdpKeyboard.WindowsR();
+            var escape = DynatecRDM.Rdp.RdpKeyboard.Escape;
+            var variants = new (string Name, Action<DynatecRDM.Rdp.RdpKeyEvent[]> Send)[]
+            {
+                ("interop-one-per-call", keys => form.Host.SendKeys(keys)),
+                ("vtable-one-call", keys => SendRaw(form.Host.Ocx, keys, k => k.LParam)),
+                ("vtable-one-call-ih-focus", keys => { FocusInputWindow(form); SendRaw(form.Host.Ocx, keys, k => k.LParam); }),
+                ("vtable-one-call-scancode", keys => SendRaw(form.Host.Ocx, keys, k => k.ScanCode | (k.Extended ? 0x100 : 0))),
+            };
+            foreach (var (name, send) in variants)
+            {
+                if (!wanted.Contains(name)) continue;
+                Console.WriteLine($"KEYS {name}: foreground is the session={Win32.GetForegroundWindow() == session.WindowHandle}; focus={Win32.GetClassName(GetFocus())}");
+                send(winR);
+                PumpFor(1500);
+                Shoot(monitor, System.IO.Path.Combine(directory, $"keys-{name}.png"), whole: true);
+                send(escape);
+                PumpFor(800);
+            }
+        }
+        finally
+        {
+            if (session is not null) manager.CloseAsync(session.Id).GetAwaiter().GetResult();
+            SetCursorPos(originalCursor.X, originalCursor.Y);
+            if (originalForeground != IntPtr.Zero) Win32.ForceForeground(originalForeground);
+        }
+    }
+
+    private delegate int SendKeysFn(IntPtr self, int count, short[] keyUp, int[] keyData);
+
+    /// <summary>The whole sequence in one SendKeys call, straight through the vtable with real arrays.</summary>
+    private static void SendRaw(object ocx, DynatecRDM.Rdp.RdpKeyEvent[] keys, Func<DynatecRDM.Rdp.RdpKeyEvent, int> data)
+    {
+        var unknown = Marshal.GetComInterfaceForObject(ocx, typeof(MSTSCLib.IMsRdpClientNonScriptable));
+        try
+        {
+            var slot = Marshal.ReadIntPtr(Marshal.ReadIntPtr(unknown), 14 * IntPtr.Size);
+            var fn = Marshal.GetDelegateForFunctionPointer<SendKeysFn>(slot);
+            var hr = fn(unknown, keys.Length, keys.Select(k => (short)(k.Up ? -1 : 0)).ToArray(), keys.Select(data).ToArray());
+            if (hr != 0) Console.WriteLine($"KEYS SendKeys returned 0x{hr:X8}");
+        }
+        finally { Marshal.Release(unknown); }
+    }
+
+    private static void FocusInputWindow(DynatecRDM.Rdp.RdpSessionWindow form)
+    {
+        var found = IntPtr.Zero;
+        Win32.EnumChildWindows(form.Handle, child =>
+        {
+            if (Win32.GetClassName(child) == "IHWindowClass") { found = child; return false; }
+            return true;
+        });
+        if (found != IntPtr.Zero) SetFocus(found);
+        Console.WriteLine($"KEYS input window 0x{found.ToInt64():X}, focus now {Win32.GetClassName(GetFocus())}");
+    }
+
+    private static void Shoot(MonitorInfo monitor, string path, bool whole = false)
+    {
+        using var shot = new System.Drawing.Bitmap(monitor.Width, monitor.Height);
+        using (var g = System.Drawing.Graphics.FromImage(shot))
+            g.CopyFromScreen(monitor.Left, monitor.Top, 0, 0, shot.Size);
+        // The lower-left quarter is where the Run box opens; that is all the check needs to see.
+        var area = whole
+            ? new System.Drawing.Rectangle(0, 0, monitor.Width, monitor.Height)
+            : new System.Drawing.Rectangle(0, monitor.Height / 2, monitor.Width / 2, monitor.Height / 2);
+        using var corner = shot.Clone(area, shot.PixelFormat);
+        using var small = new System.Drawing.Bitmap(corner, corner.Width / 2, corner.Height / 2);
+        small.Save(path, System.Drawing.Imaging.ImageFormat.Png);
+    }
+
+    [DllImport("user32.dll")] private static extern IntPtr GetFocus();
+    [DllImport("user32.dll")] private static extern IntPtr SetFocus(IntPtr hwnd);
+
+    private static RdpSession LaunchConnected(EmbeddedSessionManager manager, RdpConnection connection)
+    {
+        var launch = manager.LaunchAsync(connection);
+        WaitUntil(() => launch.IsCompleted, $"launch of '{connection.Name}'", 15);
+        var session = launch.GetAwaiter().GetResult() ?? throw new Exception($"Launch of '{connection.Name}' failed.");
+        WaitUntil(() => session.State == SessionState.Connected || !session.IsActive, $"login to '{connection.Name}'", 30);
+        Check(session.State == SessionState.Connected, $"RDP login to '{connection.Name}' failed: {session.State}, {session.LastError}");
+        Console.WriteLine($"LIVE '{connection.Name}' connected.");
+        return session;
+    }
+
+    /// <summary>
+    /// Types the hand-over the way leaving a session does - focus from a pool thread, the typing
+    /// handed to the UI thread - but without Enter, and reads it back.
+    /// </summary>
+    private static void TypeHandOffLikeTheApp(EmbeddedSessionManager manager, RdpSession session, string? screenshotPath, MonitorInfo monitor)
+    {
+        var form = (DynatecRDM.Rdp.RdpSessionWindow)System.Windows.Forms.Control.FromHandle(session.WindowHandle)!;
+        var command = DynatecRDM.Rdp.RdpSessionWindow.ConsoleHandOffCommand;
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        var saved = ClipboardText();
+        try
+        {
+            var typing = Task.Run(async () =>
+            {
+                manager.Focus(session.Id);
+                var inner = await dispatcher.InvokeAsync(() => form.TypeIntoRunBoxAsync(command, submit: false)).Task;
+                return await inner;
+            });
+            WaitUntil(() => typing.IsCompleted, "typing into the Run box", 20);
+            Console.WriteLine($"CONSOLE typed={typing.Result}; foreground is the session: {Win32.GetForegroundWindow() == session.WindowHandle}");
+            PumpFor(700);
+            if (screenshotPath is not null)
+            {
+                using var shot = new System.Drawing.Bitmap(monitor.Width, monitor.Height);
+                using (var g = System.Drawing.Graphics.FromImage(shot))
+                    g.CopyFromScreen(monitor.Left, monitor.Top, 0, 0, shot.Size);
+                using var small = new System.Drawing.Bitmap(shot, monitor.Width / 2, monitor.Height / 2);
+                small.Save(screenshotPath, System.Drawing.Imaging.ImageFormat.Png);
+                Console.WriteLine($"CONSOLE screenshot: {screenshotPath}");
+            }
+            form.Host.SendKeys(Control(0x1E));
+            form.Host.SendKeys(Control(0x2E));
+            try { WaitUntil(() => ClipboardText() == command, "the typed command to come back on the clipboard", 5); }
+            catch { }
+            Console.WriteLine(ClipboardText() == command
+                ? "CONSOLE the Run box holds exactly the hand-over command."
+                : $"CONSOLE read back: '{ClipboardText()}'");
+        }
+        finally
+        {
+            form.Host.SendKeys(DynatecRDM.Rdp.RdpKeyboard.Escape);
+            PumpFor(300);
+            try { if (saved is not null) System.Windows.Clipboard.SetText(saved); } catch { }
+        }
+    }
+
+    private static void Describe(string when, RdpSession a, RdpSession b, SessionBarViewModel vm, SessionBarWindow? window, MonitorInfo monitor)
+    {
+        var centre = new Win32.POINT { X = monitor.Left + monitor.Width / 2, Y = monitor.Top + monitor.Height / 2 };
+        var top = Win32.GetRootWindow(Win32.WindowFromPoint(centre));
+        var fg = Win32.GetForegroundWindow();
+        string Name(IntPtr h) => h == a.WindowHandle ? a.DisplayName : h == b.WindowHandle ? b.DisplayName : $"{Win32.GetClassName(h)} 0x{h.ToInt64():X}";
+        Console.WriteLine($"SWITCH {when}: on top={Name(top)}; foreground={Name(fg)}; bar current={vm.Current?.DisplayName ?? "none"}; bar revealed={window?.IsRevealed}");
+    }
+
+    /// <summary>What reaches the bar while a tab is clicked: native messages, WPF input and the bar's choice.</summary>
+    private sealed class BarTrace : IDisposable
+    {
+        private readonly List<string> _events = new();
+        private readonly HwndSource? _source;
+        private readonly SessionBarWindow _window;
+        private readonly SessionBarViewModel _vm;
+        private readonly DispatcherTimer _timer;
+        private readonly long _started = Environment.TickCount64;
+        private string? _last;
+
+        public BarTrace(SessionBarWindow window, SessionBarViewModel vm, RdpSession a, RdpSession b, MonitorInfo monitor)
+        {
+            _window = window;
+            _vm = vm;
+            _source = HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);
+            _source?.AddHook(Hook);
+            window.AddHandler(System.Windows.UIElement.PreviewMouseLeftButtonDownEvent, (System.Windows.Input.MouseButtonEventHandler)OnDown, true);
+            window.AddHandler(System.Windows.UIElement.PreviewMouseLeftButtonUpEvent, (System.Windows.Input.MouseButtonEventHandler)OnUp, true);
+            window.AddHandler(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, (System.Windows.RoutedEventHandler)OnClick, true);
+            vm.PropertyChanged += OnVm;
+            _timer = new DispatcherTimer(DispatcherPriority.Send) { Interval = TimeSpan.FromMilliseconds(20) };
+            _timer.Tick += (_, _) =>
+            {
+                var centre = new Win32.POINT { X = monitor.Left + monitor.Width / 2, Y = monitor.Top + monitor.Height / 2 };
+                var top = Win32.GetRootWindow(Win32.WindowFromPoint(centre));
+                var fg = Win32.GetForegroundWindow();
+                string Name(IntPtr h) => h == a.WindowHandle ? a.DisplayName : h == b.WindowHandle ? b.DisplayName : Win32.GetClassName(h);
+                var state = $"top={Name(top)} fg={Name(fg)} current={_vm.Current?.DisplayName} revealed={_window.IsRevealed} captured={System.Windows.Input.Mouse.Captured?.GetType().Name}";
+                if (state != _last) Add(state);
+                _last = state;
+            };
+            _timer.Start();
+        }
+
+        private void Add(string what) => _events.Add($"+{Environment.TickCount64 - _started}ms {what}");
+
+        private IntPtr Hook(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            switch (message)
+            {
+                case 0x0021: Add("WM_MOUSEACTIVATE"); break;
+                case 0x0201: Add("WM_LBUTTONDOWN"); break;
+                case 0x0202: Add("WM_LBUTTONUP"); break;
+                case 0x0215: Add($"WM_CAPTURECHANGED to 0x{lParam.ToInt64():X}"); break;
+                case 0x0006: Add($"WM_ACTIVATE {wParam}"); break;
+            }
+            return IntPtr.Zero;
+        }
+
+        private void OnDown(object sender, System.Windows.Input.MouseButtonEventArgs e) =>
+            Add($"WPF down on {(e.OriginalSource as System.Windows.FrameworkElement)?.GetType().Name} handled={e.Handled}");
+
+        private void OnUp(object sender, System.Windows.Input.MouseButtonEventArgs e) =>
+            Add($"WPF up on {(e.OriginalSource as System.Windows.FrameworkElement)?.GetType().Name} handled={e.Handled}");
+
+        private void OnClick(object sender, System.Windows.RoutedEventArgs e) =>
+            Add($"WPF Click on {((e.OriginalSource as System.Windows.FrameworkElement)?.DataContext as SessionBarTab)?.Session.DisplayName ?? e.OriginalSource?.GetType().Name}");
+
+        private void OnVm(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(SessionBarViewModel.Current)) Add($"current -> {_vm.Current?.DisplayName ?? "none"}");
+        }
+
+        public string Summary() => string.Join(" | ", _events);
+
+        public void Dispose()
+        {
+            _timer.Stop();
+            _source?.RemoveHook(Hook);
+            _window.RemoveHandler(System.Windows.UIElement.PreviewMouseLeftButtonDownEvent, (System.Windows.Input.MouseButtonEventHandler)OnDown);
+            _window.RemoveHandler(System.Windows.UIElement.PreviewMouseLeftButtonUpEvent, (System.Windows.Input.MouseButtonEventHandler)OnUp);
+            _window.RemoveHandler(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, (System.Windows.RoutedEventHandler)OnClick);
+            _vm.PropertyChanged -= OnVm;
+        }
+    }
+
+    private static IEnumerable<T> Descendants<T>(System.Windows.DependencyObject parent) where T : System.Windows.DependencyObject
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is T match) yield return match;
+            foreach (var nested in Descendants<T>(child)) yield return nested;
+        }
+    }
 
     /// <summary>
     /// Types the console hand-over into the session's Run box without submitting it, then reads it
@@ -421,10 +805,16 @@ internal static class LiveSessionChecks
     {
         public RdpConnection Connection = null!;
         public CredentialSet? Credential;
+
+        /// <summary>Further connections a check launches, found by id; the first one answers when none matches.</summary>
+        public readonly List<(RdpConnection Connection, CredentialSet? Credential)> Others = new();
+
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
         {
-            nameof(IDataStore.GetCredentialSetAsync) => Task.FromResult(Credential),
-            nameof(IDataStore.GetConnectionAsync) => Task.FromResult<RdpConnection?>(Connection),
+            nameof(IDataStore.GetCredentialSetAsync) => Task.FromResult(
+                Others.FirstOrDefault(o => o.Credential?.Id == (Guid)args![0]!).Credential ?? Credential),
+            nameof(IDataStore.GetConnectionAsync) => Task.FromResult<RdpConnection?>(
+                Others.FirstOrDefault(o => o.Connection.Id == (Guid)args![0]!).Connection ?? Connection),
             nameof(IDataStore.RecordLaunchAsync) => Task.CompletedTask,
             _ => throw new InvalidOperationException($"Live test does not allow database operation {method?.Name}.")
         };
