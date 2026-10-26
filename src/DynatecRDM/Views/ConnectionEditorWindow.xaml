@@ -278,6 +278,42 @@
                                     </Button>
                                 </Grid>
 
+                                <!-- A login typed in here, stored when the connection is saved. -->
+                                <Grid Margin="0,6,0,0"
+                                      Visibility="{Binding IsEnteringCredential, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static res:Strings.Creds_Field_Username}" Style="{StaticResource EditorLabelStyle}" VerticalAlignment="Top" Margin="0,7,12,0" />
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,8">
+                                        <TextBox Style="{StaticResource AppTextBoxStyle}"
+                                                 Text="{Binding NewUsername, UpdateSourceTrigger=PropertyChanged}"
+                                                 MaxLength="256" />
+                                        <TextBlock Style="{StaticResource EditorErrorStyle}"
+                                                   Text="{Binding NewUsernameError}"
+                                                   Visibility="{Binding NewUsernameError, Converter={x:Static conv:StringToVisibilityConverter.Instance}}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Static res:Strings.Creds_Field_Domain}" Style="{StaticResource EditorLabelStyle}" />
+                                    <TextBox Grid.Row="1" Grid.Column="1"
+                                             Margin="0,0,0,8"
+                                             Style="{StaticResource AppTextBoxStyle}"
+                                             Text="{Binding NewDomain, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="256" />
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{x:Static res:Strings.Creds_Field_Password}" Style="{StaticResource EditorLabelStyle}" />
+                                    <PasswordBox Grid.Row="2" Grid.Column="1"
+                                                 x:Name="NewPasswordInput"
+                                                 Style="{StaticResource AppPasswordBoxStyle}"
+                                                 PasswordChanged="OnNewPasswordChanged" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Style="{StaticResource EditorHintStyle}" Text="{Binding NewCredentialHint}" />
+                                </Grid>
+
                                 <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="150" />
@@ -286,7 +322,7 @@
                                     <TextBlock Grid.Column="1" Style="{StaticResource EditorHintStyle}" Text="{Binding CredentialSummary}" Margin="0,0,0,0" />
                                 </Grid>
 
-                                <Grid>
+                                <Grid IsEnabled="{Binding CanChooseDelivery}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="150" />
                                         <ColumnDefinition Width="*" />
@@ -980,10 +1016,28 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource CardBorderStyle}" Background="{DynamicResource SurfaceAltBrush}">
+                        <Border Style="{StaticResource CardBorderStyle}" Background="{DynamicResource SurfaceAltBrush}" Margin="0,0,0,12">
                             <StackPanel>
                                 <TextBlock Text="{x:Static res:Strings.Editor_WhatWillHappen_Header}" Style="{StaticResource SectionHeaderStyle}" />
                                 <TextBlock Style="{StaticResource EditorValueStyle}" Text="{Binding WatchdogSummary}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Leaving hands the session to the remote computer's own screen instead of
+                             disconnecting it. Only the in-app client can do that. -->
+                        <Border Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="{x:Static res:Strings.Editor_Leave_Header}" Style="{StaticResource SectionHeaderStyle}" />
+                                <CheckBox Style="{StaticResource AppToggleStyle}"
+                                          HorizontalAlignment="Left"
+                                          IsChecked="{Binding LeaveOnConsole, Mode=TwoWay}"
+                                          Content="{x:Static res:Strings.Editor_LeaveOnConsole}" />
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Text="{x:Static res:Strings.Editor_LeaveOnConsole_Hint}" />
+                                <TextBlock Style="{StaticResource EditorHintStyle}"
+                                           Foreground="{DynamicResource WarningBrush}"
+                                           Text="{Binding LeaveOnConsoleUnsupportedText}"
+                                           Visibility="{Binding ShowLeaveOnConsoleUnsupported, Converter={x:Static conv:BoolToVisibilityConverter.Instance}}" />
                             </StackPanel>
                         </Border>
 

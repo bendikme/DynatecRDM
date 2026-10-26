@@ -441,7 +441,14 @@ public sealed class SessionManager : ISessionManager, IDisposable
         var credentialId = credentialOverride ?? connection.CredentialSetId;
 
         CredentialSet? credential = null;
-        if (credentialId.HasValue)
+        // A multi-config item's own credential still wins over signing in as the Windows user.
+        if (credentialOverride is null && connection.UseWindowsSignIn)
+        {
+            // No password, so nothing reaches the vault or the file: mstsc passes on the Windows
+            // sign-in where the delegation policy allows it, and asks otherwise.
+            credential = CredentialSet.ForWindowsUser();
+        }
+        else if (credentialId.HasValue)
         {
             credential = await _store.GetCredentialSetAsync(credentialId.Value, ct).ConfigureAwait(false);
             if (credential is null)

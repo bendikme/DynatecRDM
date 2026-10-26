@@ -20,6 +20,19 @@ public sealed class RdpConnection
 
     public CredentialDelivery CredentialDelivery { get; set; } = CredentialDelivery.Both;
 
+    /// <summary>
+    /// Sign in as the Windows user running the app (single sign-on) instead of with a credential
+    /// set. Windows only hands its sign-in to Remote Desktop where the credential delegation
+    /// policy allows it; elsewhere Remote Desktop asks for the password.
+    /// </summary>
+    public bool UseWindowsSignIn { get; set; }
+
+    /// <summary>
+    /// Leaving the session hands it to the remote computer's own screen (tscon … /dest:console)
+    /// instead of disconnecting it, so it stays signed in and unlocked there.
+    /// </summary>
+    public bool LeaveOnConsole { get; set; }
+
     public DisplaySettings Display { get; set; } = new();
     public ExperienceSettings Experience { get; set; } = new();
     public RedirectionSettings Redirection { get; set; } = new();
@@ -71,6 +84,8 @@ public sealed class RdpConnection
         Port = Port,
         CredentialSetId = CredentialSetId,
         CredentialDelivery = CredentialDelivery,
+        UseWindowsSignIn = UseWindowsSignIn,
+        LeaveOnConsole = LeaveOnConsole,
         Display = Display.Clone(),
         Experience = Experience.Clone(),
         Redirection = Redirection.Clone(),
@@ -218,6 +233,26 @@ public sealed class CredentialSet
     }
 
     public bool HasPassword => ProtectedPassword is { Length: > 0 };
+
+    /// <summary>
+    /// The Windows user running the app, for <see cref="RdpConnection.UseWindowsSignIn"/>. It has
+    /// no password: Windows passes on its own sign-in, or Remote Desktop asks for the password.
+    /// The name is exactly the one Windows reports, so Remote Desktop recognises it as the
+    /// signed-in user. A local account gets no domain, and so means the same-named account on the
+    /// far machine.
+    /// </summary>
+    public static CredentialSet ForWindowsUser()
+    {
+        var domain = Environment.UserDomainName;
+        var local = string.Equals(domain, Environment.MachineName, StringComparison.OrdinalIgnoreCase);
+        return new CredentialSet
+        {
+            Id = Guid.Empty,
+            Name = Environment.UserName,
+            Domain = local ? null : domain,
+            Username = Environment.UserName,
+        };
+    }
 
     public CredentialSet Clone() => new()
     {

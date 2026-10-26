@@ -61,6 +61,28 @@ including after opening and closing remote Start. Unlike `--live-hover`, it does
 park the pointer: the bar must receive native hit testing while the pointer is still on the exact
 top row. Pointer movement before the reveal fails the check as interrupted.
 
+To check the console hand-over without running it:
+
+```powershell
+dotnet run --project tests/DynatecRDM.RegressionTests -c Release -- --live-console-dry "Connection name"
+```
+
+This opens the remote Run box, types the `tscon` hand-over command, and reads it back with Ctrl+A,
+Ctrl+C through clipboard redirection (which the connection must allow), then presses Escape so
+nothing runs. It catches a keyboard-layout mismatch between this computer and the session. The
+local clipboard text is restored afterwards.
+
+To perform the hand-over for real, only on a computer where moving the session to its console is
+acceptable:
+
+```powershell
+dotnet run --project tests/DynatecRDM.RegressionTests -c Release -- --live-console "Connection name"
+```
+
+This leaves the session as the app does for a connection set to stay on the remote screen. Confirm
+the administrator prompt in the session within two minutes. The session must then end as a normal
+close, with no reconnect.
+
 Cross-monitor foreground switching, mixed physical monitor DPI, remote resolution negotiation,
 and external mstsc/msrdc toolbar behavior still need interactive checks.
 

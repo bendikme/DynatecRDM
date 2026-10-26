@@ -48,6 +48,19 @@ public partial class ConnectionEditorWindow : Window
         }
     }
 
+    /// <summary>The PasswordBox cannot be bound; its text goes straight to the view model.</summary>
+    private void OnNewPasswordChanged(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (sender is System.Windows.Controls.PasswordBox box) _vm.NoteNewPassword(box.Password);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("Passing the new password to the connection editor failed.", ex);
+        }
+    }
+
     private void OnClosed(object? sender, EventArgs e)
     {
         try

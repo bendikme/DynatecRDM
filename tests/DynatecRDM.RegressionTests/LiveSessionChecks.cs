@@ -12,10 +12,12 @@ using Microsoft.Data.Sqlite;
 // Explicit opt-in: authenticates with a named saved connection. Database access is read-only.
 internal static class LiveSessionChecks
 {
-    public static void Run(string connectionName, bool hoverOnly = false, bool edgeOnly = false)
+    public static void Run(string connectionName, bool hoverOnly = false, bool edgeOnly = false, ConsoleCheck console = ConsoleCheck.None)
     {
         var (connection, credential) = ReadConnection(connectionName);
         connection.AutoReconnect = false;
+        // Only the copy in memory: the database is never written.
+        connection.LeaveOnConsole = console == ConsoleCheck.HandOff;
         var config = new AppSettings { EnableSnapshots = false, SessionBarEnabled = true, WatchdogEnabled = false };
         using var monitors = new MonitorService();
         var store = DispatchProxy.Create<IDataStore, StoreProxy>();
@@ -50,6 +52,16 @@ internal static class LiveSessionChecks
             WaitUntil(() => session.State == SessionState.Connected || !session.IsActive, "login", 30);
             Check(session.State == SessionState.Connected, $"RDP login failed: {session.State}, {session.LastError}");
             Console.WriteLine("LIVE login completed.");
+            if (console == ConsoleCheck.DryRun)
+            {
+                ConsoleDryRun(session);
+                return;
+            }
+            if (console == ConsoleCheck.HandOff)
+            {
+                ConsoleHandOff(manager, session);
+                return;
+            }
 
             Check(manager.TrySetFullScreen(session.Id, true), "Full-screen request failed.");
             WaitUntil(() => FullScreen(session), "full-screen", 5);
@@ -90,6 +102,68 @@ internal static class LiveSessionChecks
             SetCursorPos(originalCursor.X, originalCursor.Y);
             if (originalForeground != IntPtr.Zero) Win32.ForceForeground(originalForeground);
         }
+    }
+
+    public enum ConsoleCheck { None, DryRun, HandOff }
+
+    /// <summary>
+    /// Types the console hand-over into the session's Run box without submitting it, then reads it
+    /// back: Ctrl+A, Ctrl+C in the Run box, and clipboard redirection brings the text here. Escape
+    /// closes the box again, so nothing runs in the session.
+    /// </summary>
+    private static void ConsoleDryRun(RdpSession session)
+    {
+        var form = (DynatecRDM.Rdp.RdpSessionWindow)System.Windows.Forms.Control.FromHandle(session.WindowHandle)!;
+        var command = DynatecRDM.Rdp.RdpSessionWindow.ConsoleHandOffCommand;
+        var saved = ClipboardText();
+        try
+        {
+            var typing = form.TypeIntoRunBoxAsync(command, submit: false);
+            WaitUntil(() => typing.IsCompleted, "typing into the Run box", 15);
+            Check(typing.Result, "Nothing was typed into the session.");
+            PumpFor(700);
+            Check(form.Host.SendKeys(Control(0x1E)) && form.Host.SendKeys(Control(0x2E)), "The session refused Ctrl+A, Ctrl+C.");
+            try { WaitUntil(() => ClipboardText() == command, "the typed command to come back on the clipboard", 8); }
+            catch
+            {
+                Console.WriteLine($"CONSOLE expected: {command}");
+                Console.WriteLine($"CONSOLE typed:    {ClipboardText()}");
+                throw;
+            }
+            Console.WriteLine("CONSOLE the Run box holds exactly the hand-over command.");
+        }
+        finally
+        {
+            form.Host.SendKeys(DynatecRDM.Rdp.RdpKeyboard.Escape);
+            PumpFor(300);
+            try { if (saved is not null) System.Windows.Clipboard.SetText(saved); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// Leaves the session the way the app does for a connection set to stay on the remote screen,
+    /// and waits for the operator to confirm the elevation in the session. The session must then
+    /// end as a normal close, not be brought back.
+    /// </summary>
+    private static void ConsoleHandOff(EmbeddedSessionManager manager, RdpSession session)
+    {
+        manager.CloseAsync(session.Id).GetAwaiter().GetResult();
+        Check(session.IsActive, "Leaving disconnected the session instead of handing it over.");
+        Console.WriteLine("CONSOLE confirm the administrator prompt in the session within two minutes.");
+        WaitUntil(() => !session.IsActive, "the session to move to the remote console", 130);
+        Check(session.State == SessionState.Disconnected, $"The hand-over ended as {session.State}: {session.LastError}");
+        Console.WriteLine("CONSOLE the session moved to the remote console and ended here without reconnecting.");
+    }
+
+    private static DynatecRDM.Rdp.RdpKeyEvent[] Control(int scanCode) =>
+    [
+        new(0x1D, false, false), new(scanCode, false, false), new(scanCode, false, true), new(0x1D, false, true),
+    ];
+
+    private static string? ClipboardText()
+    {
+        try { return System.Windows.Clipboard.ContainsText() ? System.Windows.Clipboard.GetText() : null; }
+        catch { return null; }
     }
 
     private static void RapidEdgeCycles(SessionBarService bar, RdpSession session, MonitorInfo monitor)

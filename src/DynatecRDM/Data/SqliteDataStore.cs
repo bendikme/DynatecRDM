@@ -17,7 +17,7 @@ namespace DynatecRDM.Data;
 /// </summary>
 public sealed class SqliteDataStore : IDataStore, IDisposable
 {
-    private const int SchemaVersion = 2;
+    private const int SchemaVersion = 3;
 
     /// <summary>History kept per connection; the oldest sessions beyond this are dropped.</summary>
     private const int LogEntriesPerConnection = 500;
@@ -53,6 +53,7 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
         "gateway_json", "security_json", "custom_properties_json", "auto_reconnect",
         "max_reconnect_attempts", "reconnect_delay_seconds", "color", "tags", "favorite",
         "sort_order", "created_utc", "modified_utc", "last_connected_utc", "launch_count",
+        "use_windows_sign_in", "leave_on_console",
     ];
 
     private static readonly string[] MultiConfigColumns =
@@ -201,6 +202,13 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
 
         CREATE INDEX IF NOT EXISTS ix_connection_log_connection
             ON connection_log(connection_id, started_utc DESC);
+        """;
+
+    // Version 3: signing in as the Windows user, and leaving a session on the remote console.
+    // Older builds name every column they write, so they leave these two as they found them.
+    private const string SchemaV3Sql = """
+        ALTER TABLE connections ADD COLUMN use_windows_sign_in INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE connections ADD COLUMN leave_on_console INTEGER NOT NULL DEFAULT 0;
         """;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -1009,6 +1017,9 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
                 case 1:
                     await ExecuteAsync(cn, tx, SchemaV2Sql, ct).ConfigureAwait(false);
                     break;
+                case 2:
+                    await ExecuteAsync(cn, tx, SchemaV3Sql, ct).ConfigureAwait(false);
+                    break;
                 // Future migrations: add the next case here and raise SchemaVersion.
             }
         }
@@ -1099,6 +1110,8 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
         Set(cmd, "$modified_utc", ToDb(c.ModifiedUtc));
         Set(cmd, "$last_connected_utc", ToDb(c.LastConnectedUtc));
         Set(cmd, "$launch_count", c.LaunchCount);
+        Set(cmd, "$use_windows_sign_in", ToDb(c.UseWindowsSignIn));
+        Set(cmd, "$leave_on_console", ToDb(c.LeaveOnConsole));
     }
 
     private static RdpConnection ReadConnection(DbDataReader r)
@@ -1134,6 +1147,8 @@ public sealed class SqliteDataStore : IDataStore, IDisposable
             ModifiedUtc = GetUtc(r, 22),
             LastConnectedUtc = GetNullableUtc(r, 23),
             LaunchCount = GetInt(r, 24),
+            UseWindowsSignIn = GetBool(r, 25),
+            LeaveOnConsole = GetBool(r, 26),
         };
     }
 

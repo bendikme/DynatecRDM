@@ -158,7 +158,7 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
             _model.Host = value ?? string.Empty;
             OnPropertyChanged();
             // A credential without a domain is qualified with this host's machine name.
-            OnPropertyChanged(nameof(CredentialSummary));
+            Raise(nameof(CredentialSummary), nameof(NewCredentialHint));
             ClearTestResult();
             TestCommand.RaiseCanExecuteChanged();
             Invalidate();
@@ -215,16 +215,76 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
                 return;
             }
             if (!SetProperty(ref _selectedCredential, value)) return;
-            _model.CredentialSetId = value.Id;
+            _model.UseWindowsSignIn = value.Choice == CredentialChoice.WindowsUser;
+            // A new login gets its id when the connection is saved.
+            _model.CredentialSetId = value.Choice == CredentialChoice.Stored ? value.Id : null;
+            // Typing a login in only to be asked for it every time makes no sense.
+            if (value.Choice == CredentialChoice.New && _model.CredentialDelivery == CredentialDelivery.Prompt)
+                CredentialDeliveryMode = CredentialDelivery.Both;
+            Raise(nameof(CredentialSummary), nameof(IsEnteringCredential), nameof(CanChooseDelivery),
+                nameof(NewCredentialHint));
+            UpdateCredentialDeliveryHelp();
+            Invalidate();
+        }
+    }
+
+    /// <summary>The user is typing a new login into the editor.</summary>
+    public bool IsEnteringCredential => _selectedCredential?.Choice == CredentialChoice.New;
+
+    /// <summary>How the password reaches Remote Desktop; nothing to choose when signing in as the Windows user.</summary>
+    public bool CanChooseDelivery => !_model.UseWindowsSignIn;
+
+    private string _newUsername = string.Empty;
+    public string NewUsername
+    {
+        get => _newUsername;
+        set
+        {
+            if (!SetProperty(ref _newUsername, value ?? string.Empty)) return;
             OnPropertyChanged(nameof(CredentialSummary));
             Invalidate();
         }
+    }
+
+    private string _newDomain = string.Empty;
+    public string NewDomain
+    {
+        get => _newDomain;
+        set
+        {
+            if (!SetProperty(ref _newDomain, value ?? string.Empty)) return;
+            OnPropertyChanged(nameof(CredentialSummary));
+            Invalidate();
+        }
+    }
+
+    // The new login's password. It only ever goes into the protector and the Windows vault.
+    private string _newPassword = string.Empty;
+    private readonly Guid _newCredentialId = Guid.NewGuid();
+
+    /// <summary>Called by the view whenever the user types in the new login's PasswordBox.</summary>
+    public void NoteNewPassword(string? password)
+    {
+        _newPassword = password ?? string.Empty;
+        OnPropertyChanged(nameof(CredentialSummary));
+    }
+
+    public string NewCredentialHint => UiLanguage.Format(Strings.Editor_NewCredential_Hint, HostForHelp());
+
+    private string? _newUsernameError;
+    public string? NewUsernameError
+    {
+        get => _newUsernameError;
+        private set => SetProperty(ref _newUsernameError, value);
     }
 
     public string CredentialSummary
     {
         get
         {
+            if (_model.UseWindowsSignIn) return WindowsSignInSummary();
+            if (IsEnteringCredential) return NewCredentialSummary();
+
             var set = FindCredentialSet(_model.CredentialSetId);
             if (set is null) return Strings.Editor_CredentialSummary_Prompt;
 
@@ -703,6 +763,27 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _watchdogSummary, value);
     }
 
+    public bool LeaveOnConsole
+    {
+        get => _model.LeaveOnConsole;
+        set
+        {
+            if (_model.LeaveOnConsole == value) return;
+            _model.LeaveOnConsole = value;
+            Raise(nameof(LeaveOnConsole), nameof(ShowLeaveOnConsoleUnsupported));
+            Invalidate();
+        }
+    }
+
+    /// <summary>Only the in-app client can type into the session, so only it can hand a session over.</summary>
+    public bool ShowLeaveOnConsoleUnsupported =>
+        _model.LeaveOnConsole && _services.Sessions is not EmbeddedSessionManager;
+
+    /// <summary>Why it cannot: the in-app client is off, or switched on but not running until a restart.</summary>
+    public string LeaveOnConsoleUnsupportedText => _services.Settings.UseEmbeddedClient
+        ? Strings.Editor_LeaveOnConsole_NeedsRestart
+        : Strings.Editor_LeaveOnConsole_NeedsEmbedded;
+
     // ....................................................................
     // Advanced
     // ....................................................................
@@ -788,6 +869,7 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _newPassword = string.Empty;
 
         _previewDebounce.Stop();
         _previewDebounce.Tick -= OnPreviewTick;
@@ -917,6 +999,10 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
             GatewayCredentialOptions.Clear();
 
             Credentials.Add(new CredentialOption(null, Strings.Editor_Credential_Prompt));
+            Credentials.Add(new CredentialOption(null,
+                UiLanguage.Format(Strings.Editor_Credential_WindowsUser, CredentialSet.ForWindowsUser().QualifiedUsername),
+                CredentialChoice.WindowsUser));
+            Credentials.Add(new CredentialOption(null, Strings.Editor_Credential_New, CredentialChoice.New));
             GatewayCredentialOptions.Add(new CredentialOption(null, Strings.Editor_Credential_UseSession));
 
             foreach (var c in _credentialSets)
@@ -933,9 +1019,16 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
             _populating = false;
         }
 
-        _selectedCredential = FindOption(Credentials, _model.CredentialSetId) ?? Credentials[0];
-        _model.CredentialSetId = _selectedCredential.Id;
+        // A login half typed in stays chosen when the list reloads - after Manage, say.
+        var choice = _selectedCredential?.Choice is CredentialChoice.New ? CredentialChoice.New
+            : _model.UseWindowsSignIn ? CredentialChoice.WindowsUser
+            : CredentialChoice.Stored;
+        _selectedCredential = choice == CredentialChoice.Stored
+            ? FindOption(Credentials, _model.CredentialSetId) ?? Credentials[0]
+            : Credentials.First(o => o.Choice == choice);
+        _model.CredentialSetId = _selectedCredential.Choice == CredentialChoice.Stored ? _selectedCredential.Id : null;
         OnPropertyChanged(nameof(SelectedCredential));
+        Raise(nameof(IsEnteringCredential), nameof(CanChooseDelivery));
 
         _selectedGatewayCredential = FindOption(GatewayCredentialOptions, _model.Gateway.CredentialSetId)
             ?? GatewayCredentialOptions[0];
@@ -984,12 +1077,67 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
             delay.ToString(CultureInfo.InvariantCulture));
     }
 
-    private void UpdateCredentialDeliveryHelp() => CredentialDeliveryHelp = _model.CredentialDelivery switch
+    private void UpdateCredentialDeliveryHelp() => CredentialDeliveryHelp = _model.UseWindowsSignIn
+        ? Strings.Editor_Delivery_WindowsSignIn_Help
+        : _model.CredentialDelivery switch
+        {
+            CredentialDelivery.WindowsVault => UiLanguage.Format(Strings.Editor_Delivery_Vault_Help, HostForHelp()),
+            CredentialDelivery.EmbeddedInRdpFile => Strings.Editor_Delivery_Embedded_Help,
+            CredentialDelivery.Both => Strings.Editor_Delivery_Both_Help,
+            _ => Strings.Editor_Delivery_Prompt_Help,
+        };
+
+    /// <summary>
+    /// What signing in as the Windows user will do against this host: Windows only hands its
+    /// sign-in to computers the delegation policy names, and a login already stored for the host
+    /// in Windows Credential Manager is used first.
+    /// </summary>
+    private string WindowsSignInSummary()
     {
-        CredentialDelivery.WindowsVault => UiLanguage.Format(Strings.Editor_Delivery_Vault_Help, HostForHelp()),
-        CredentialDelivery.EmbeddedInRdpFile => Strings.Editor_Delivery_Embedded_Help,
-        CredentialDelivery.Both => Strings.Editor_Delivery_Both_Help,
-        _ => Strings.Editor_Delivery_Prompt_Help,
+        var logon = CredentialSet.ForWindowsUser().GetLogonName(_model.Host);
+        var host = HostForHelp();
+        var text = CredentialDelegationPolicy.StatusFor(_model.Host) switch
+        {
+            WindowsSignInStatus.Allowed => UiLanguage.Format(Strings.Editor_WindowsSignIn_Allowed, logon, host),
+            WindowsSignInStatus.NeedsComputerName => UiLanguage.Format(Strings.Editor_WindowsSignIn_NeedsName, logon),
+            _ => UiLanguage.Format(Strings.Editor_WindowsSignIn_NotAllowed, logon, host),
+        };
+
+        var stored = StoredVaultUser();
+        return stored is null ? text : text + " " + UiLanguage.Format(Strings.Editor_WindowsSignIn_VaultWins, stored);
+    }
+
+    private string? StoredVaultUser()
+    {
+        var host = _model.Host?.Trim();
+        if (string.IsNullOrEmpty(host)) return null;
+        try { return _services.Credentials.GetStoredUsername(host); }
+        catch (Exception ex)
+        {
+            AppLog.Debug_($"Could not read the vault entry for {host}: {ex.Message}");
+            return null;
+        }
+    }
+
+    private string NewCredentialSummary()
+    {
+        var logon = DraftCredential().GetLogonName(_model.Host);
+        if (logon.Length == 0) return Strings.Editor_CredentialSummary_Prompt;
+        return _newPassword.Length > 0
+            ? UiLanguage.Format(Strings.Editor_CredentialSummary_SignsIn, logon)
+            : UiLanguage.Format(Strings.Editor_CredentialSummary_SignsInNoPassword, logon);
+    }
+
+    /// <summary>
+    /// The login being typed in, without its password. Its id stays the same for the editor's
+    /// lifetime, so saving again after a failed save updates the login instead of adding another.
+    /// </summary>
+    private CredentialSet DraftCredential() => new()
+    {
+        Id = _newCredentialId,
+        Name = _model.Name.Trim(),
+        Username = _newUsername.Trim(),
+        Domain = NullIfBlank(_newDomain),
     };
 
     private string HostForHelp()
@@ -1068,7 +1216,10 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         {
             CommitCustomProperties();
 
-            var credential = FindCredentialSet(_model.CredentialSetId);
+            var credential = _model.UseWindowsSignIn ? CredentialSet.ForWindowsUser()
+                : IsEnteringCredential ? DraftCredential()
+                : FindCredentialSet(_model.CredentialSetId);
+            var hasPassword = IsEnteringCredential ? _newPassword.Length > 0 : credential?.HasPassword == true;
             var context = new RdpBuildContext
             {
                 Display = _model.Display,
@@ -1088,8 +1239,9 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
             sb.Append(body);
             if (body.Length > 0 && !body.EndsWith('\n')) sb.AppendLine();
 
-            var embeds = _model.CredentialDelivery is CredentialDelivery.EmbeddedInRdpFile or CredentialDelivery.Both;
-            if (embeds && credential is not null && credential.HasPassword)
+            var embeds = !_model.UseWindowsSignIn
+                && _model.CredentialDelivery is CredentialDelivery.EmbeddedInRdpFile or CredentialDelivery.Both;
+            if (embeds && hasPassword)
             {
                 sb.AppendLine();
                 sb.Append("; password 51:b:<stored>").AppendLine();
@@ -1154,6 +1306,16 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
             PortError = null;
         }
 
+        if (IsEnteringCredential && string.IsNullOrWhiteSpace(_newUsername))
+        {
+            NewUsernameError = Strings.Editor_Error_UsernameRequired;
+            problems.Add(Strings.Editor_Problem_NoUsername);
+        }
+        else
+        {
+            NewUsernameError = null;
+        }
+
         IsValid = problems.Count == 0;
         ValidationSummary = problems.Count == 0
             ? null
@@ -1184,6 +1346,9 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
 
         _model.ModifiedUtc = DateTime.UtcNow;
 
+        // The connection refers to the login by id, so the login is stored first.
+        if (IsEnteringCredential && !await SaveNewCredentialAsync().ConfigureAwait(true)) return;
+
         try
         {
             await _services.Store.UpsertConnectionAsync(_model).ConfigureAwait(true);
@@ -1197,6 +1362,56 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
 
         Result = _model;
         RequestClose?.Invoke(this, true);
+    }
+
+    /// <summary>
+    /// Stores the login typed into the editor as a credential set named after the connection, and
+    /// - unless the connection asks every time - in Windows Credential Manager as TERMSRV/host,
+    /// where Remote Desktop itself looks. Only a failure to store the set stops the save: the
+    /// vault entry is written again at every launch that uses it.
+    /// </summary>
+    private async Task<bool> SaveNewCredentialAsync()
+    {
+        var set = DraftCredential();
+        var password = _newPassword;
+        var host = _model.Host;
+
+        try
+        {
+            if (password.Length > 0)
+            {
+                var protector = _services.Protector;
+                set.ProtectedPassword = await Task.Run(() => protector.Protect(password)).ConfigureAwait(true);
+            }
+            await _services.Store.UpsertCredentialSetAsync(set).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error($"Storing the login for '{_model.Name}' failed.", ex);
+            ValidationSummary = UiLanguage.Format(Strings.Editor_Error_CredentialSaveFailed, ex.Message);
+            return false;
+        }
+
+        _model.CredentialSetId = set.Id;
+        AppLog.Info($"Stored a new login for '{_model.Name}' as {set.GetLogonName(host)}.");
+
+        if (password.Length > 0 && host.Length > 0 && _model.CredentialDelivery != CredentialDelivery.Prompt)
+        {
+            var vault = _services.Credentials;
+            var user = set.GetLogonName(host);
+            var method = _services.Settings.VaultWriteMethod;
+            try
+            {
+                var stored = await Task.Run(() => vault.SaveCredential(host, user, password, method)).ConfigureAwait(true);
+                if (!stored) AppLog.Warn($"The vault entry TERMSRV/{host} was not written.");
+            }
+            catch (Exception ex)
+            {
+                AppLog.Warn($"Writing the vault entry TERMSRV/{host} failed.", ex);
+            }
+        }
+
+        return true;
     }
 
     private void Cancel() => RequestClose?.Invoke(this, false);
@@ -1593,17 +1808,30 @@ public sealed class ConnectionEditorViewModel : ObservableObject, IDisposable
         public override string ToString() => Label;
     }
 
+    /// <summary>What a sign-in choice stands for.</summary>
+    public enum CredentialChoice
+    {
+        /// <summary>A stored credential set, or none (a null id) - Windows asks.</summary>
+        Stored,
+        /// <summary>The Windows user running the app.</summary>
+        WindowsUser,
+        /// <summary>A login typed into the editor, stored when the connection is saved.</summary>
+        New,
+    }
+
     /// <summary>A credential set choice. A null id means "no stored credential".</summary>
     public sealed class CredentialOption
     {
-        public CredentialOption(Guid? id, string label)
+        public CredentialOption(Guid? id, string label, CredentialChoice choice = CredentialChoice.Stored)
         {
             Id = id;
             Label = label;
+            Choice = choice;
         }
 
         public Guid? Id { get; }
         public string Label { get; }
+        public CredentialChoice Choice { get; }
 
         public override string ToString() => Label;
     }

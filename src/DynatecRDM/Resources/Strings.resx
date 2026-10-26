@@ -597,6 +597,10 @@ The log is at {1}</value>
     <value>{0} - {1}</value>
     <comment>Credential set entry in a list. {0} = credential set name, {1} = user name including domain</comment>
   </data>
+  <data name="Editor_Credential_New" xml:space="preserve">
+    <value>New user name and password...</value>
+    <comment>Entry of the credential list: type a new login straight into the editor</comment>
+  </data>
   <data name="Editor_Credential_Prompt" xml:space="preserve">
     <value>(prompt every time)</value>
     <comment>First entry of the credential set list: no stored credential, Windows asks each time</comment>
@@ -610,8 +614,8 @@ The log is at {1}</value>
     <comment>Field label (narrow column, about 138 px): how the password reaches mstsc (vault, embedded in the .rdp file, both, prompt)</comment>
   </data>
   <data name="Editor_CredentialSet" xml:space="preserve">
-    <value>Credential set</value>
-    <comment>Field label: stored credential set used to sign in</comment>
+    <value>Sign in with</value>
+    <comment>Field label: how the connection signs in - a stored credential set, the Windows account, or a new login</comment>
   </data>
   <data name="Editor_CredentialSummary_Prompt" xml:space="preserve">
     <value>Windows will prompt for a user name and password.</value>
@@ -624,6 +628,10 @@ The log is at {1}</value>
   <data name="Editor_CredentialSummary_SignsInNoPassword" xml:space="preserve">
     <value>Signs in as {0} - no password stored, Windows will ask.</value>
     <comment>Hint under the credential set list when the set has no password. {0} = the logon name sent</comment>
+  </data>
+  <data name="Editor_Credential_WindowsUser" xml:space="preserve">
+    <value>Your Windows account ({0})</value>
+    <comment>Entry of the credential list: sign in as the Windows user running the app. {0} = DOMAIN\user</comment>
   </data>
   <data name="Editor_CursorShadow" xml:space="preserve">
     <value>Cursor shadow</value>
@@ -677,6 +685,10 @@ The log is at {1}</value>
     <value>The login is written to the Windows Credential Vault as TERMSRV/{0} just before launch. Nothing sensitive reaches the .rdp file.</value>
     <comment>Explanation under the credential delivery list. {0} = host name (or the placeholder &lt;host&gt;)</comment>
   </data>
+  <data name="Editor_Delivery_WindowsSignIn_Help" xml:space="preserve">
+    <value>Nothing is stored: signing in as your Windows account needs no password here.</value>
+    <comment>Explanation under the credential delivery list when Windows sign-in is chosen</comment>
+  </data>
   <data name="Editor_Description" xml:space="preserve">
     <value>Description</value>
     <comment>Field label: free-text description of the connection</comment>
@@ -705,6 +717,10 @@ The log is at {1}</value>
     <value>Enable CredSSP (network level authentication)</value>
     <comment>Toggle on the Security and program tab</comment>
   </data>
+  <data name="Editor_Error_CredentialSaveFailed" xml:space="preserve">
+    <value>The login could not be saved: {0}</value>
+    <comment>Shown when storing the new login fails. {0} = the error</comment>
+  </data>
   <data name="Editor_Error_HostRequired" xml:space="preserve">
     <value>A host name or IP address is required.</value>
     <comment>Validation message under the host field</comment>
@@ -724,6 +740,10 @@ The log is at {1}</value>
   <data name="Editor_Error_SaveFailed" xml:space="preserve">
     <value>The connection could not be saved: {0}</value>
     <comment>Shown in the validation bar. {0} = error message</comment>
+  </data>
+  <data name="Editor_Error_UsernameRequired" xml:space="preserve">
+    <value>Enter the user name to sign in with.</value>
+    <comment>Validation error under the new login's user name</comment>
   </data>
   <data name="Editor_Favourite" xml:space="preserve">
     <value>Show as a favourite in the tray menu</value>
@@ -869,6 +889,26 @@ The log is at {1}</value>
     <value>Decides where combinations such as Alt+Tab and the Windows key are handled.</value>
     <comment>Hint under the keyboard option</comment>
   </data>
+  <data name="Editor_LeaveOnConsole" xml:space="preserve">
+    <value>Leave the session running on the remote computer's own screen</value>
+    <comment>Toggle on the Watchdog tab</comment>
+  </data>
+  <data name="Editor_LeaveOnConsole_Hint" xml:space="preserve">
+    <value>Disconnecting hands the session to the remote computer's console (tscon … /dest:console) instead of disconnecting it, so it stays signed in and unlocked there. Windows on the remote computer asks you to confirm with administrator rights. Disconnect again while it waits to disconnect the usual way.</value>
+    <comment>Explanation under the leave-on-console toggle</comment>
+  </data>
+  <data name="Editor_LeaveOnConsole_NeedsEmbedded" xml:space="preserve">
+    <value>Only sessions hosted inside this app can be handed to the remote screen; with the external Remote Desktop client they disconnect as usual. Turn on “Host the remote desktop inside this app” in Settings and restart the app.</value>
+    <comment>Warning under the leave-on-console toggle when the external client is used</comment>
+  </data>
+  <data name="Editor_LeaveOnConsole_NeedsRestart" xml:space="preserve">
+    <value>“Host the remote desktop inside this app” is on, but it takes effect the next time you start the app. Until then sessions disconnect as usual.</value>
+    <comment>Warning under the leave-on-console toggle before a restart</comment>
+  </data>
+  <data name="Editor_Leave_Header" xml:space="preserve">
+    <value>WHEN YOU LEAVE</value>
+    <comment>Section header on the Watchdog tab</comment>
+  </data>
   <data name="Editor_List_JoinLast" xml:space="preserve">
     <value>{0}, {1}</value>
     <comment>Joins the last item onto a list. {0} = the earlier items (already separated by ', '), {1} = the last item. Used for monitor lists and the validation problems</comment>
@@ -953,6 +993,10 @@ The log is at {1}</value>
     <value>Network detection only applies while the connection quality is set to detect automatically.</value>
     <comment>Hint under the connection toggles; the quoted text refers to Editor_Quality_AutoDetect</comment>
   </data>
+  <data name="Editor_NewCredential_Hint" xml:space="preserve">
+    <value>Saved as a credential named after this connection, and in Windows Credential Manager as TERMSRV/{0}, so Remote Desktop finds it there too.</value>
+    <comment>Hint under the new login fields. {0} = the host</comment>
+  </data>
   <data name="Editor_Organisation_Header" xml:space="preserve">
     <value>ORGANISATION AND SIGN-IN</value>
     <comment>Section header on the General tab: group, credential set, credential delivery</comment>
@@ -1012,6 +1056,10 @@ The log is at {1}</value>
   <data name="Editor_Problem_NoName" xml:space="preserve">
     <value>the connection needs a name</value>
     <comment>Item in the Editor_Validation_Summary list (lowercase, no full stop)</comment>
+  </data>
+  <data name="Editor_Problem_NoUsername" xml:space="preserve">
+    <value>the new login has no user name</value>
+    <comment>Fragment of the validation summary</comment>
   </data>
   <data name="Editor_Problem_PortNotNumber" xml:space="preserve">
     <value>the port is not a number</value>
@@ -1512,6 +1560,22 @@ The log is at {1}</value>
   <data name="Editor_Width" xml:space="preserve">
     <value>Width</value>
     <comment>Field label for a width in pixels (custom rectangle and custom session size)</comment>
+  </data>
+  <data name="Editor_WindowsSignIn_Allowed" xml:space="preserve">
+    <value>Signs in as {0} without asking: Windows passes your sign-in on to {1}.</value>
+    <comment>Hint for Windows sign-in when the policy allows it. {0} = DOMAIN\user, {1} = host</comment>
+  </data>
+  <data name="Editor_WindowsSignIn_NeedsName" xml:space="preserve">
+    <value>Windows only passes your sign-in on to a computer it knows by name. With an IP address, Remote Desktop asks for the password of {0}.</value>
+    <comment>Hint for Windows sign-in with an IP address. {0} = DOMAIN\user</comment>
+  </data>
+  <data name="Editor_WindowsSignIn_NotAllowed" xml:space="preserve">
+    <value>Signs in as {0}. Windows only passes your sign-in on to computers listed in the policy “Allow delegating default credentials” (TERMSRV/{1}); until an administrator adds this one, Remote Desktop asks for your password.</value>
+    <comment>Hint for Windows sign-in when the policy does not cover the host. {0} = DOMAIN\user, {1} = host</comment>
+  </data>
+  <data name="Editor_WindowsSignIn_VaultWins" xml:space="preserve">
+    <value>Windows Credential Manager already holds a login for this computer ({0}), and Remote Desktop uses that one instead.</value>
+    <comment>Added to the Windows sign-in hint when a TERMSRV entry exists. {0} = the stored user name</comment>
   </data>
   <data name="Editor_WorkingDirectory" xml:space="preserve">
     <value>Working directory</value>
@@ -2488,6 +2552,10 @@ The log is at {1}</value>
   <data name="SessionBar_ShowFrame_Tooltip" xml:space="preserve">
     <value>Show window frame, to move or resize the window</value>
     <comment>Session bar</comment>
+  </data>
+  <data name="Session_HandingOff" xml:space="preserve">
+    <value>{0} - handing over to the remote screen...</value>
+    <comment>Session window title while the session is handed to the remote console. {0} = the connection</comment>
   </data>
   <data name="Session_Menu_AlwaysOnTop" xml:space="preserve">
     <value>Always on top</value>

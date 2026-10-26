@@ -357,7 +357,10 @@ public static class RdpControlConfigurator
         nonScriptable.ResetPassword();
         ax.UserName = string.Empty;
         ax.Domain = string.Empty;
-        nonScriptable.PromptForCredentials = connection.CredentialDelivery == CredentialDelivery.Prompt;
+        // Signing in as the Windows user never forces the prompt: that would stop the control
+        // passing on the Windows sign-in, which is the whole point.
+        var prompt = connection.CredentialDelivery == CredentialDelivery.Prompt && !connection.UseWindowsSignIn;
+        nonScriptable.PromptForCredentials = prompt;
 
         // The connection bar is suppressed here as well as through AdvancedSettings: this flag stops
         // the bar being created at all, which is what keeps it away in full screen.
@@ -389,7 +392,7 @@ public static class RdpControlConfigurator
         var plain = credential?.PlainPassword;
         var hasPassword = !string.IsNullOrEmpty(plain);
 
-        if (connection.CredentialDelivery == CredentialDelivery.Prompt)
+        if (prompt)
         {
             // The connection is set to always prompt: ask, and do not offer a stored password.
             nonScriptable.PromptForCredentials = true;

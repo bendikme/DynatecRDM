@@ -454,13 +454,113 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
     public Task CloseAsync(Guid sessionId, CancellationToken ct = default)
     {
         if (!_runtime.TryGetValue(sessionId, out var runtime)) return Task.CompletedTask;
+        if (!TryBeginHandOff(runtime)) CloseNow(runtime);
+        return Task.CompletedTask;
+    }
 
+    private void CloseNow(Runtime runtime)
+    {
+        runtime.HandingOff = false;
         runtime.Session.UserInitiatedClose = true;
         runtime.Closed = true;
         // Closing a window that shows why it failed does not turn the failure into a normal end.
         if (runtime.ShowingFailure) Finish(runtime, SessionState.Failed, runtime.FailureReason);
         else Finish(runtime, SessionState.Disconnected);
-        return Task.CompletedTask;
+    }
+
+    // ---------------------------------------------------------------- leaving on the remote console
+
+    /// <summary>How long a hand-over waits for the user to confirm it in the session.</summary>
+    private static readonly TimeSpan HandOffTimeout = TimeSpan.FromMinutes(2);
+
+    /// <summary>One hand-over types at a time: keystrokes go to the session that has the focus.</summary>
+    private readonly SemaphoreSlim _handOffGate = new(1, 1);
+
+    /// <summary>
+    /// Leaving a connection set to stay on the remote screen hands the session to the remote
+    /// computer's console instead of disconnecting it. False - disconnect as usual - when the
+    /// connection is not set that way, the session is not signed in, or a hand-over is already
+    /// waiting: leaving again while it waits is how the user disconnects after all.
+    /// </summary>
+    private bool TryBeginHandOff(Runtime runtime)
+    {
+        if (runtime.Closed || runtime.Connection is not { LeaveOnConsole: true }) return false;
+        if (runtime.HandingOff)
+        {
+            AppLog.Info($"'{runtime.Session.DisplayName}' was closed again while it was being handed over; disconnecting it.");
+            return false;
+        }
+        if (runtime.Session.State != SessionState.Connected || runtime.Window is not { IsDisposed: false }) return false;
+
+        runtime.HandingOff = true;
+        var attempt = Interlocked.Increment(ref runtime.HandOffAttempt);
+        // Not inline: this can be the window's own FormClosing, which must finish before typing starts.
+        _ = Task.Run(() => HandOffAsync(runtime, attempt));
+        return true;
+    }
+
+    private async Task HandOffAsync(Runtime runtime, int attempt)
+    {
+        var session = runtime.Session;
+        bool Current() => !runtime.Closed && runtime.HandingOff && Volatile.Read(ref runtime.HandOffAttempt) == attempt;
+
+        AppLog.Info($"Handing '{session.DisplayName}' over to the remote computer's console.");
+        OnUi(() =>
+        {
+            if (runtime.Window is { IsDisposed: false } window)
+                window.Text = UiLanguage.Format(Strings.Session_HandingOff, session.DisplayName);
+        });
+        // In front, so the confirmation Windows asks for in the session is seen.
+        Focus(session.Id);
+
+        var sent = false;
+        await _handOffGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (Current())
+                sent = await AwaitOnUiAsync(() => runtime.Window is { IsDisposed: false } window
+                    ? window.HandOffToConsoleAsync()
+                    : Task.FromResult(false)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"Typing the console hand-over into '{session.DisplayName}' failed.", ex);
+        }
+        finally { _handOffGate.Release(); }
+
+        if (!Current()) return;
+        if (!sent)
+        {
+            // Nothing reached the session, so nothing will move it: the user asked to leave, and
+            // leaving the ordinary way is the next best thing.
+            AppLog.Warn($"'{session.DisplayName}' could not be handed to the console; disconnecting it instead.");
+            OnUi(() => CloseNow(runtime));
+            return;
+        }
+
+        // The session ends from the far side once Windows has moved it; OnDisconnected finishes
+        // it. If the user turns the confirmation down, it simply stays connected.
+        var deadline = DateTime.UtcNow + HandOffTimeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(500).ConfigureAwait(false);
+            if (!Current()) return;
+        }
+
+        runtime.HandingOff = false;
+        AppLog.Warn($"'{session.DisplayName}' was not handed to the console within {HandOffTimeout.TotalSeconds:0} s; it stays connected.");
+        OnUi(() =>
+        {
+            if (runtime.Window is { IsDisposed: false } window) window.Text = session.DisplayName;
+        });
+    }
+
+    private static async Task<T> AwaitOnUiAsync<T>(Func<Task<T>> action)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is null || dispatcher.CheckAccess()) return await action().ConfigureAwait(false);
+        var inner = await dispatcher.InvokeAsync(action).Task.ConfigureAwait(false);
+        return await inner.ConfigureAwait(false);
     }
 
     public Task CloseMultiAsync(Guid multiConfigId, CancellationToken ct = default)
@@ -656,7 +756,15 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
         };
         window.FormClosing += (_, e) =>
         {
-            if (!e.Cancel) session.UserInitiatedClose = true;
+            if (e.Cancel) return;
+            // The user closing the window leaves the session like any other way of leaving it.
+            // The app closing it - Finish, shutdown - has already marked it closed.
+            if (e.CloseReason == System.Windows.Forms.CloseReason.UserClosing && TryBeginHandOff(runtime))
+            {
+                e.Cancel = true;
+                return;
+            }
+            session.UserInitiatedClose = true;
         };
 
         window.ReceivedServerKey += (_, _) => runtime.Progress?.OnServerKey();
@@ -723,6 +831,15 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
             + $"state={session.State}, requestedClose={session.UserInitiatedClose}, timedOut={runtime.TimedOut}, detail={info.Message}");
         runtime.ConnectedOnce.TrySetResult(false);
         if (runtime.Closed || session.UserInitiatedClose) return;
+
+        // Handed to the console: the session carries on over there, and is not brought back here.
+        if (runtime.HandingOff)
+        {
+            AppLog.Info($"'{session.DisplayName}' was handed over to the remote computer's console.");
+            session.UserInitiatedClose = true;
+            Finish(runtime, SessionState.Disconnected);
+            return;
+        }
 
         // A reconnect disconnects on purpose. Without this the deliberate teardown would be read as
         // a dropped link and end the session we are in the middle of bringing back.
@@ -996,6 +1113,9 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
     private async Task<(CredentialSet? Set, string? Password)> ResolveCredentialAsync(
         RdpConnection connection, Guid? credentialOverride, CancellationToken ct)
     {
+        // A multi-config item's own credential still wins over signing in as the Windows user.
+        if (credentialOverride is null && connection.UseWindowsSignIn) return (CredentialSet.ForWindowsUser(), null);
+
         var credentialId = credentialOverride ?? connection.CredentialSetId;
         if (!credentialId.HasValue) return (null, null);
 
@@ -1496,5 +1616,14 @@ public sealed class EmbeddedSessionManager : ISessionManager, IDisposable
         public volatile bool ShowingFailure;
         public string? FailureReason;
         public volatile bool OverlayVisible;
+
+        /// <summary>
+        /// The session is being handed to the remote console: its disconnect is the hand-over
+        /// succeeding, and ends the session rather than bringing it back.
+        /// </summary>
+        public volatile bool HandingOff;
+
+        /// <summary>Counts hand-overs, so a late timer of an old one changes nothing.</summary>
+        public int HandOffAttempt;
     }
 }

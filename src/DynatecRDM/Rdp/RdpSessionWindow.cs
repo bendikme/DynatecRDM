@@ -505,6 +505,55 @@ public sealed class RdpSessionWindow : Form
         WindowState = FormWindowState.Minimized;
     }
 
+    /// <summary>
+    /// What is typed into the session's Run box to hand the session to the remote computer's
+    /// console: tscon with the session's own id - read from the PowerShell process, which runs in
+    /// it - and Start-Process -Verb RunAs, because tscon needs administrator rights and Windows
+    /// asks the user in the session to confirm. Everything after -Command is the command, so no
+    /// quotes are needed; that also keeps out the characters dead keys make unreliable.
+    /// </summary>
+    internal const string ConsoleHandOffCommand =
+        "powershell.exe -NoProfile -WindowStyle Hidden -Command Start-Process tscon.exe "
+        + "-ArgumentList ((Get-Process -Id $PID).SessionId),/dest:console -Verb RunAs -WindowStyle Hidden";
+
+    /// <summary>Time for the Run box to open before the command is typed into it.</summary>
+    private const int RunBoxDelayMs = 1500;
+
+    /// <summary>
+    /// Types <see cref="ConsoleHandOffCommand"/> into the session through its Run box. True once it
+    /// is sent; the session itself then ends when Windows has moved it to the console, after the
+    /// user has confirmed. False when nothing was sent: not connected, or the keyboard layout has
+    /// no key for a character of the command.
+    /// </summary>
+    public Task<bool> HandOffToConsoleAsync() => TypeIntoRunBoxAsync(ConsoleHandOffCommand, submit: true);
+
+    /// <summary>
+    /// Opens the session's Run box and types <paramref name="command"/> into it, pressing Enter
+    /// when <paramref name="submit"/> is set. False when nothing could be typed.
+    /// </summary>
+    internal async Task<bool> TypeIntoRunBoxAsync(string command, bool submit)
+    {
+        if (!_connected) return false;
+
+        var typed = new List<RdpKeyEvent>(command.Length * 4);
+        if (!RdpKeyboard.TryType(command, RdpKeyboard.CurrentLayout(), typed, out var missing))
+        {
+            AppLog.Warn($"'{Text}' cannot type into its Run box: the keyboard layout has no key for '{missing}'.");
+            return false;
+        }
+
+        // The keystrokes go where a real keyboard's would, so the session has the focus.
+        Activate();
+        try { _host.WinFormsControl.Focus(); } catch { }
+
+        if (!_host.SendKeys(RdpKeyboard.WindowsR())) return false;
+        await Task.Delay(RunBoxDelayMs);
+        if (!_connected || !_host.SendKeys(typed)) return false;
+
+        // Delete takes away anything the Run box's autocomplete appended after the command.
+        return !submit || (_host.SendKeys(RdpKeyboard.Delete) && _host.SendKeys(RdpKeyboard.Enter));
+    }
+
     public event EventHandler? Connecting;
     public event EventHandler? ReceivedServerKey;
     public event EventHandler<bool>? AuthenticationWarning;

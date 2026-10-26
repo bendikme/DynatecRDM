@@ -39,6 +39,13 @@ public static partial class Program
             app.Shutdown();
             return _failed == 0 ? 0 : 1;
         }
+        if (args.Length == 2 && args[0] is "--live-console-dry" or "--live-console")
+        {
+            var check = args[0] == "--live-console" ? LiveSessionChecks.ConsoleCheck.HandOff : LiveSessionChecks.ConsoleCheck.DryRun;
+            Run("Live console hand-over", () => LiveSessionChecks.Run(args[1], console: check));
+            app.Shutdown();
+            return _failed == 0 ? 0 : 1;
+        }
         if (args.Length == 2 && args[0] is "--live" or "--live-hover" or "--live-edge")
         {
             Run("Live saved RDP connection and session controls", () => LiveSessionChecks.Run(args[1], args[0] != "--live", args[0] == "--live-edge"));
@@ -69,6 +76,9 @@ public static partial class Program
         Run("Session bar follows window identity and hides when the session ends", BarTracking);
         Run("Session bar reveal strip scales and respects monitor boundaries", RevealBand);
         Run("Update tokens are encrypted, round-trip, and migrate from older settings", TokenStorage);
+        Run("Windows sign-in never forces the prompt and sends no password", WindowsSignIn);
+        Run("The console hand-over types on this layout and releases every key", ConsoleHandOffKeys);
+        Run("Sign-in and console settings survive the database and its upgrade", ConnectionSignInStorage);
         Run("RDP Connect sends negotiation to a loopback listener", ConnectTransport);
         Run("Closed RDP windows and overlays are collectible", SessionLifetime);
         Run("Session overlays avoid desktop-sized bitmap allocations", SessionOverlayAllocations);

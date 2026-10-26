@@ -171,7 +171,10 @@ public sealed class RdpFileBuilder : IRdpFileBuilder
             }
         }
 
-        var mustPrompt = connection.CredentialDelivery == CredentialDelivery.Prompt || userName.Length == 0;
+        // Signing in as the Windows user never forces the prompt: that would stop mstsc passing on
+        // the Windows sign-in, which is the whole point.
+        var mustPrompt = (connection.CredentialDelivery == CredentialDelivery.Prompt && !connection.UseWindowsSignIn)
+            || userName.Length == 0;
         lines.Bool("prompt for credentials", mustPrompt);
         lines.Int("authentication level", (int)sec.AuthenticationLevel);
         lines.Bool("enablecredsspsupport", sec.EnableCredSsp);

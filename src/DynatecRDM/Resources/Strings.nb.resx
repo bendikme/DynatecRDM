@@ -460,6 +460,9 @@ Loggen ligger her: {1}</value>
   <data name="Editor_Credential_Label" xml:space="preserve">
     <value>{0} – {1}</value>
   </data>
+  <data name="Editor_Credential_New" xml:space="preserve">
+    <value>Nytt brukernavn og passord...</value>
+  </data>
   <data name="Editor_Credential_Prompt" xml:space="preserve">
     <value>(spør hver gang)</value>
   </data>
@@ -470,7 +473,7 @@ Loggen ligger her: {1}</value>
     <value>Legitimasjonslevering</value>
   </data>
   <data name="Editor_CredentialSet" xml:space="preserve">
-    <value>Legitimasjonssett</value>
+    <value>Logg på med</value>
   </data>
   <data name="Editor_CredentialSummary_Prompt" xml:space="preserve">
     <value>Windows ber om brukernavn og passord.</value>
@@ -480,6 +483,9 @@ Loggen ligger her: {1}</value>
   </data>
   <data name="Editor_CredentialSummary_SignsInNoPassword" xml:space="preserve">
     <value>Logger på som {0} – passordet er ikke lagret, så Windows spør etter det.</value>
+  </data>
+  <data name="Editor_Credential_WindowsUser" xml:space="preserve">
+    <value>Windows-kontoen din ({0})</value>
   </data>
   <data name="Editor_CursorShadow" xml:space="preserve">
     <value>Skygge under musepekeren</value>
@@ -520,6 +526,9 @@ Loggen ligger her: {1}</value>
   <data name="Editor_Delivery_Vault_Help" xml:space="preserve">
     <value>Påloggingen lagres i Windows-legitimasjonshvelvet som TERMSRV/{0} rett før økten starter. Ingenting sensitivt havner i .rdp-filen.</value>
   </data>
+  <data name="Editor_Delivery_WindowsSignIn_Help" xml:space="preserve">
+    <value>Ingenting lagres: pålogging med Windows-kontoen trenger ikke passord her.</value>
+  </data>
   <data name="Editor_Description" xml:space="preserve">
     <value>Beskrivelse</value>
   </data>
@@ -541,6 +550,9 @@ Loggen ligger her: {1}</value>
   <data name="Editor_EnableCredSsp" xml:space="preserve">
     <value>Slå på CredSSP (godkjenning på nettverksnivå)</value>
   </data>
+  <data name="Editor_Error_CredentialSaveFailed" xml:space="preserve">
+    <value>Påloggingen kunne ikke lagres: {0}</value>
+  </data>
   <data name="Editor_Error_HostRequired" xml:space="preserve">
     <value>Skriv inn et vertsnavn eller en IP-adresse.</value>
   </data>
@@ -555,6 +567,9 @@ Loggen ligger her: {1}</value>
   </data>
   <data name="Editor_Error_SaveFailed" xml:space="preserve">
     <value>Tilkoblingen kunne ikke lagres: {0}</value>
+  </data>
+  <data name="Editor_Error_UsernameRequired" xml:space="preserve">
+    <value>Skriv inn brukernavnet det skal logges på med.</value>
   </data>
   <data name="Editor_Favourite" xml:space="preserve">
     <value>Vis som favoritt i hurtigstartmenyen</value>
@@ -664,6 +679,21 @@ Loggen ligger her: {1}</value>
   <data name="Editor_KeyboardHook_Hint" xml:space="preserve">
     <value>Bestemmer hvor kombinasjoner som Alt+Tab og Windows-tasten skal virke.</value>
   </data>
+  <data name="Editor_LeaveOnConsole" xml:space="preserve">
+    <value>La økten fortsette på den eksterne maskinens egen skjerm</value>
+  </data>
+  <data name="Editor_LeaveOnConsole_Hint" xml:space="preserve">
+    <value>Frakobling flytter økten til den eksterne maskinens konsoll (tscon … /dest:console) i stedet for å koble den fra, slik at den forblir pålogget og ulåst der. Windows på den eksterne maskinen ber deg bekrefte med administratorrettigheter. Koble fra en gang til mens den venter for å koble fra på vanlig måte.</value>
+  </data>
+  <data name="Editor_LeaveOnConsole_NeedsEmbedded" xml:space="preserve">
+    <value>Bare økter som vises inne i denne appen, kan flyttes til den eksterne skjermen; med en egen klient for eksternt skrivebord kobles de fra som vanlig. Slå på «Vis det eksterne skrivebordet inne i denne appen» under Innstillinger, og start appen på nytt.</value>
+  </data>
+  <data name="Editor_LeaveOnConsole_NeedsRestart" xml:space="preserve">
+    <value>«Vis det eksterne skrivebordet inne i denne appen» er slått på, men trer i kraft neste gang du starter appen. Frem til da kobles øktene fra som vanlig.</value>
+  </data>
+  <data name="Editor_Leave_Header" xml:space="preserve">
+    <value>NÅR DU FORLATER ØKTEN</value>
+  </data>
   <data name="Editor_List_JoinLast" xml:space="preserve">
     <value>{0} og {1}</value>
   </data>
@@ -727,6 +757,9 @@ Loggen ligger her: {1}</value>
   <data name="Editor_NetworkDetect_Hint" xml:space="preserve">
     <value>Automatisk oppdagelse av nettverkskvalitet virker bare når tilkoblingskvaliteten står på «Oppdag automatisk».</value>
   </data>
+  <data name="Editor_NewCredential_Hint" xml:space="preserve">
+    <value>Lagres som legitimasjon med samme navn som tilkoblingen, og i Windows Legitimasjonsbehandling som TERMSRV/{0}, slik at Eksternt skrivebord også finner den der.</value>
+  </data>
   <data name="Editor_Organisation_Header" xml:space="preserve">
     <value>ORGANISERING OG PÅLOGGING</value>
   </data>
@@ -771,6 +804,9 @@ Loggen ligger her: {1}</value>
   </data>
   <data name="Editor_Problem_NoName" xml:space="preserve">
     <value>tilkoblingen mangler navn</value>
+  </data>
+  <data name="Editor_Problem_NoUsername" xml:space="preserve">
+    <value>den nye påloggingen mangler brukernavn</value>
   </data>
   <data name="Editor_Problem_PortNotNumber" xml:space="preserve">
     <value>porten er ikke et tall</value>
@@ -1146,6 +1182,18 @@ Loggen ligger her: {1}</value>
   </data>
   <data name="Editor_Width" xml:space="preserve">
     <value>Bredde</value>
+  </data>
+  <data name="Editor_WindowsSignIn_Allowed" xml:space="preserve">
+    <value>Logger på som {0} uten å spørre: Windows sender påloggingen din videre til {1}.</value>
+  </data>
+  <data name="Editor_WindowsSignIn_NeedsName" xml:space="preserve">
+    <value>Windows sender bare påloggingen videre til en maskin den kjenner ved navn. Med en IP-adresse ber Eksternt skrivebord om passordet til {0}.</value>
+  </data>
+  <data name="Editor_WindowsSignIn_NotAllowed" xml:space="preserve">
+    <value>Logger på som {0}. Windows sender bare påloggingen videre til maskiner som står i policyen «Tillat delegering av standardlegitimasjon» (TERMSRV/{1}); til en administrator legger til denne, ber Eksternt skrivebord om passordet ditt.</value>
+  </data>
+  <data name="Editor_WindowsSignIn_VaultWins" xml:space="preserve">
+    <value>Windows Legitimasjonsbehandling har allerede en pålogging for denne maskinen ({0}), og Eksternt skrivebord bruker den i stedet.</value>
   </data>
   <data name="Editor_WorkingDirectory" xml:space="preserve">
     <value>Arbeidsmappe</value>
@@ -1878,6 +1926,9 @@ Loggen ligger her: {1}</value>
   </data>
   <data name="SessionBar_ShowFrame_Tooltip" xml:space="preserve">
     <value>Vis vindusrammen for å flytte vinduet eller endre størrelsen</value>
+  </data>
+  <data name="Session_HandingOff" xml:space="preserve">
+    <value>{0} – flyttes til den eksterne skjermen ...</value>
   </data>
   <data name="Session_Menu_AlwaysOnTop" xml:space="preserve">
     <value>Alltid øverst</value>
